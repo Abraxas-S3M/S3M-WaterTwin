@@ -8,7 +8,7 @@ laboratory-validated measurements.
 
 from __future__ import annotations
 
-from watertwin.engineering.constants import (
+from watertwin_engineering.constants import (
     GAS_CONSTANT_J_PER_MOL_K,
     KELVIN_OFFSET,
     NACL_MOLAR_MASS_G_PER_MOL,
@@ -19,7 +19,7 @@ from watertwin.engineering.constants import (
 
 def osmotic_pressure_bar(
     tds_mg_per_l: float,
-    temperature_c: float,
+    temperature_c: float = 25.0,
     *,
     vant_hoff_factor: float = NACL_VANT_HOFF_FACTOR,
     molar_mass_g_per_mol: float = NACL_MOLAR_MASS_G_PER_MOL,

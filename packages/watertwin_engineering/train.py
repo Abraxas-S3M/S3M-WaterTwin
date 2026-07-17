@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from watertwin.engineering.osmotic import seawater_osmotic_pressure_bar
-from watertwin.engineering.ro import (
+from watertwin_engineering.osmotic import seawater_osmotic_pressure_bar
+from watertwin_engineering.ro import (
     concentration_factor,
     net_driving_pressure_bar,
     recovery_fraction,

@@ -3,8 +3,9 @@
 # The NLP solver (ipopt) is installed HERE ONLY, via the IDAES solver
 # extensions. It must never be added to the shared API image.
 #
-# Build context is the repository root so the shared `packages/` and
-# `watertwin/` sources can be copied in:
+# Build context is the repository root so the shared `packages/` sources
+# (canonical model, simulation contracts, watertwin_engineering physics) can be
+# copied in:
 #   docker build -f services/treatment-sim/Dockerfile -t treatment-sim .
 FROM python:3.11-slim AS base
 
@@ -36,7 +37,6 @@ RUN idaes get-extensions --verbose || echo "WARN: idaes get-extensions failed; a
 ENV PATH="/root/.idaes/bin:${PATH}"
 
 COPY packages ./packages
-COPY watertwin ./watertwin
 COPY services/treatment-sim/app ./app
 
 EXPOSE 8080

@@ -1,4 +1,4 @@
-"""Cross-check the service RO model against watertwin.calculations.
+"""Cross-check the service RO model against the analytical reference.
 
 The two are independent implementations of the same physics (discretized
 multi-segment vs lumped average element). They must agree within tolerance for a
@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from app import ro_model
-from watertwin import calculations
+from watertwin_engineering import calculations
 
 TOLERANCE = 0.15
 

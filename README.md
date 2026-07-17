@@ -21,9 +21,10 @@ by tests:
 
 There is **no control-write code path anywhere**. No part of this service can
 command a PLC, SCADA, VFD, valve, pump, or dosing system. The platform
-recommends; a human decides; everything is audited. The safety envelope
-(`watertwin.safety.SafetyEnvelope`) is *fail-closed*: it cannot be constructed in
-any non-advisory state.
+recommends; a human decides; everything is audited. The shared control boundary
+(`canonical_water_model.ControlBoundary`) defaults to advisory / read-only, and a
+CI boundary-guard fails the build if `control_write_enabled = True` ever appears
+in `services/` or `packages/`.
 
 ## Truthfulness
 
@@ -121,8 +122,12 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
   open-source **WaterTAP/IDAES** stack (analytical reference model when the
   ipopt solver is not present); baseline, optimize, sensitivity, and
   membrane-degradation what-ifs.
-- `dashboard` — static Simulation Center (nginx) showing baseline-vs-scenario
-  pressure/flow deltas, confidence, and recommendations.
+- `apps/dashboard` — React + TypeScript + Vite operator Simulation Center,
+  built and served by nginx (which proxies `/api` to `watertwin-api`).
+- `packages/watertwin_engineering` — the single canonical physics package
+  (osmotic pressure, NDP, flux, recovery, salt rejection/passage, concentration
+  factor, TCF, specific energy, whole-train evaluation, and the lumped
+  analytical RO reference used to cross-check `treatment-sim`).
 
 ## Full persistent stack (Phase 10)
 
@@ -162,27 +167,25 @@ Operator-facing digital twin for seawater reverse-osmosis (SWRO) water
 treatment. **Advisory, no-write**: the system never writes to plant controls;
 every recommendation requires operator approval and is recorded for audit.
 
-This repository is built in phases. This document reflects **Phase 7 — the
-production operator dashboard** (React + TypeScript + Vite) plus a reference API
-that serves the canonical model so the dashboard runs end-to-end.
+The operator dashboard is React + TypeScript + Vite; it consumes the canonical
+`/api/v1` contract served by `watertwin-api`.
 
 ## Repository layout
 
 ```
+packages/
+  canonical_water_model/   Shared canonical Pydantic model (single source)
+  simulation_contracts/    Shared what-if simulation request/result contracts
+  watertwin_engineering/   Single canonical physics package (all RO math)
+services/
+  watertwin-api/           Orchestration API (Simulation Center, recommendations)
+  hydraulic-sim/           Read-only EPANET/WNTR hydraulic what-if
+  treatment-sim/           Read-only WaterTAP/IDAES RO process what-if
 apps/
-  dashboard/        React + TypeScript + Vite operator dashboard (Phase 7)
-  api/              Reference WaterTwin API (Phase-7 stand-in for Phase 6)
-    app/canonical_water_model.py   Canonical Pydantic model (vendored from Phase 1)
-docs/
-  OPEN_SOURCE_REGISTER.md  Third-party dependencies + licenses
-Dockerfile          Multi-stage build: dashboard -> static, served by the API
-docker-compose.yml  One-command stack
+  dashboard/               React + TypeScript + Vite operator dashboard
+docs/ infrastructure/ .github/
+docker-compose.yml         One-command stack
 ```
-
-> Note: Phase 6 (the production API) is not yet merged into `main`, so this phase
-> ships a self-contained reference API that vendors the Phase 1 canonical model.
-> When Phase 6 lands, the dashboard points at the real backend unchanged — it
-> already consumes the canonical `/api/v1` contract.
 
 ## Quick start (one command)
 
@@ -225,10 +228,10 @@ mount, so a single container provides both the UI and the `/api/v1` surface.
 Two terminals:
 
 ```bash
-# 1) Reference API on :8000
-cd apps/api
+# 1) Orchestration API on :8000
+cd services/watertwin-api
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+PYTHONPATH=../../packages uvicorn app.main:app --reload --port 8000
 
 # 2) Dashboard dev server on :5173 (proxies /api -> :8000)
 cd apps/dashboard
@@ -279,32 +282,28 @@ npm run test       # vitest component tests
 npm run test:e2e   # optional Playwright smoke (requires: npx playwright install)
 ```
 
-## Reference API (`apps/api`)
+## Orchestration API (`services/watertwin-api`)
 
-A FastAPI service that generates provenance-tagged synthetic/preliminary data
-conforming to the canonical water model and exposes the `/api/v1` endpoints the
-dashboard consumes, including approve/reject that round-trips into an in-memory
-audit trail. It is a **Phase-7 stand-in** for the Phase 6 backend and is
-replaced when that lands. Key endpoints:
+A FastAPI service that drives the Simulation Center: it runs baseline-vs-scenario
+hydraulic what-ifs, builds provenance-tagged recommendation cards, generates
+downloadable scenario reports, and persists audit + recommendations to
+TimescaleDB (in-memory fallback). Every response carries the read-only control
+boundary. Key endpoints:
 
 ```
-GET  /api/v1/control-boundary
-GET  /api/v1/overview
-GET  /api/v1/assets            GET /api/v1/assets/{id}
-GET  /api/v1/streams
-GET  /api/v1/health-scores     GET /api/v1/health-scores/{id}
-GET  /api/v1/anomaly           GET /api/v1/anomaly/{id}
-GET  /api/v1/telemetry/{id}
-GET  /api/v1/pump-curve/{id}
-GET  /api/v1/recommendations   POST /api/v1/recommendations           (Ask S3M)
-POST /api/v1/recommendations/{id}/approve
-POST /api/v1/recommendations/{id}/reject
+GET  /health
+GET  /api/v1/simulation-center/network
+POST /api/v1/simulation-center/run
+GET  /api/v1/recommendations   GET /api/v1/recommendations/{id}
+POST /api/v1/recommendations/{id}/decision
+POST /api/v1/reports/scenario/{job_id}
 GET  /api/v1/audit
+POST /api/v1/reset
 ```
 
 ## Licensing of dependencies
 
-See [`docs/OPEN_SOURCE_REGISTER.md`](docs/OPEN_SOURCE_REGISTER.md).
+See [`docs/licensing/open-source-register.md`](docs/licensing/open-source-register.md).
 **WaterTwin** is an advisory digital-twin *conductor* for water infrastructure
 (distribution networks and treatment processes). It ingests operational packets,
 routes them through advisory reasoning, produces commander-/operator-ready

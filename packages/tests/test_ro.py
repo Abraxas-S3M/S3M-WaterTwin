@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from watertwin.engineering.ro import (
+from watertwin_engineering.ro import (
     concentration_factor,
     net_driving_pressure_bar,
     recovery_fraction,

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 
-from watertwin.engineering.constants import (
+from watertwin_engineering.constants import (
     PASCAL_PER_BAR,
     REFERENCE_TEMPERATURE_C,
     SECONDS_PER_HOUR,
