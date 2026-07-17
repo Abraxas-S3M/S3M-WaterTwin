@@ -1,0 +1,162 @@
+# watertwin-api component defaults. Environment overrides live in the umbrella
+# chart's values-<env>.yaml under the `watertwin-api:` key.
+componentTier: api
+
+replicaCount: 1
+
+image:
+  registry: ""
+  repository: s3m-watertwin/watertwin-api
+  tag: ""            # defaults to the chart appVersion
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+nameOverride: ""
+# Stable service name so in-cluster DNS (and the dashboard nginx proxy) can
+# reach it as "watertwin-api" regardless of the Helm release name.
+fullnameOverride: watertwin-api
+
+serviceAccount:
+  create: true
+  name: ""
+  automount: false
+  annotations: {}
+
+automountServiceAccountToken: false
+
+# Hardened pod / container security context (read-only rootfs, non-root).
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+ports:
+  - name: http
+    containerPort: 8000
+    protocol: TCP
+
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+
+# Non-sensitive configuration. Values are run through `tpl`, so the release name
+# is available if needed; stable service names are used here for clarity.
+env:
+  HYDRAULIC_SIM_URL: "http://hydraulic-sim:8100"
+  TREATMENT_SIM_URL: "http://treatment-sim:8080"
+  WATERTWIN_RECO_STORE: "/data/recommendations.json"
+  WATERTWIN_CORS_ORIGINS: "*"
+  WATERTWIN_AUTH_DISABLED: "false"
+  WATERTWIN_OIDC_ISSUER: "http://keycloak/realms/watertwin"
+  WATERTWIN_OIDC_JWKS_URI: "http://keycloak/realms/watertwin/protocol/openid-connect/certs"
+
+# Sensitive values are ALWAYS injected from a pre-created Secret (never inlined).
+# The full DSN (incl. password) lives in the secret referenced below; create it
+# out-of-band, e.g.:
+#   kubectl create secret generic watertwin-db \
+#     --from-literal=database-url='postgresql://watertwin:<pw>@timescaledb:5432/watertwin'
+secretEnv:
+  - name: WATERTWIN_DATABASE_URL
+    secretName: watertwin-db
+    secretKey: database-url
+
+extraEnv: []
+envFrom: []
+
+# Ephemeral writable scratch dir (rootfs is read-only).
+volumes:
+  - name: data
+    emptyDir: {}
+volumeMounts:
+  - name: data
+    mountPath: /data
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 15
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+podLabels: {}
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts: []
+  tls: []
+
+# NetworkPolicy: default-deny is provided namespace-wide by the umbrella chart;
+# this adds the explicit allow-list for the API.
+networkPolicy:
+  enabled: true
+  allowDNS: true
+  ingress:
+    - from:
+        - component: dashboard
+        - component: edge-gateway
+      ports:
+        - port: 8000
+    # Ingress controller (adjust the namespace to your environment).
+    - from:
+        - namespace: ingress-nginx
+      ports:
+        - port: 8000
+  egress:
+    - to:
+        - component: hydraulic-sim
+      ports:
+        - port: 8100
+    - to:
+        - component: treatment-sim
+      ports:
+        - port: 8080
+    - to:
+        - component: timescaledb
+        - component: postgis
+      ports:
+        - port: 5432
+    # OIDC / JWKS (Keycloak). Restrict the CIDR per environment in prod.
+    - to:
+        - cidr: 0.0.0.0/0
+      ports:
+        - port: 443
+        - port: 8080

@@ -109,6 +109,24 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
 - `packages/simulation_contracts` — shared what-if simulation request/result
   contracts (`provenance="simulated"`, `status="preliminary"`, read-only control
   boundary).
+- `packages/network_twin` — shared geospatial network twin: a dependency-light
+  EPANET `.inp` importer (topology shared with `hydraulic-sim`), synthetic
+  geo-referencing, canonical-asset linkage, RFC 7946 GeoJSON serialization, and
+  the EPANET-residual leak-localization overlay builder.
+- `packages/watertwin_models` — the **D1 framework**: `ModelSpec` metadata,
+  synthetic back-test harness, false-alarm tracking, confidence calibration,
+  population-stability-index drift hooks and a benchmark scaffold. Pure and
+  deterministic; the three D1 models (HP-pump condition, membrane fouling & salt
+  passage, cartridge-filter replacement) reuse the canonical physics + WQ/membrane
+  layer and expose read-only endpoints under `/api/v1/models` — every threshold is
+  **preliminary pending customer calibration** (see
+  [`docs/validation/d1-models.md`](docs/validation/d1-models.md)).
+- `packages/watertwin_events` — shared **advisory service-event bus** (NATS) for
+  publish/subscribe of notification-only events (telemetry-ingested,
+  alert-raised, workorder-created, config-published, audit-appended). The bus is
+  **advisory-only** — a subject guard rejects any control verb so a control
+  command can never be published — and degrades gracefully to direct in-process
+  delivery (log + metric) when the broker is unavailable.
 
 ## Services
 
@@ -122,8 +140,22 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
   open-source **WaterTAP/IDAES** stack (analytical reference model when the
   ipopt solver is not present); baseline, optimize, sensitivity, and
   membrane-degradation what-ifs.
+- `services/edge-gateway` — **outbound-only, read-only** OT edge collector. Reads
+  the plant OT feed (reusing the shared read-only source adapters), validates
+  data quality (range/staleness/frozen/deadband), buffers to a local
+  **encrypted store-and-forward** queue, and **pushes** canonical telemetry to
+  the `watertwin-api` ingest endpoint. It binds no inbound listener.
+- `services/edge-gateway` — **read-only** telemetry **store-and-forward** edge
+  gateway; reads/synthesizes plant telemetry and forwards it to the
+  `watertwin-api` ingest endpoint over a durable on-disk spool, so a gateway
+  killed mid-stream recovers with no data loss (idempotent ingest de-duplicates
+  replays). No control-write path.
 - `apps/dashboard` — React + TypeScript + Vite operator Simulation Center,
   built and served by nginx (which proxies `/api` to `watertwin-api`).
+- `packages/ot_ingestion` — the shared, importable **read-only** OT source
+  adapters (OPC UA / Modbus / historian / synthetic) + the tag-normalization /
+  tag-map schema. Used by both `watertwin-api` and `edge-gateway` (no duplicated
+  logic); a boundary-guard test scans it for forbidden control-write paths.
 - `packages/watertwin_engineering` — the single canonical physics package
   (osmotic pressure, NDP, flux, recovery, salt rejection/passage, concentration
   factor, TCF, specific energy, whole-train evaluation, and the lumped
@@ -139,22 +171,59 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
 | `watertwin-api` | http://localhost:8000 | Orchestration, recommendations, reports; persists to TimescaleDB |
 | `hydraulic-sim` | http://localhost:8100 | EPANET/WNTR hydraulic what-if |
 | `treatment-sim` | http://localhost:8081 | WaterTAP/IDAES RO process what-if |
+| `edge-gateway` | _(no port; outbound-only)_ | Read-only OT edge collector; pushes telemetry to `watertwin-api` |
+| `edge-gateway` | http://localhost:8200 | Read-only telemetry store-and-forward gateway |
 | `timescaledb` | localhost:5432 | Persistent store (`WATERTWIN_DATABASE_URL`) |
+| `nats` | localhost:4222 (monitor :8222) | Advisory service-event bus (`NATS_URL`); notification-only |
+| `prometheus` | http://localhost:9090 | Scrapes each service's `/metrics` |
+| `grafana` | http://localhost:3000 | Auto-provisioned WaterTwin dashboard (admin/admin) |
 
 The API persists audit events and recommendations to TimescaleDB
-(`infrastructure/database/init.sql` creates the telemetry hypertable and the
-audit + recommendation tables) and degrades gracefully to in-memory when no
-database is configured.
+(`infrastructure/database/init.sql` creates the telemetry hypertable, the
+audit + recommendation tables, and the PostGIS `network_element` table for the
+geospatial twin) and degrades gracefully to in-memory when no database is
+configured. The store image is `timescaledb-ha`, which bundles **PostGIS**
+alongside TimescaleDB.
 
 Additional Phase 10 capabilities:
 
 - **Downloadable scenario reports**: `POST /api/v1/reports/scenario/{job_id}`
   returns a Markdown report (baseline vs scenario, impacts, recommended
   response, confidence, provenance, and a mandatory read-only boundary footer).
+- **Model governance registry** (D1/D2): `GET /api/v1/models` exposes a
+  read-only governance view of every deterministic analytical model — version,
+  spec (inputs/outputs/method/assumptions), current headline metrics, and a
+  drift status derived from a registered baseline. `GET /api/v1/models/{id}` for
+  a single model. Surfaced on the dashboard **Models & Compliance** tab.
+- **Configurable regulatory compliance** (A1 config store): per-parameter
+  regulatory limits (e.g. turbidity, conductivity, chlorine residual) live in a
+  deployment-configurable config store (`WATERTWIN_COMPLIANCE_LIMITS_PATH` /
+  `WATERTWIN_COMPLIANCE_LIMITS`). `GET /api/v1/compliance/limits` lists them,
+  `GET /api/v1/compliance/status` screens current values and flags exceedances,
+  and `POST /api/v1/reports/compliance` renders a printable compliance summary
+  (flagged exceedances with provenance/basis + the standard disclaimer and the
+  mandatory read-only boundary footer).
 - **CI safety-boundary guard**: `.github/workflows/ci.yml` fails the build if a
   control-write path (`control_write_enabled = True`) ever appears in
   `services/` or `packages/`, alongside per-service lint/type/test and a
   supply-chain job (CycloneDX SBOMs + `pip-audit` + secret scanning).
+- **Advisory service-event bus** (NATS): `watertwin-api` publishes notification
+  events (telemetry-ingested, alert-raised, workorder-created, config-published,
+  audit-appended) via `packages/watertwin_events`. The bus is **advisory /
+  notification only** — a subject guard rejects any control verb (guard test:
+  `packages/tests/test_event_bus.py`), so a control command can never ride the
+  bus. If NATS is unset/unreachable the API **degrades gracefully** to direct
+  in-process delivery (log + metric); state is surfaced at
+  `GET /api/v1/events/status` and in `/health` (`event_bus.*`). Configure with
+  `NATS_URL` (unset ⇒ degraded).
+- **Observability**: every service is instrumented via the shared
+  `watertwin_observability` package — structured JSON logs with correlation ids,
+  OpenTelemetry traces, and Prometheus metrics (request latency, telemetry
+  ingest lag, job buffer depth, RO model drift, audit-chain length) exposed at
+  `GET /metrics`. `docker compose up` also starts Prometheus + Grafana (with a
+  provisioned dashboard); the same stack ships as a Helm chart at
+  `infrastructure/helm/watertwin-monitoring`. See
+  [`docs/architecture/observability.md`](docs/architecture/observability.md).
 - **SBOMs**: `docs/licensing/sbom/*.cdx.json` (regenerate with `make sbom`).
 - **Guided demo**: `docs/demonstrations/demo-script.md` (`make scenario-degrade`,
   `make reset`).
@@ -165,6 +234,32 @@ Additional Phase 10 capabilities:
   dev-mode env; the identity flows into the audit trail. This does **not** relax
   the advisory/read-only boundary. See
   [`docs/security/identity.md`](docs/security/identity.md).
+- **Geospatial network twin** (commercial hardening): a geo-referenced digital
+  twin of the water-distribution network (pipes, junctions, valves, pumps,
+  tanks, reservoirs), imported from the **same EPANET model** the hydraulic
+  simulation runs so twin and simulation **share topology**, linked to canonical
+  asset ids and persisted in **PostGIS** (in-memory / GeoJSON fallback for
+  tests). `GET /api/v1/network/` serves GeoJSON feature collections, per-asset
+  spatial lookup, nearest-element lookup, and an **EPANET-residual
+  leak-localization overlay** that reuses the hydraulic-sim residual ranking to
+  surface candidate zones — explicitly **preliminary + synthetic** (coordinates
+  are a synthetic geo-reference, never surveyed positions). See
+  [`packages/network_twin`](packages/network_twin).
+- **Telemetry ingest + edge store-and-forward**: `POST /api/v1/ingestion/telemetry`
+  is an **idempotent** (on `batch_id`) ingest path that records each batch in the
+  tamper-evident audit chain; the `edge-gateway` service buffers to a durable
+  spool and replays after an outage/crash with no data loss or duplication.
+- **Reliability drills & load tests**:
+  - **Load** — `tests/load/` (k6) drives the ingest + read paths;
+    `make load-smoke` runs a CI-friendly smoke profile (also a **non-blocking**
+    CI job).
+  - **Chaos** — `make chaos` (`tests/chaos/edge_gateway_chaos.sh`) kills the
+    edge-gateway mid-stream and asserts store-and-forward recovers with no data
+    loss and a still-valid audit chain.
+  - **Disaster recovery** — `make dr-drill` (`scripts/dr_drill.sh`, reusing
+    `scripts/backup_audit_db.sh`) backs up and restores via `pg_dump`/`pg_restore`
+    and verifies audit-chain integrity post-restore. See
+    [`docs/deployment/dr-runbook.md`](docs/deployment/dr-runbook.md).
 
 - **Administration** (commercial hardening): an admin-only surface for
   licensing/entitlement feature-gating by tenant/plan, usage metering
@@ -179,7 +274,7 @@ Additional Phase 10 capabilities:
   [`docs/operations/signed-updates.md`](docs/operations/signed-updates.md).
 
 > Deferred to a later commercial-hardening work package (documented, not built):
-> PostGIS spatial features and multi-tenancy.
+> multi-tenancy.
 
 ## Run the stack
 Operator-facing digital twin for seawater reverse-osmosis (SWRO) water
@@ -196,10 +291,12 @@ packages/
   canonical_water_model/   Shared canonical Pydantic model (single source)
   simulation_contracts/    Shared what-if simulation request/result contracts
   watertwin_engineering/   Single canonical physics package (all RO math)
+  ot_ingestion/            Shared read-only OT source adapters + tag normalization
 services/
   watertwin-api/           Orchestration API (Simulation Center, recommendations)
   hydraulic-sim/           Read-only EPANET/WNTR hydraulic what-if
   treatment-sim/           Read-only WaterTAP/IDAES RO process what-if
+  edge-gateway/            Outbound-only read-only OT edge collector
 apps/
   dashboard/               React + TypeScript + Vite operator dashboard
 docs/ infrastructure/ .github/
@@ -320,6 +417,61 @@ GET  /api/v1/audit
 POST /api/v1/reset
 ```
 
+### Customer configuration service (`app/configuration/`)
+
+A versioned, approval-gated configuration store for customer onboarding data —
+asset hierarchy, tag discovery/mapping (customer tag → `asset_id.metric`, reusing
+`app/tag_normalization.py`), engineering units, scaling/offset, sampling
+frequency, alarm thresholds, rated equipment, pump curves, membrane models,
+process stages, sampling points, lab methods, compliance limits and user role
+assignments. Config entity shapes shared with analytics live in
+`packages/canonical_water_model`; the versioning/approval wrapper stays in the
+service.
+
+Every configuration record is versioned and **immutable-on-publish**
+(`draft → submitted → approved → active`); an audit entry is appended to the
+tamper-evident hash chain on every state change, approval is RBAC-gated
+(engineer/admin only), and published versions are never deleted — a change
+supersedes the prior active version. Persisted to the existing store
+(TimescaleDB with in-memory fallback). Configuration is declarative data only and
+never touches a control path, so the advisory / read-only invariant is unchanged.
+
+```
+GET  /api/v1/config/entities
+GET  /api/v1/config/{entity}                       list active versions
+POST /api/v1/config/{entity}                       create a draft            (engineer)
+GET  /api/v1/config/{entity}/{id}                  active (or latest) version
+PUT  /api/v1/config/{entity}/{id}                  edit the draft            (engineer)
+GET  /api/v1/config/{entity}/{id}/versions         full version history
+POST /api/v1/config/{entity}/{id}/publish          draft → submitted         (engineer)
+POST /api/v1/config/{entity}/{id}/approve          submitted → approved → active (engineer/admin)
+```
+
+### Operator Training Simulator (SIMULATION, sandboxed, read-only)
+
+A guided operator-training capability built on the platform's *existing*
+replayable synthetic telemetry + scenario engines. An operator injects a drill
+(pump degradation / leak / outage / storm–power-loss), diagnoses the **simulated**
+twin snapshot, has their actions + approvals captured in a sandbox, and is scored
+against an expected-response rubric to produce a durable training record.
+
+It is clearly labelled **SIMULATION** and the sandbox **cannot emit any command** —
+there is no control path, no OT connector and no PLC/SCADA/VFD/valve/pump write.
+Every response carries the read-only control boundary, `provenance="simulated"`
+and a mandatory SIMULATION disclaimer; session lifecycle events are audited.
+
+```
+GET  /api/v1/training/scenarios
+POST /api/v1/training/sessions
+GET  /api/v1/training/sessions/{session_id}
+POST /api/v1/training/sessions/{session_id}/actions
+POST /api/v1/training/sessions/{session_id}/submit
+GET  /api/v1/training/records
+```
+
+The dashboard surfaces this as the **Training Simulator** page
+(`apps/dashboard/src/pages/TrainingSimulator.tsx`).
+
 ## Licensing of dependencies
 
 See [`docs/licensing/open-source-register.md`](docs/licensing/open-source-register.md).
@@ -361,6 +513,18 @@ human operator remains the sole authority for any physical action. The three
 boundary fields, and what the platform may and may not do, are specified in
 [`docs/security/control-boundaries.md`](docs/security/control-boundaries.md) and
 the [`LICENSE`](LICENSE).
+
+For edge deployments next to a live plant, WaterTwin is **XiiD-ready**: the edge
+gateway connects to the platform **strictly outbound** (SealedTunnel / XOTC
+style, no public IP or inbound ports on the OT side, mTLS, process-to-process),
+and a `DEPLOYMENT_PROFILE=one_way_diode` flag disables every platform→OT request
+path at startup (fail-closed). The reference topology (with an IEC 62443
+zone/conduit sketch and where the Xiid mesh connector / XOTC terminates) is in
+[`docs/deployment/edge-xiid-reference.md`](docs/deployment/edge-xiid-reference.md);
+network-layer enforcement is under
+[`infrastructure/network-policy/`](infrastructure/network-policy/) and
+[`infrastructure/gateway/`](infrastructure/gateway/). WaterTwin does **not**
+reimplement Xiid ZKN crypto — it consumes the Xiid connector as a black box.
 
 ## Work-package scope
 

@@ -1,0 +1,12 @@
+apiVersion: v2
+name: dashboard
+description: >-
+  Operator Simulation Center UI (React/TypeScript served by nginx). Proxies
+  /api and /health to the WaterTwin API. Read-only advisory UI.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+dependencies:
+  - name: watertwin-common
+    version: 0.1.0
+    repository: "file://../../../watertwin-common"

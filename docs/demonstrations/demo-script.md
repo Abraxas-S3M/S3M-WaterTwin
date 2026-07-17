@@ -225,6 +225,9 @@ Re-open the dashboard; it returns to the empty state, ready for the next run.
 ## What was (deliberately) not shown
 
 Deferred to the commercial-hardening work package and intentionally **not** built
-here: authentication / SSO (Keycloak), OT/SCADA connectivity, multi-tenancy, and
-PostGIS spatial features. And — by design and enforced in CI — there is **no
-control-write path** anywhere in the platform.
+here: multi-tenancy. (Authentication / SSO via Keycloak, and the PostGIS-backed
+geospatial network twin — GeoJSON feature collections, per-asset spatial lookup,
+and the EPANET-residual leak-localization overlay under `/api/v1/network/` — are
+now built; the twin shares topology with the hydraulic simulation and every
+overlay is labelled preliminary + synthetic.) And — by design and enforced in
+CI — there is **no control-write path** anywhere in the platform.

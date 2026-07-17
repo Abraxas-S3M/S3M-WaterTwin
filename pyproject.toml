@@ -18,6 +18,13 @@ dependencies = [
     "pydantic==2.10.4",
     "scipy==1.18.0",
     "uvicorn[standard]==0.34.0",
+    # Observability: Prometheus metrics + OpenTelemetry traces (structured JSON
+    # logging in watertwin_observability needs no third-party dependency).
+    "prometheus-client==0.25.0",
+    "opentelemetry-api==1.44.0",
+    "opentelemetry-sdk==1.44.0",
+    "opentelemetry-exporter-otlp-proto-http==1.44.0",
+    "opentelemetry-instrumentation-fastapi==0.65b0",
 ]
 
 [project.optional-dependencies]
@@ -32,7 +39,19 @@ Repository = "https://github.com/Abraxas-S3M/S3M-WaterTwin"
 
 [tool.setuptools.packages.find]
 where = ["packages"]
-include = ["canonical_water_model*", "simulation_contracts*", "watertwin_engineering*"]
+include = [
+    "canonical_water_model*",
+    "simulation_contracts*",
+    "watertwin_engineering*",
+    "network_twin*",
+]
+
+[tool.setuptools.package-data]
+network_twin = ["networks/*.inp"]
+    "watertwin_models*",
+    "watertwin_events*",
+    "watertwin_observability*",
+]
 
 [tool.ruff]
 line-length = 100

@@ -48,6 +48,18 @@ class JobStore:
         async with self._lock:
             return self._jobs.get(job_id)
 
+    def buffer_depth(self) -> int:
+        """Number of jobs currently queued or running (best-effort snapshot).
+
+        Read without awaiting the async lock so it is callable from the
+        synchronous Prometheus scrape path; a momentarily stale count is fine.
+        """
+        return sum(
+            1
+            for job in list(self._jobs.values())
+            if job.state in (JobState.queued, JobState.running)
+        )
+
     async def _update(self, job_id: str, **changes) -> None:
         async with self._lock:
             job = self._jobs.get(job_id)

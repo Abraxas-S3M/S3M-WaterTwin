@@ -1,0 +1,12 @@
+apiVersion: v2
+name: hydraulic-sim
+description: >-
+  Read-only EPANET/WNTR hydraulic what-if simulation service. Advisory only; it
+  never writes to any control system.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+dependencies:
+  - name: watertwin-common
+    version: 0.1.0
+    repository: "file://../../../watertwin-common"

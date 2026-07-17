@@ -11,7 +11,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from canonical_water_model import ControlBoundary, now_iso
+from canonical_water_model import (
+    COMPLIANCE_DISCLAIMER,
+    ComplianceEvaluation,
+    ComplianceLimit,
+    ControlBoundary,
+    LimitBound,
+    now_iso,
+)
 
 REPORT_DISCLAIMER = (
     "This report is advisory and preliminary. All figures are read-only what-if "
@@ -146,6 +153,118 @@ def build_scenario_report(job_id: str, run: dict[str, Any]) -> str:
     lines.append(f"- control_write_enabled: `{str(boundary.control_write_enabled).lower()}`")
     lines.append("")
     lines.append(f"> {REPORT_DISCLAIMER}")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def _bound_phrase(bound: LimitBound) -> str:
+    return "≤" if bound == LimitBound.max else "≥"
+
+
+def build_compliance_report(
+    evaluation: ComplianceEvaluation,
+    limits: list[ComplianceLimit],
+    *,
+    report_id: str | None = None,
+) -> str:
+    """Return a printable Markdown regulatory-compliance summary.
+
+    Screens the current (synthetic) water-quality values against the configured
+    per-parameter regulatory limits, flagging every exceedance with its
+    regulatory basis (provenance). The document ends with the mandatory
+    read-only boundary footer + the standard compliance disclaimer so it can
+    never be mistaken for a certified regulatory submission or an authorization
+    to act on plant equipment.
+    """
+    boundary = evaluation.control_boundary or ControlBoundary()
+    rid = report_id or f"compliance-{evaluation.facility_id}"
+    overall = "COMPLIANT" if evaluation.compliant else "EXCEEDANCES DETECTED"
+
+    lines: list[str] = []
+    lines.append("# Regulatory Compliance Summary")
+    lines.append("")
+    lines.append(f"- Report ID: `{rid}`")
+    lines.append(f"- Facility / train: `{evaluation.facility_id}` / `{evaluation.train_id}`")
+    lines.append(f"- Generated at: {evaluation.generated_at or now_iso()}")
+    if evaluation.scenario_fouling is not None:
+        lines.append(f"- Scenario fouling severity: {_fmt(evaluation.scenario_fouling)}")
+    lines.append(f"- Provenance: **{evaluation.provenance.value}**")
+    lines.append(f"- Overall status: **{overall}**")
+    lines.append(
+        f"- Checks evaluated: {len(evaluation.checks)} · "
+        f"Exceedances: **{len(evaluation.exceedances)}**"
+    )
+    lines.append("")
+
+    # Configured limits (the A1 config store) ---------------------------------
+    lines.append("## Configured limits (A1 config store)")
+    lines.append("")
+    lines.append("| Parameter | Stage | Limit | Unit | Basis |")
+    lines.append("| --- | --- | --- | --- | --- |")
+    for limit in limits:
+        lines.append(
+            f"| {limit.display_name} (`{limit.parameter}`) | {limit.stage} | "
+            f"{_bound_phrase(limit.bound)} {_fmt(limit.limit)} | {limit.unit} | {limit.basis} |"
+        )
+    lines.append("")
+
+    # Exceedances (flagged) ---------------------------------------------------
+    lines.append("## Exceedances")
+    lines.append("")
+    if evaluation.exceedances:
+        lines.append("| Parameter | Stage | Value | Limit | Over by | Basis |")
+        lines.append("| --- | --- | --- | --- | --- | --- |")
+        for ex in evaluation.exceedances:
+            lines.append(
+                f"| **{ex.display_name}** (`{ex.parameter}`) | {ex.stage} | "
+                f"{_fmt(ex.value)} {ex.unit} | {_bound_phrase(ex.bound)} {_fmt(ex.limit)} "
+                f"{ex.unit} | {_fmt(ex.exceedance_pct, '%')} | {ex.basis} |"
+            )
+    else:
+        lines.append("- No exceedances against the configured limits.")
+    lines.append("")
+
+    # Full screening ----------------------------------------------------------
+    lines.append("## All checks")
+    lines.append("")
+    lines.append("| Parameter | Stage | Value | Limit | Within limit |")
+    lines.append("| --- | --- | --- | --- | --- |")
+    for check in evaluation.checks:
+        flag = "yes" if check.within_limit else "**NO**"
+        lines.append(
+            f"| {check.display_name} (`{check.parameter}`) | {check.stage} | "
+            f"{_fmt(check.value)} {check.unit} | {_bound_phrase(check.bound)} "
+            f"{_fmt(check.limit)} {check.unit} | {flag} |"
+        )
+    lines.append("")
+
+    # Provenance --------------------------------------------------------------
+    lines.append("## Provenance")
+    lines.append("")
+    lines.append(f"- Data provenance: {evaluation.provenance.value}")
+    lines.append(
+        "- Limits are operator-configured (A1 config store); each row carries its "
+        "regulatory basis above."
+    )
+    lines.append(
+        "- Values are synthetic/preliminary engineering estimates, not measured or "
+        "validated plant data."
+    )
+    lines.append("")
+
+    # Boundary footer (mandatory) --------------------------------------------
+    lines.append("---")
+    lines.append("")
+    lines.append("## Control boundary (read-only, advisory)")
+    lines.append("")
+    lines.append(f"- control_mode: `{boundary.control_mode}`")
+    lines.append(
+        f"- operator_approval_required: `{str(boundary.operator_approval_required).lower()}`"
+    )
+    lines.append(f"- control_write_enabled: `{str(boundary.control_write_enabled).lower()}`")
+    lines.append("")
+    lines.append(f"> {COMPLIANCE_DISCLAIMER}")
     lines.append("")
 
     return "\n".join(lines)
