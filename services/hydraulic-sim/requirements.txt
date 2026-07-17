@@ -1,0 +1,16 @@
+# hydraulic-sim service dependencies (pinned).
+# EPANET is provided by the wntr wheel (BSD-3-Clause); see
+# docs/licensing/open-source-register.md. Do NOT vendor the WNTR/EPANET repo.
+wntr==1.5.0
+fastapi==0.139.2
+uvicorn[standard]==0.51.0
+pydantic==2.13.4
+# Transitive scientific stack pinned for reproducible EPANET results.
+numpy==2.4.4
+scipy==1.18.0
+pandas==3.0.3
+networkx==3.6.1
+
+# Test-only (kept here so the container image can self-test):
+httpx==0.28.1
+pytest==9.1.1
