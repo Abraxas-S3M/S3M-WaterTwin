@@ -15,6 +15,31 @@ services:
     volumes:
       - hydraulic_sim_data:/data
 
+# S3M-WaterTwin — single-command stack.
+#
+#   docker compose up --build
+#
+# Builds the React operator dashboard and serves it, together with the
+# reference WaterTwin API, from one container on http://localhost:8000.
+# The API is advisory / no-write; all data is provenance-tagged synthetic or
+# preliminary. The `api` service here is the Phase-7 reference stand-in; it is
+# replaced by the real Phase 6 backend when that lands.
+services:
+  watertwin:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: s3m-watertwin:phase7
+    container_name: s3m-watertwin
+    ports:
+      - "8000:8000"
+    environment:
+      DASHBOARD_STATIC_DIR: /app/static
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/v1/health').status==200 else 1)"]
+# WaterTwin stack. TimescaleDB is added in Phase 10; for now only the API service.
+services:
   watertwin-api:
     build:
       context: .
@@ -46,3 +71,20 @@ services:
 volumes:
   hydraulic_sim_data:
   watertwin_api_data:
+    image: watertwin-api:latest
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      # Reach an S3M-Core running on the docker host by default.
+      WATERTWIN_S3M_BASE_URL: ${WATERTWIN_S3M_BASE_URL:-http://host.docker.internal:8081}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
