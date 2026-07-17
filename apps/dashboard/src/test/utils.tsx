@@ -65,6 +65,30 @@ export function installFetchMock(overrides: Record<string, unknown> = {}): Fetch
       return json(overrides.maintenanceRanking ?? fx.maintenanceRanking);
     if (path.startsWith('/maintenance/recommendations'))
       return json(overrides.maintenanceRecommendations ?? fx.maintenanceRecommendations);
+    if (path.startsWith('/maintenance/cmms/status'))
+      return json(overrides.cmmsStatus ?? fx.cmmsStatus);
+    if (path.startsWith('/maintenance/cmms/work-orders'))
+      return json(overrides.cmmsWorkOrders ?? fx.cmmsWorkOrders);
+    if (path.startsWith('/maintenance/cmms/asset-history/'))
+      return json(overrides.cmmsAssetHistory ?? fx.cmmsAssetHistory);
+    // Work-order decision (approve/reject) round-trips an updated payload.
+    if (/\/maintenance\/work-orders\/[^/]+\/decision$/.test(path) && method === 'POST') {
+      const status = (body as { status?: string })?.status === 'rejected' ? 'rejected' : 'approved';
+      return json({
+        ...fx.workOrders,
+        work_order: {
+          ...fx.workOrderHpp,
+          approval_status: status,
+          status,
+          approved_by: 'operator',
+          decided_at: '2026-07-17T08:00:00Z',
+        },
+      });
+    }
+    if (/\/maintenance\/work-orders\/[^/]+$/.test(path))
+      return json({ ...fx.workOrders, work_order: fx.workOrderHpp });
+    if (path.startsWith('/maintenance/work-orders'))
+      return json(overrides.workOrders ?? fx.workOrders);
     if (/\/equipment\/.+\/health/.test(path))
       return json(overrides.equipmentHealth ?? fx.equipmentHealth);
     if (/\/equipment\/.+\/rul/.test(path)) return json(overrides.equipmentRul ?? fx.equipmentRul);
