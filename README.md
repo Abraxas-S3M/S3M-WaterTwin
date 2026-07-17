@@ -109,6 +109,12 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
 - `packages/simulation_contracts` — shared what-if simulation request/result
   contracts (`provenance="simulated"`, `status="preliminary"`, read-only control
   boundary).
+- `packages/watertwin_events` — shared **advisory service-event bus** (NATS) for
+  publish/subscribe of notification-only events (telemetry-ingested,
+  alert-raised, workorder-created, config-published, audit-appended). The bus is
+  **advisory-only** — a subject guard rejects any control verb so a control
+  command can never be published — and degrades gracefully to direct in-process
+  delivery (log + metric) when the broker is unavailable.
 
 ## Services
 
@@ -127,6 +133,11 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
   data quality (range/staleness/frozen/deadband), buffers to a local
   **encrypted store-and-forward** queue, and **pushes** canonical telemetry to
   the `watertwin-api` ingest endpoint. It binds no inbound listener.
+- `services/edge-gateway` — **read-only** telemetry **store-and-forward** edge
+  gateway; reads/synthesizes plant telemetry and forwards it to the
+  `watertwin-api` ingest endpoint over a durable on-disk spool, so a gateway
+  killed mid-stream recovers with no data loss (idempotent ingest de-duplicates
+  replays). No control-write path.
 - `apps/dashboard` — React + TypeScript + Vite operator Simulation Center,
   built and served by nginx (which proxies `/api` to `watertwin-api`).
 - `packages/ot_ingestion` — the shared, importable **read-only** OT source
@@ -149,7 +160,11 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
 | `hydraulic-sim` | http://localhost:8100 | EPANET/WNTR hydraulic what-if |
 | `treatment-sim` | http://localhost:8081 | WaterTAP/IDAES RO process what-if |
 | `edge-gateway` | _(no port; outbound-only)_ | Read-only OT edge collector; pushes telemetry to `watertwin-api` |
+| `edge-gateway` | http://localhost:8200 | Read-only telemetry store-and-forward gateway |
 | `timescaledb` | localhost:5432 | Persistent store (`WATERTWIN_DATABASE_URL`) |
+| `nats` | localhost:4222 (monitor :8222) | Advisory service-event bus (`NATS_URL`); notification-only |
+| `prometheus` | http://localhost:9090 | Scrapes each service's `/metrics` |
+| `grafana` | http://localhost:3000 | Auto-provisioned WaterTwin dashboard (admin/admin) |
 
 The API persists audit events and recommendations to TimescaleDB
 (`infrastructure/database/init.sql` creates the telemetry hypertable and the
@@ -165,6 +180,23 @@ Additional Phase 10 capabilities:
   control-write path (`control_write_enabled = True`) ever appears in
   `services/` or `packages/`, alongside per-service lint/type/test and a
   supply-chain job (CycloneDX SBOMs + `pip-audit` + secret scanning).
+- **Advisory service-event bus** (NATS): `watertwin-api` publishes notification
+  events (telemetry-ingested, alert-raised, workorder-created, config-published,
+  audit-appended) via `packages/watertwin_events`. The bus is **advisory /
+  notification only** — a subject guard rejects any control verb (guard test:
+  `packages/tests/test_event_bus.py`), so a control command can never ride the
+  bus. If NATS is unset/unreachable the API **degrades gracefully** to direct
+  in-process delivery (log + metric); state is surfaced at
+  `GET /api/v1/events/status` and in `/health` (`event_bus.*`). Configure with
+  `NATS_URL` (unset ⇒ degraded).
+- **Observability**: every service is instrumented via the shared
+  `watertwin_observability` package — structured JSON logs with correlation ids,
+  OpenTelemetry traces, and Prometheus metrics (request latency, telemetry
+  ingest lag, job buffer depth, RO model drift, audit-chain length) exposed at
+  `GET /metrics`. `docker compose up` also starts Prometheus + Grafana (with a
+  provisioned dashboard); the same stack ships as a Helm chart at
+  `infrastructure/helm/watertwin-monitoring`. See
+  [`docs/architecture/observability.md`](docs/architecture/observability.md).
 - **SBOMs**: `docs/licensing/sbom/*.cdx.json` (regenerate with `make sbom`).
 - **Guided demo**: `docs/demonstrations/demo-script.md` (`make scenario-degrade`,
   `make reset`).
@@ -175,6 +207,21 @@ Additional Phase 10 capabilities:
   dev-mode env; the identity flows into the audit trail. This does **not** relax
   the advisory/read-only boundary. See
   [`docs/security/identity.md`](docs/security/identity.md).
+- **Telemetry ingest + edge store-and-forward**: `POST /api/v1/ingestion/telemetry`
+  is an **idempotent** (on `batch_id`) ingest path that records each batch in the
+  tamper-evident audit chain; the `edge-gateway` service buffers to a durable
+  spool and replays after an outage/crash with no data loss or duplication.
+- **Reliability drills & load tests**:
+  - **Load** — `tests/load/` (k6) drives the ingest + read paths;
+    `make load-smoke` runs a CI-friendly smoke profile (also a **non-blocking**
+    CI job).
+  - **Chaos** — `make chaos` (`tests/chaos/edge_gateway_chaos.sh`) kills the
+    edge-gateway mid-stream and asserts store-and-forward recovers with no data
+    loss and a still-valid audit chain.
+  - **Disaster recovery** — `make dr-drill` (`scripts/dr_drill.sh`, reusing
+    `scripts/backup_audit_db.sh`) backs up and restores via `pg_dump`/`pg_restore`
+    and verifies audit-chain integrity post-restore. See
+    [`docs/deployment/dr-runbook.md`](docs/deployment/dr-runbook.md).
 
 > Deferred to a later commercial-hardening work package (documented, not built):
 > PostGIS spatial features and multi-tenancy.

@@ -22,3 +22,12 @@ pymodbus==3.7.4
 
 # Test-only (kept here so the container image can self-test):
 pytest==9.1.1
+# Read-only telemetry store-and-forward edge gateway: reads/synthesizes plant
+# telemetry and forwards it to the central watertwin-api ingest endpoint via a
+# durable on-disk spool. No control-write path exists anywhere in this service.
+# Versions match services/watertwin-api so the shared dependency register and
+# SBOMs stay consistent.
+fastapi==0.139.2
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+httpx==0.28.1

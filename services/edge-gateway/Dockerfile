@@ -1,4 +1,5 @@
 # edge-gateway: outbound-only, read-only OT edge collector (no inbound server).
+# edge-gateway: read-only telemetry store-and-forward edge gateway.
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -26,3 +27,23 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD ["python", "-m", "app.healthcheck"]
 
 CMD ["python", "-m", "app.main"]
+    PYTHONPATH=/app/packages
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY services/edge-gateway/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY packages/ ./packages/
+COPY services/edge-gateway/ ./
+
+EXPOSE 8200
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=5 \
+    CMD curl -fsS http://localhost:8200/health || exit 1
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8200"]

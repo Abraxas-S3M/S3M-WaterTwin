@@ -46,6 +46,26 @@ services:
       - ./infrastructure/keycloak/watertwin-realm.json:/opt/keycloak/data/import/watertwin-realm.json:ro
     restart: unless-stopped
 
+  nats:
+    # Advisory service-event bus. Carries notification-only events
+    # (telemetry-ingested, alert-raised, workorder-created, config-published,
+    # audit-appended) between services. It NEVER carries a control command --
+    # the publisher guards every subject (see packages/watertwin_events). If this
+    # service is down the API degrades gracefully to direct in-process delivery.
+    image: nats:2.10-alpine
+    container_name: watertwin-nats
+    command: ["-m", "8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8222/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
   timescaledb:
     image: timescale/timescaledb:2.17.2-pg16
     container_name: watertwin-timescaledb
@@ -117,6 +137,9 @@ services:
       HYDRAULIC_SIM_URL: http://hydraulic-sim:8100
       TREATMENT_SIM_URL: http://treatment-sim:8080
       WATERTWIN_DATABASE_URL: postgresql://watertwin:watertwin@timescaledb:5432/watertwin
+      # Advisory service-event bus. Unset this to run without NATS: the API then
+      # degrades gracefully to direct in-process delivery (log + metric).
+      NATS_URL: nats://nats:4222
       WATERTWIN_RECO_STORE: /data/recommendations.json
       WATERTWIN_CORS_ORIGINS: "*"
       # Identity + RBAC: enforce Keycloak-issued JWTs by default. The issuer is
@@ -125,6 +148,11 @@ services:
       WATERTWIN_AUTH_DISABLED: "false"
       WATERTWIN_OIDC_ISSUER: http://localhost:8180/realms/watertwin
       WATERTWIN_OIDC_JWKS_URI: http://keycloak:8080/realms/watertwin/protocol/openid-connect/certs
+      # Provisioned ingest token the edge-gateway presents (X-Ingest-Token) to
+      # the telemetry ingest path. Set WATERTWIN_INGEST_TOKEN in your .env
+      # (see .env.example). When empty, ingest falls back to role-based auth, so
+      # under enforced auth the gateway needs this set to forward telemetry.
+      WATERTWIN_INGEST_TOKEN: ${WATERTWIN_INGEST_TOKEN:-}
     volumes:
       - watertwin_api_data:/data
     depends_on:
@@ -134,6 +162,8 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_started
+      nats:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 15s
@@ -142,6 +172,63 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  # ---------------------------------------------------------------------------
+  # Observability stack: Prometheus scrapes each service's /metrics endpoint and
+  # Grafana renders the provisioned WaterTwin dashboard. Both are read-only
+  # observers; neither talks to a control system. See
+  # docs/architecture/observability.md.
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: watertwin-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      watertwin-api:
+        condition: service_started
+      hydraulic-sim:
+        condition: service_started
+      treatment-sim:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: watertwin-grafana
+    environment:
+      # Dev credentials only; override in any real deployment.
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./infrastructure/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infrastructure/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
   edge-gateway:
     build:
       context: .
@@ -178,6 +265,30 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+    ports:
+      - "8200:8200"
+    environment:
+      EDGE_GATEWAY_ID: edge-gw-01
+      EDGE_API_URL: http://watertwin-api:8000
+      EDGE_SPOOL_DIR: /data/spool
+      EDGE_BATCH_INTERVAL_S: "1.0"
+      # Must match watertwin-api's WATERTWIN_INGEST_TOKEN so the gateway can
+      # forward under enforced auth. When empty and the API runs with auth
+      # disabled, ingest is still accepted (dev / chaos drill).
+      EDGE_INGEST_TOKEN: ${WATERTWIN_INGEST_TOKEN:-}
+    volumes:
+      - edge_gateway_spool:/data
+    depends_on:
+      # service_started (not service_healthy): the gateway must be able to run
+      # and spool telemetry even while the API is down (store-and-forward).
+      watertwin-api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8200/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     restart: unless-stopped
 
   dashboard:
@@ -212,3 +323,6 @@ volumes:
   hydraulic_sim_data:
   watertwin_api_data:
   edge_gateway_data:
+  prometheus_data:
+  grafana_data:
+  edge_gateway_spool:
