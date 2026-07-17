@@ -46,7 +46,8 @@ export type PageId =
   | 'energy'
   | 'resilience'
   | 'executive'
-  | 'assistant';
+  | 'assistant'
+  | 'training';
 
 interface DashboardState {
   page: PageId;
