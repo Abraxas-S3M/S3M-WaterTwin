@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>S3M-WaterTwin</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: radial-gradient(circle at top, #0b2740, #05121f 70%);
+        color: #e6f1ff;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      main {
+        max-width: 640px;
+        padding: 2.5rem;
+        text-align: center;
+      }
+      h1 { font-size: 2.2rem; margin-bottom: 0.25rem; }
+      .tag {
+        display: inline-block;
+        margin-bottom: 1.5rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        background: #12324f;
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .boundary {
+        margin-top: 1.5rem;
+        padding: 1rem 1.25rem;
+        border: 1px solid #1c5c8a;
+        border-radius: 12px;
+        background: rgba(18, 50, 79, 0.6);
+      }
+      .boundary strong { color: #7fd1ff; }
+      a { color: #7fd1ff; }
+      code { background: #0f2237; padding: 0.1rem 0.35rem; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <span class="tag">Advisory Digital Twin</span>
+      <h1>S3M-WaterTwin</h1>
+      <p>Water-treatment plant digital twin &mdash; dashboard arrives in Phase 7.</p>
+      <div class="boundary">
+        <p><strong>Safety boundary:</strong> this system is read-only with respect
+        to plant control. <br />Control writes are <strong>disabled</strong>.</p>
+      </div>
+      <p style="margin-top:2rem">
+        Try the API: <a href="/health">/health</a> &middot;
+        <a href="/api/v1/status">/api/v1/status</a> &middot;
+        <a href="/docs">/docs</a>
+      </p>
+    </main>
+  </body>
+</html>

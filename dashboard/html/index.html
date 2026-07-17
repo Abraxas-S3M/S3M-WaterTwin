@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S3M-WaterTwin · Simulation Center</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">S3M</span>
+      <div>
+        <h1>WaterTwin · Simulation Center</h1>
+        <p class="sub">Read-only hydraulic what-if · EPANET / WNTR · RO-TRAIN-001</p>
+      </div>
+    </div>
+    <div id="boundary" class="boundary" title="Control boundary">
+      <span class="pill pill-readonly">READ-ONLY</span>
+      <span id="health-dot" class="dot dot-unknown"></span>
+      <span id="health-text">checking…</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel controls">
+      <h2>Scenario</h2>
+      <div class="scenario-tabs">
+        <button class="tab active" data-scenario="pump_outage">Pump Outage</button>
+        <button class="tab" data-scenario="leak">Leak</button>
+      </div>
+
+      <div id="params-pump_outage" class="params">
+        <label>Pump to take offline
+          <select id="pump-select"></select>
+        </label>
+      </div>
+
+      <div id="params-leak" class="params hidden">
+        <label>Leak node
+          <select id="leak-node-select"></select>
+        </label>
+        <label>Orifice area (m²)
+          <input id="leak-area" type="number" value="0.02" step="0.005" min="0.001" />
+        </label>
+        <label>Discharge coefficient
+          <input id="leak-cd" type="number" value="0.75" step="0.05" min="0.1" max="1" />
+        </label>
+      </div>
+
+      <button id="run-btn" class="run">Run what-if</button>
+      <p id="run-status" class="run-status"></p>
+    </section>
+
+    <section id="results" class="results hidden">
+      <div class="panel kpis">
+        <div class="kpi">
+          <span class="kpi-label">Delivered flow · baseline</span>
+          <span id="kpi-baseline" class="kpi-value">–</span>
+          <span class="kpi-unit">m³/h</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Delivered flow · scenario</span>
+          <span id="kpi-scenario" class="kpi-value">–</span>
+          <span class="kpi-unit">m³/h</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Impact</span>
+          <span id="kpi-delta" class="kpi-value">–</span>
+          <span class="kpi-unit">m³/h</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Confidence</span>
+          <span id="kpi-confidence" class="kpi-value">–</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Pressure &amp; flow deltas (baseline → scenario)</h2>
+        <div class="two-col">
+          <div>
+            <h3>Node pressure (m)</h3>
+            <table id="pressure-table"><thead><tr><th>Node</th><th>Baseline</th><th>Scenario</th><th>Δ</th></tr></thead><tbody></tbody></table>
+          </div>
+          <div>
+            <h3>Link flow (m³/h)</h3>
+            <table id="flow-table"><thead><tr><th>Link</th><th>Baseline</th><th>Scenario</th><th>Δ</th></tr></thead><tbody></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Constraint violations</h2>
+        <ul id="violations" class="violations"><li class="muted">None</li></ul>
+      </div>
+
+      <div class="panel recommendation">
+        <h2>Recommendation</h2>
+        <div id="reco" class="muted">No recommendation.</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
