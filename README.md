@@ -146,6 +146,8 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
 | `treatment-sim` | http://localhost:8081 | WaterTAP/IDAES RO process what-if |
 | `edge-gateway` | http://localhost:8200 | Read-only telemetry store-and-forward gateway |
 | `timescaledb` | localhost:5432 | Persistent store (`WATERTWIN_DATABASE_URL`) |
+| `prometheus` | http://localhost:9090 | Scrapes each service's `/metrics` |
+| `grafana` | http://localhost:3000 | Auto-provisioned WaterTwin dashboard (admin/admin) |
 
 The API persists audit events and recommendations to TimescaleDB
 (`infrastructure/database/init.sql` creates the telemetry hypertable and the
@@ -161,6 +163,14 @@ Additional Phase 10 capabilities:
   control-write path (`control_write_enabled = True`) ever appears in
   `services/` or `packages/`, alongside per-service lint/type/test and a
   supply-chain job (CycloneDX SBOMs + `pip-audit` + secret scanning).
+- **Observability**: every service is instrumented via the shared
+  `watertwin_observability` package — structured JSON logs with correlation ids,
+  OpenTelemetry traces, and Prometheus metrics (request latency, telemetry
+  ingest lag, job buffer depth, RO model drift, audit-chain length) exposed at
+  `GET /metrics`. `docker compose up` also starts Prometheus + Grafana (with a
+  provisioned dashboard); the same stack ships as a Helm chart at
+  `infrastructure/helm/watertwin-monitoring`. See
+  [`docs/architecture/observability.md`](docs/architecture/observability.md).
 - **SBOMs**: `docs/licensing/sbom/*.cdx.json` (regenerate with `make sbom`).
 - **Guided demo**: `docs/demonstrations/demo-script.md` (`make scenario-degrade`,
   `make reset`).

@@ -65,6 +65,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Configure structured JSON logging early so even import-time startup logs (the
+# auth-mode banner below) are emitted as JSON. The full observability wiring
+# (metrics, middleware, tracing) is completed further down once the store and
+# telemetry-source dependencies exist; configure_logging is idempotent.
+from watertwin_observability import configure_logging  # noqa: E402
+
+configure_logging(config.SERVICE_NAME)
+
 # Log whether auth is enforced or bypassed (explicit dev mode) at import too, so
 # the mode is visible even when the app is mounted without the lifespan hook.
 auth.log_auth_mode()
@@ -131,6 +139,19 @@ def get_source_resolution() -> sources.SourceResolution:
     if _source_resolution is None:
         _source_resolution = sources.resolve_source(config)
     return _source_resolution
+
+
+# Observability: structured JSON logging, correlation ids, Prometheus metrics
+# (+ /metrics) and OpenTelemetry traces. Registers scrape-time callbacks for the
+# audit-chain length, recommendation buffer depth and telemetry ingest lag.
+from . import observability  # noqa: E402
+
+observability.setup(
+    app,
+    store=store,
+    reco_store=reco_store,
+    get_source_resolution=get_source_resolution,
+)
 
 
 class SimulationCenterRequest(BaseModel):
