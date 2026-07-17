@@ -8,8 +8,10 @@ pydantic==2.10.4
 # Outbound HTTP client for the push path (no server component).
 httpx==0.28.1
 # Encrypt-at-rest for the local SQLite store-and-forward buffer (Fernet:
-# AES-128-CBC + HMAC-SHA256 authenticated encryption).
-cryptography==44.0.1
+# AES-128-CBC + HMAC-SHA256 authenticated encryption). Pinned to 49.0.0: earlier
+# 44.x carries advisories flagged by pip-audit (PYSEC-2026-35 / -2141 /
+# GHSA-537c-gmf6-5ccf); 49.0.0 resolves them.
+cryptography==49.0.0
 # Read-only OT connectors (shared, from packages/ot_ingestion). Used strictly as
 # read-only clients; no control-write path is ever exercised (enforced by the
 # read-only boundary-guard test that scans the shared source package).

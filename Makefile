@@ -3,7 +3,7 @@ SHELL := /bin/bash
 API_URL ?= http://localhost:8000
 PYTHON ?= python3
 SBOM_DIR := docs/licensing/sbom
-SERVICES := watertwin-api hydraulic-sim treatment-sim
+SERVICES := watertwin-api hydraulic-sim treatment-sim edge-gateway
 
 .PHONY: up down logs ps test lint sbom reconcile backup scenario-degrade reset demo help
 
