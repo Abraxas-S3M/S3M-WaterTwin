@@ -29,6 +29,7 @@ from .auth import (
     require_role,
 )
 from . import assistant
+from . import condition
 from . import documents
 from . import energy
 from . import executive
@@ -694,6 +695,137 @@ def maintenance_recommendations(
             ],
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# Condition Intelligence (advisory, read-only)
+#
+# A governed condition-model framework: each model publishes a full ModelSpec
+# contract (equation source, feature spec, assumptions, valid range, version,
+# uncertainty method, failure modes, explainability outputs). Per model the API
+# exposes a back-test (precision / recall / false-alarm rate / lead time, with
+# uncertainty), a confidence-calibration report and a distribution-drift check.
+# Operators capture confirm/dismiss feedback on an alert; feedback is persisted
+# by the durable store and routed through the existing audit trail. Every
+# response carries the control boundary + provenance; nothing writes to control.
+# ---------------------------------------------------------------------------
+
+
+def _condition_envelope(
+    payload: dict, provenance: DataProvenance = DataProvenance.preliminary
+) -> dict:
+    """Attach the read-only control boundary + provenance to a condition response."""
+    return {
+        **payload,
+        "facility_id": wq.FACILITY_ID,
+        "train_id": wq.TRAIN_ID,
+        "provenance": provenance.value,
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+def _require_model(model_id: str) -> None:
+    if model_id not in condition.MODELS:
+        raise HTTPException(
+            status_code=404,
+            detail=f"unknown condition model: {model_id}; known: {condition.list_model_ids()}",
+        )
+
+
+class ConditionFeedbackRequest(BaseModel):
+    decision: str = Field(description="confirm or dismiss")
+    model_id: Optional[str] = None
+    asset_id: Optional[str] = None
+    recommendation_id: Optional[str] = None
+    note: Optional[str] = None
+    actor: str = "operator"
+
+
+@app.get("/api/v1/condition/models", dependencies=AUTHENTICATED)
+def condition_models() -> dict:
+    """List every governed condition model with its full ModelSpec contract."""
+    return _condition_envelope(
+        {"models": [condition.model_spec_dict(mid) for mid in condition.list_model_ids()]}
+    )
+
+
+@app.get("/api/v1/condition/models/{model_id}/spec", dependencies=AUTHENTICATED)
+def condition_model_spec(model_id: str) -> dict:
+    """Return one model's published contract (equation source, valid range, ...)."""
+    _require_model(model_id)
+    return _condition_envelope({"spec": condition.model_spec_dict(model_id)})
+
+
+@app.get("/api/v1/condition/models/{model_id}/backtest", dependencies=AUTHENTICATED)
+def condition_backtest(model_id: str) -> dict:
+    """Back-test the model: precision / recall / false-alarm rate / lead time."""
+    _require_model(model_id)
+    return _condition_envelope({"backtest": condition.backtest_dict(model_id)})
+
+
+@app.get("/api/v1/condition/models/{model_id}/calibration", dependencies=AUTHENTICATED)
+def condition_calibration(model_id: str, bins: int = 10) -> dict:
+    """Confidence-calibration reliability report (ECE / MCE / Brier)."""
+    _require_model(model_id)
+    return _condition_envelope(
+        {"calibration": condition.calibration_dict(model_id, n_bins=max(1, bins))}
+    )
+
+
+@app.get("/api/v1/condition/models/{model_id}/drift", dependencies=AUTHENTICATED)
+def condition_drift(model_id: str, shifted: bool = True) -> dict:
+    """Drift check comparing a live window to the frozen baseline (drift flag)."""
+    _require_model(model_id)
+    return _condition_envelope({"drift": condition.drift_dict(model_id, shifted=shifted)})
+
+
+@app.post("/api/v1/condition/alerts/{alert_id}/feedback")
+def condition_feedback(
+    alert_id: str,
+    body: ConditionFeedbackRequest,
+    user: Principal = Depends(require_role("operator")),
+) -> dict:
+    """Capture an operator confirm/dismiss decision on a condition alert.
+
+    Recording feedback is an operator/admin action (RBAC matrix) and never
+    writes to equipment. The decision is persisted by the durable store and
+    audited; it is the ground-truth signal the back-test/calibration harnesses
+    consume.
+    """
+    try:
+        record = store.record_feedback(
+            alert_id,
+            body.decision,
+            recommendation_id=body.recommendation_id,
+            asset_id=body.asset_id,
+            model_id=body.model_id,
+            actor=_actor(user, body.actor),
+            note=body.note,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    store.audit(
+        "condition.feedback.recorded",
+        payload={
+            "feedback_id": record["feedback_id"],
+            "alert_id": alert_id,
+            "decision": record["decision"],
+            "model_id": record["model_id"],
+        },
+        actor=record["actor"],
+        subject=alert_id,
+    )
+    return _condition_envelope({"feedback": record})
+
+
+@app.get("/api/v1/condition/feedback", dependencies=AUTHENTICATED)
+def condition_feedback_list(alert_id: Optional[str] = None, limit: int = 100) -> dict:
+    """List captured operator feedback (optionally filtered to one alert)."""
+    if alert_id:
+        feedback = store.feedback_for(alert_id)
+    else:
+        feedback = store.recent_feedback(limit)
+    return _condition_envelope({"feedback": feedback})
 
 
 # ---------------------------------------------------------------------------
