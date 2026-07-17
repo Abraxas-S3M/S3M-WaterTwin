@@ -36,9 +36,11 @@ import type {
   ExecutiveValueSummaryResponse,
   GridOutageResponse,
   HealthScore,
+  LeakLocalizationResponse,
   MaintenanceRankingResponse,
   MaintenanceRecommendationsResponse,
   MembraneHealthResponse,
+  NetworkResponse,
   ModelsResponse,
   PlantOverview,
   PumpCurve,
@@ -109,6 +111,8 @@ export const queryKeys = {
   executiveRoi: ['executive-roi'] as const,
   assistantExamples: ['assistant-examples'] as const,
   documents: ['documents'] as const,
+  network: ['network'] as const,
+  leakLocalization: ['leak-localization'] as const,
   config: ['config'] as const,
   configVersions: ['config-versions'] as const,
   models: ['models'] as const,
@@ -539,6 +543,21 @@ function useInvalidateRecommendationViews() {
   };
 }
 
+// --- Network Twin hooks (GeoJSON topology + C1 leak-localization overlay) ---
+
+// Topology rarely changes; keep it fresh but do not poll aggressively.
+export function useNetwork(): UseQueryResult<NetworkResponse> {
+  return useQuery({
+    queryKey: queryKeys.network,
+    queryFn: api.getNetwork,
+    staleTime: POLL_INTERVAL_MS * 30,
+  });
+}
+
+export function useLeakLocalization(): UseQueryResult<LeakLocalizationResponse> {
+  return useQuery({
+    queryKey: queryKeys.leakLocalization,
+    queryFn: api.getLeakLocalization,
 // --- Model governance registry (D1/D2) + compliance (A1 config store) ---
 
 export function useModels(): UseQueryResult<ModelsResponse> {

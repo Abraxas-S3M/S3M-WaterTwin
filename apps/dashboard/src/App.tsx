@@ -11,6 +11,7 @@ import { LoginGate } from './auth/LoginGate';
 import { UserBadge } from './auth/UserBadge';
 import { CommandOverview } from './pages/CommandOverview';
 import { ProcessTwin } from './pages/ProcessTwin';
+import { NetworkTwin } from './pages/NetworkTwin';
 import { AssetTwin } from './pages/AssetTwin';
 import { SimulationCenter } from './pages/SimulationCenter';
 import { WaterQuality } from './pages/WaterQuality';
@@ -43,6 +44,7 @@ interface NavEntry {
 const NAV: NavEntry[] = [
   { id: 'command', label: 'Command Overview', page: 1 },
   { id: 'process', label: 'Process Twin', page: 2 },
+  { id: 'network', label: 'Network Twin', page: 3 },
   { id: 'asset', label: 'Asset Twin', page: 4 },
   { id: 'water-quality', label: 'Water Quality', page: 5 },
   { id: 'predictive-maintenance', label: 'Predictive Maintenance', page: 6 },
@@ -183,6 +185,8 @@ function CurrentPage() {
       return <CommandOverview />;
     case 'process':
       return <ProcessTwin />;
+    case 'network':
+      return <NetworkTwin />;
     case 'asset':
       return <AssetTwin />;
     case 'water-quality':

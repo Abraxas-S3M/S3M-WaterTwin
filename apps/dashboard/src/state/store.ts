@@ -20,6 +20,7 @@ export const SCENARIO_IDS: ScenarioId[] = [
 export type PageId =
   | 'command'
   | 'process'
+  | 'network'
   | 'asset'
   | 'simulation'
   | 'water-quality'

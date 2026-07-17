@@ -900,6 +900,92 @@ export interface AssistantExamplesResponse {
   control_boundary: ControlBoundary;
 }
 
+// --- Network Twin (GeoJSON topology + C1 leak-localization overlay) ---
+
+// Minimal GeoJSON shapes (lon, lat). Kept local so the dashboard does not take
+// a hard dependency on @types/geojson for a small, well-defined surface.
+export type GeoPosition = [number, number];
+
+export interface GeoPoint {
+  type: 'Point';
+  coordinates: GeoPosition;
+}
+
+export interface GeoLineString {
+  type: 'LineString';
+  coordinates: GeoPosition[];
+}
+
+export interface GeoPolygon {
+  type: 'Polygon';
+  coordinates: GeoPosition[][];
+}
+
+export interface GeoFeature<G, P> {
+  type: 'Feature';
+  geometry: G;
+  properties: P;
+  id?: string | number;
+}
+
+export interface GeoFeatureCollection<F> {
+  type: 'FeatureCollection';
+  features: F[];
+}
+
+export type NetworkElementType =
+  | 'pipe'
+  | 'junction'
+  | 'valve'
+  | 'pump'
+  | 'tank'
+  | 'reservoir';
+
+export interface NetworkElementProperties {
+  element_id: string;
+  element_type: NetworkElementType;
+  label: string;
+  // When present, links a rendered element to a canonical asset so operators can
+  // click through to its Asset Twin.
+  asset_id?: string | null;
+  treatment_stage?: TreatmentStage | null;
+}
+
+export type NetworkNodeFeature = GeoFeature<GeoPoint, NetworkElementProperties>;
+export type NetworkLinkFeature = GeoFeature<GeoLineString, NetworkElementProperties>;
+export type NetworkFeature = NetworkNodeFeature | NetworkLinkFeature;
+
+export interface NetworkResponse {
+  network_id: string;
+  facility_id: string;
+  train_id: string;
+  engine: string;
+  provenance: DataProvenance;
+  features: NetworkFeature[];
+}
+
+export interface LeakCandidateZoneProperties {
+  zone_id: string;
+  rank: number;
+  suspected_node_id: string;
+  // Model likelihood (0..1) that the leak is inside this candidate zone.
+  likelihood: number;
+  residual_pressure_m: number;
+  // C1 leak-localization output is always preliminary/synthetic — never a
+  // validated, confirmed leak location.
+  synthetic: boolean;
+  provenance: DataProvenance;
+}
+
+export type LeakCandidateZoneFeature = GeoFeature<GeoPolygon, LeakCandidateZoneProperties>;
+
+export interface LeakLocalizationResponse {
+  network_id: string;
+  method: string;
+  // True while the localization is a preliminary/synthetic estimate.
+  preliminary: boolean;
+  provenance: DataProvenance;
+  candidate_zones: LeakCandidateZoneFeature[];
 // --- Administration / Configuration Workbench (A1: /api/v1/config) ---
 //
 // Mirrors the configuration document served by the /api/v1/config API. The
