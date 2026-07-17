@@ -24,6 +24,20 @@ CORS_ORIGINS = os.environ.get("WATERTWIN_CORS_ORIGINS", "*").split(",")
 DATABASE_URL = os.environ.get("WATERTWIN_DATABASE_URL") or None
 
 # ---------------------------------------------------------------------------
+# Multi-tenant / multi-facility scoping.
+#
+# Every canonical record and persisted row is scoped to a (tenant, facility)
+# pair. The platform historically modelled a single facility with no explicit
+# tenant boundary; that pre-existing data is treated as belonging to the default
+# tenant/facility below so upgrades are non-breaking (the store backfills NULL
+# scopes to these defaults on connect). These defaults are also used as the
+# implicit scope for callers whose token carries no explicit tenant/facility
+# membership (e.g. the dev bypass and legacy single-facility tokens).
+# ---------------------------------------------------------------------------
+DEFAULT_TENANT_ID = os.environ.get("WATERTWIN_DEFAULT_TENANT_ID") or "s3m-default"
+DEFAULT_FACILITY_ID = os.environ.get("WATERTWIN_DEFAULT_FACILITY_ID") or "S3M-DESAL-01"
+
+# ---------------------------------------------------------------------------
 # Telemetry source selection (read-only OT connectors).
 #
 # The platform ingests telemetry from a pluggable, strictly READ-ONLY source.

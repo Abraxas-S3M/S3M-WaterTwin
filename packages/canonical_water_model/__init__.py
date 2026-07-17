@@ -14,6 +14,8 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 __all__ = [
+    "DEFAULT_TENANT_ID",
+    "DEFAULT_FACILITY_ID",
     "AssetType",
     "TreatmentStage",
     "StreamType",
@@ -68,6 +70,16 @@ __all__ = [
     "VALUE_DISCLAIMER",
     "now_iso",
 ]
+
+#: Canonical default tenant + facility. The platform historically modelled a
+#: single seawater-RO facility with no explicit tenant boundary. Multi-tenant
+#: scoping treats that pre-existing data as belonging to this default
+#: tenant/facility so nothing breaks on upgrade (see the store migration in
+#: ``watertwin-api/app/store.py``). ``DEFAULT_FACILITY_ID`` matches the canonical
+#: RO facility id used throughout the synthetic plant.
+DEFAULT_TENANT_ID = "s3m-default"
+DEFAULT_FACILITY_ID = "S3M-DESAL-01"
+
 
 #: Standard disclaimer stamped on every value/ROI artifact. These figures are
 #: illustrative estimates on synthetic pilot data -- not validated savings or
@@ -201,6 +213,7 @@ class Asset(BaseModel):
     asset_id: str
     name: str
     asset_type: AssetType
+    tenant_id: str = DEFAULT_TENANT_ID
     facility_id: str
     train_id: str
     treatment_stage: Optional[TreatmentStage] = None
@@ -289,6 +302,7 @@ class WaterTwinPacket(BaseModel):
     packet_type: str
     source: str = "s3m-watertwin"
     track: str
+    tenant_id: str = DEFAULT_TENANT_ID
     facility_id: str
     train_id: str
     asset_id: Optional[str] = None
@@ -302,6 +316,7 @@ class WaterTwinPacket(BaseModel):
 class RecommendationCard(BaseModel):
     recommendation_id: str
     packet_id: str
+    tenant_id: str = DEFAULT_TENANT_ID
     facility_id: str
     train_id: str
     asset_id: Optional[str] = None

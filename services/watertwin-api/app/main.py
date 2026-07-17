@@ -10,9 +10,10 @@ from __future__ import annotations
 import os
 import threading
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from typing import Any, Optional
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
@@ -24,6 +25,7 @@ from simulation_contracts import ScenarioType, SimulationResult
 from . import auth
 from . import config
 from .auth import (
+    WILDCARD,
     Principal,
     get_current_user,
     require_role,
@@ -74,6 +76,49 @@ auth.log_auth_mode()
 AUTHENTICATED = [Depends(get_current_user)]
 
 
+@dataclass(frozen=True)
+class Scope:
+    """The tenant/facility a request is operating within.
+
+    Resolved from the ``tenant_id`` / ``facility_id`` query parameters (falling
+    back to the platform defaults for legacy single-facility callers) and only
+    ever returned once the authenticated principal's membership has been checked.
+    """
+
+    tenant_id: str
+    facility_id: str
+
+
+def facility_scope(
+    tenant_id: Optional[str] = Query(
+        default=None, description="Tenant to scope this request to (defaults to the platform tenant)."
+    ),
+    facility_id: Optional[str] = Query(
+        default=None, description="Facility to scope this request to (defaults to the platform facility)."
+    ),
+    user: Principal = Depends(get_current_user),
+) -> Scope:
+    """Authenticate, resolve the target tenant/facility, and enforce membership.
+
+    Row-level scoping is enforced here, at the API layer: a principal may only
+    read within a tenant/facility carried in its token, so cross-tenant access is
+    denied (403) before any store query runs. Callers with no explicit
+    tenant/facility membership (dev bypass, legacy single-facility tokens)
+    resolve to the platform default scope and keep working unchanged.
+    """
+    resolved_tenant = tenant_id or config.DEFAULT_TENANT_ID
+    resolved_facility = facility_id or config.DEFAULT_FACILITY_ID
+    if not user.can_access(resolved_tenant, resolved_facility):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "cross-tenant access denied: caller is not a member of "
+                f"tenant '{resolved_tenant}' / facility '{resolved_facility}'"
+            ),
+        )
+    return Scope(tenant_id=resolved_tenant, facility_id=resolved_facility)
+
+
 def _actor(user: Principal, fallback: str | None = None) -> str:
     """Audit actor for an action.
 
@@ -84,6 +129,51 @@ def _actor(user: Principal, fallback: str | None = None) -> str:
     if auth.auth_disabled() and fallback:
         return fallback
     return user.actor
+
+
+def _can_see(user: Principal, tenant_id: Optional[str], facility_id: Optional[str]) -> bool:
+    """True when ``user`` may read a record scoped to this tenant/facility.
+
+    Facility-agnostic records (no ``facility_id``) are visible to any member of
+    the tenant. This is the authoritative row-level visibility check for the
+    audit + recommendation (config) read paths.
+    """
+    tenant = tenant_id or config.DEFAULT_TENANT_ID
+    if not user.can_access_tenant(tenant):
+        return False
+    if facility_id is not None and not user.can_access_facility(facility_id):
+        return False
+    return True
+
+
+def _store_tenant_filter(user: Principal, tenant_id: Optional[str]) -> Optional[str]:
+    """Resolve the tenant to push down into the store for a scoped read.
+
+    An explicit ``tenant_id`` (already access-checked by the caller) wins;
+    otherwise a single-tenant principal is confined to its tenant, while a
+    wildcard/multi-tenant principal reads unrestricted (``None``) and relies on
+    :func:`_can_see` for per-row filtering.
+    """
+    if tenant_id is not None:
+        return tenant_id
+    if WILDCARD in user.tenants:
+        return None
+    if len(user.tenants) == 1:
+        return next(iter(user.tenants))
+    return None
+
+
+def _apply_scope(card: Any, scope: Optional[Scope]) -> Any:
+    """Stamp a recommendation card with the request's tenant/facility scope.
+
+    Keeps every persisted advisory record row-scoped so it is only ever visible
+    to the tenant/facility it belongs to. When no explicit scope is supplied the
+    card keeps its canonical default tenant/facility.
+    """
+    if scope is not None:
+        card.tenant_id = scope.tenant_id
+        card.facility_id = scope.facility_id
+    return card
 
 
 reco_store = RecommendationStore(config.RECOMMENDATION_STORE_PATH)
@@ -136,7 +226,8 @@ class SimulationCenterRequest(BaseModel):
     scenario: ScenarioType
     parameters: dict[str, Any] = Field(default_factory=dict)
     create_recommendation: bool = True
-    facility_id: str = "S3M-DESAL-01"
+    tenant_id: str = config.DEFAULT_TENANT_ID
+    facility_id: str = config.DEFAULT_FACILITY_ID
     train_id: str = "RO-TRAIN-001"
     requested_by: Optional[str] = None
 
@@ -203,8 +294,18 @@ def run_scenario(
 ) -> dict:
     """Run baseline + scenario and (optionally) create a recommendation.
 
-    Running a what-if scenario is an engineer/admin action (RBAC matrix).
+    Running a what-if scenario is an engineer/admin action (RBAC matrix), and is
+    confined to the caller's tenant/facility membership.
     """
+    if not user.can_access(request.tenant_id, request.facility_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "cross-tenant access denied: caller is not a member of "
+                f"tenant '{request.tenant_id}' / facility '{request.facility_id}'"
+            ),
+        )
+    scope = Scope(tenant_id=request.tenant_id, facility_id=request.facility_id)
     client = get_hydraulic_client()
     try:
         baseline = client.run(
@@ -227,12 +328,14 @@ def run_scenario(
         card = build_recommendation(
             scenario, facility_id=request.facility_id, train_id=request.train_id
         )
+        _apply_scope(card, scope)
         reco_store.put(card)
         recommendation = card.model_dump(mode="json")
         store.save_recommendation(
             card.recommendation_id,
             recommendation,
-            facility_id=request.facility_id,
+            tenant_id=card.tenant_id,
+            facility_id=card.facility_id,
             train_id=request.train_id,
             status=card.approval_status.value,
         )
@@ -245,10 +348,13 @@ def run_scenario(
             },
             actor=_actor(user),
             subject=card.recommendation_id,
+            tenant_id=scope.tenant_id,
+            facility_id=scope.facility_id,
         )
 
     run = {
         "scenario": request.scenario.value,
+        "tenant_id": request.tenant_id,
         "facility_id": request.facility_id,
         "train_id": request.train_id,
         "baseline": baseline.model_dump(mode="json"),
@@ -268,19 +374,45 @@ def run_scenario(
         },
         actor=_actor(user),
         subject=scenario.simulation_id,
+        tenant_id=scope.tenant_id,
+        facility_id=scope.facility_id,
     )
     return run
 
 
-@app.get("/api/v1/recommendations", dependencies=AUTHENTICATED)
-def list_recommendations() -> list[dict]:
-    return [c.model_dump(mode="json") for c in reco_store.list()]
+@app.get("/api/v1/recommendations")
+def list_recommendations(
+    tenant_id: Optional[str] = Query(default=None),
+    facility_id: Optional[str] = Query(default=None),
+    user: Principal = Depends(get_current_user),
+) -> list[dict]:
+    """List recommendation (config) records the caller is scoped to see.
+
+    Row-level filtered by tenant/facility membership: a caller only ever sees the
+    recommendations for tenants/facilities carried in its token.
+    """
+    if tenant_id is not None and not user.can_access_tenant(tenant_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="unknown tenant")
+    if facility_id is not None and not user.can_access_facility(facility_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="unknown facility")
+    return [
+        c.model_dump(mode="json")
+        for c in reco_store.list()
+        if _can_see(user, getattr(c, "tenant_id", None), getattr(c, "facility_id", None))
+        and (tenant_id is None or (getattr(c, "tenant_id", None) or config.DEFAULT_TENANT_ID) == tenant_id)
+        and (facility_id is None or getattr(c, "facility_id", None) == facility_id)
+    ]
 
 
 @app.get("/api/v1/recommendations/{recommendation_id}", dependencies=AUTHENTICATED)
-def get_recommendation(recommendation_id: str) -> dict:
+def get_recommendation(
+    recommendation_id: str, user: Principal = Depends(get_current_user)
+) -> dict:
     card = reco_store.get(recommendation_id)
-    if card is None:
+    # A cross-tenant record is reported as not-found so its existence never leaks.
+    if card is None or not _can_see(
+        user, getattr(card, "tenant_id", None), getattr(card, "facility_id", None)
+    ):
         raise HTTPException(status_code=404, detail="unknown recommendation")
     return card.model_dump(mode="json")
 
@@ -311,7 +443,10 @@ def decide_recommendation(
             status_code=422, detail=f"status must be one of {sorted(_VALID_DECISIONS)}"
         )
     card = reco_store.get(recommendation_id)
-    if card is None:
+    # A cross-tenant record is reported as not-found so its existence never leaks.
+    if card is None or not _can_see(
+        user, getattr(card, "tenant_id", None), getattr(card, "facility_id", None)
+    ):
         raise HTTPException(status_code=404, detail="unknown recommendation")
     from canonical_water_model import ApprovalStatus
 
@@ -324,14 +459,37 @@ def decide_recommendation(
         payload={"recommendation_id": recommendation_id, "status": decision},
         actor=actor,
         subject=recommendation_id,
+        tenant_id=getattr(card, "tenant_id", None),
+        facility_id=getattr(card, "facility_id", None),
     )
     return card.model_dump(mode="json")
 
 
-@app.get("/api/v1/audit", dependencies=[Depends(require_role("auditor"))])
-def audit_log(limit: int = 100) -> dict:
-    """Read the audit trail (auditor/admin role required)."""
-    return {"events": store.recent_audit(limit)}
+@app.get("/api/v1/audit")
+def audit_log(
+    limit: int = 100,
+    tenant_id: Optional[str] = Query(default=None),
+    facility_id: Optional[str] = Query(default=None),
+    user: Principal = Depends(require_role("auditor")),
+) -> dict:
+    """Read the audit trail (auditor/admin role required), tenant/facility scoped.
+
+    The trail is row-level scoped to the caller's tenant/facility membership so an
+    auditor of one tenant can never read another tenant's audit events. An
+    explicit ``tenant_id`` / ``facility_id`` narrows the view further (and must be
+    within the caller's membership).
+    """
+    if tenant_id is not None and not user.can_access_tenant(tenant_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="unknown tenant")
+    if facility_id is not None and not user.can_access_facility(facility_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="unknown facility")
+    events = store.recent_audit(
+        limit,
+        tenant_id=_store_tenant_filter(user, tenant_id),
+        facility_id=facility_id,
+    )
+    events = [e for e in events if _can_see(user, e.get("tenant_id"), e.get("facility_id"))]
+    return {"events": events}
 
 
 @app.get("/api/v1/audit/verify", dependencies=[Depends(require_role("auditor"))])
@@ -445,18 +603,23 @@ def _wq_fouling(fouling: Optional[float]) -> float:
     return DEFAULT_WQ_FOULING if fouling is None else max(0.0, min(1.0, fouling))
 
 
-def _wq_envelope(payload: dict, provenance: DataProvenance) -> dict:
+def _wq_envelope(
+    payload: dict, provenance: DataProvenance, scope: Optional[Scope] = None
+) -> dict:
     """Attach the read-only control boundary + provenance to every WQ response."""
     return {
         **payload,
-        "facility_id": wq.FACILITY_ID,
+        "tenant_id": scope.tenant_id if scope else config.DEFAULT_TENANT_ID,
+        "facility_id": scope.facility_id if scope else wq.FACILITY_ID,
         "train_id": wq.TRAIN_ID,
         "provenance": provenance.value,
         "control_boundary": ControlBoundary().model_dump(),
     }
 
 
-def _route_wq_alerts(alerts: list[WQAlert], actor: str = "system") -> None:
+def _route_wq_alerts(
+    alerts: list[WQAlert], actor: str = "system", scope: Optional[Scope] = None
+) -> None:
     """Route WQ alerts through the existing recommendation + audit path.
 
     Each alert becomes a ``pending`` recommendation card (operator approval
@@ -465,12 +628,14 @@ def _route_wq_alerts(alerts: list[WQAlert], actor: str = "system") -> None:
     """
     for alert in alerts:
         card = wq.build_wq_recommendation(alert)
+        _apply_scope(card, scope)
         if reco_store.get(card.recommendation_id) is not None:
             continue
         reco_store.put(card)
         store.save_recommendation(
             card.recommendation_id,
             card.model_dump(mode="json"),
+            tenant_id=card.tenant_id,
             facility_id=card.facility_id,
             train_id=card.train_id,
             status=card.approval_status.value,
@@ -480,11 +645,15 @@ def _route_wq_alerts(alerts: list[WQAlert], actor: str = "system") -> None:
             payload={"recommendation_id": card.recommendation_id, "code": alert.code},
             actor=actor,
             subject=card.recommendation_id,
+            tenant_id=card.tenant_id,
+            facility_id=card.facility_id,
         )
 
 
-@app.get("/api/v1/water-quality/status", dependencies=AUTHENTICATED)
-def water_quality_status(fouling: Optional[float] = None) -> dict:
+@app.get("/api/v1/water-quality/status")
+def water_quality_status(
+    fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
+) -> dict:
     """Live water quality by stage with compliance flags + train summary."""
     snap = wq.compute_snapshot(_wq_fouling(fouling))
     return _wq_envelope(
@@ -502,54 +671,67 @@ def water_quality_status(fouling: Optional[float] = None) -> dict:
             },
         },
         DataProvenance.synthetic,
+        scope,
     )
 
 
-@app.get("/api/v1/water-quality/contaminant-matrix", dependencies=AUTHENTICATED)
-def water_quality_contaminant_matrix(fouling: Optional[float] = None) -> dict:
+@app.get("/api/v1/water-quality/contaminant-matrix")
+def water_quality_contaminant_matrix(
+    fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
+) -> dict:
     """Contaminant concentration across the treatment path (intake -> brine)."""
     snap = wq.compute_snapshot(_wq_fouling(fouling))
     return _wq_envelope(
         {"rows": [r.model_dump(mode="json") for r in snap.contaminant_matrix]},
         DataProvenance.synthetic,
+        scope,
     )
 
 
-@app.get("/api/v1/water-quality/removal", dependencies=AUTHENTICATED)
-def water_quality_removal(fouling: Optional[float] = None) -> dict:
+@app.get("/api/v1/water-quality/removal")
+def water_quality_removal(
+    fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
+) -> dict:
     """Treatment removal: current vs design vs predicted (with confidence)."""
     snap = wq.compute_snapshot(_wq_fouling(fouling))
-    return _wq_envelope({"removal": snap.removal}, DataProvenance.preliminary)
+    return _wq_envelope({"removal": snap.removal}, DataProvenance.preliminary, scope)
 
 
-@app.get("/api/v1/water-quality/scaling", dependencies=AUTHENTICATED)
-def water_quality_scaling(fouling: Optional[float] = None) -> dict:
+@app.get("/api/v1/water-quality/scaling")
+def water_quality_scaling(
+    fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
+) -> dict:
     """Per-compound scaling risk (preliminary)."""
     snap = wq.compute_snapshot(_wq_fouling(fouling))
     return _wq_envelope(
         {"scaling": [r.model_dump(mode="json") for r in snap.scaling]},
         DataProvenance.preliminary,
+        scope,
     )
 
 
-@app.get("/api/v1/water-quality/forecast", dependencies=AUTHENTICATED)
-def water_quality_forecast(fouling: Optional[float] = None) -> dict:
+@app.get("/api/v1/water-quality/forecast")
+def water_quality_forecast(
+    fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
+) -> dict:
     """Preliminary forecasts: salinity, boron, scaling, fouling (bounded)."""
     snap = wq.compute_snapshot(_wq_fouling(fouling))
     return _wq_envelope(
         {"forecasts": [f.model_dump(mode="json") for f in snap.forecasts]},
         DataProvenance.preliminary,
+        scope,
     )
 
 
 @app.get("/api/v1/water-quality/alerts")
 def water_quality_alerts(
     fouling: Optional[float] = None,
+    scope: Scope = Depends(facility_scope),
     user: Principal = Depends(get_current_user),
 ) -> dict:
     """WQ alerts; each is routed to the recommendation + audit path (pending)."""
     snap = wq.compute_snapshot(_wq_fouling(fouling))
-    _route_wq_alerts(snap.alerts, actor=_actor(user))
+    _route_wq_alerts(snap.alerts, actor=_actor(user), scope=scope)
     return _wq_envelope(
         {
             "alerts": [a.model_dump(mode="json") for a in snap.alerts],
@@ -560,6 +742,7 @@ def water_quality_alerts(
             ],
         },
         DataProvenance.preliminary,
+        scope,
     )
 
 
@@ -576,11 +759,16 @@ def water_quality_alerts(
 # ---------------------------------------------------------------------------
 
 
-def _pdm_envelope(payload: dict, provenance: DataProvenance = DataProvenance.preliminary) -> dict:
+def _pdm_envelope(
+    payload: dict,
+    provenance: DataProvenance = DataProvenance.preliminary,
+    scope: Optional[Scope] = None,
+) -> dict:
     """Attach the read-only control boundary + provenance to every PdM response."""
     return {
         **payload,
-        "facility_id": wq.FACILITY_ID,
+        "tenant_id": scope.tenant_id if scope else config.DEFAULT_TENANT_ID,
+        "facility_id": scope.facility_id if scope else wq.FACILITY_ID,
         "train_id": wq.TRAIN_ID,
         "provenance": provenance.value,
         "control_boundary": ControlBoundary().model_dump(),
@@ -595,66 +783,78 @@ def _require_asset(asset_id: str) -> None:
         )
 
 
-@app.get("/api/v1/equipment/{asset_id}/health", dependencies=AUTHENTICATED)
-def equipment_health(asset_id: str, fouling: Optional[float] = None) -> dict:
+@app.get("/api/v1/equipment/{asset_id}/health")
+def equipment_health(
+    asset_id: str, fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
+) -> dict:
     """Transparent component health with a contribution breakdown."""
     _require_asset(asset_id)
     health = pdm.component_health_for(asset_id, _wq_fouling(fouling))
-    return _pdm_envelope({"health": health.model_dump(mode="json")})
+    return _pdm_envelope({"health": health.model_dump(mode="json")}, scope=scope)
 
 
-@app.get("/api/v1/equipment/{asset_id}/rul", dependencies=AUTHENTICATED)
-def equipment_rul(asset_id: str, fouling: Optional[float] = None) -> dict:
+@app.get("/api/v1/equipment/{asset_id}/rul")
+def equipment_rul(
+    asset_id: str, fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
+) -> dict:
     """Preliminary remaining-useful-life with an uncertainty band."""
     _require_asset(asset_id)
     rul = pdm.rul_for(asset_id, _wq_fouling(fouling))
-    return _pdm_envelope({"rul": rul.model_dump(mode="json")})
+    return _pdm_envelope({"rul": rul.model_dump(mode="json")}, scope=scope)
 
 
-@app.get("/api/v1/equipment/{asset_id}/failure-probability", dependencies=AUTHENTICATED)
-def equipment_failure_probability(asset_id: str, fouling: Optional[float] = None) -> dict:
+@app.get("/api/v1/equipment/{asset_id}/failure-probability")
+def equipment_failure_probability(
+    asset_id: str, fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
+) -> dict:
     """Preliminary failure probability over {24h, 7d, 30d, 90d} horizons."""
     _require_asset(asset_id)
     fp = pdm.failure_probability_for(asset_id, _wq_fouling(fouling))
-    return _pdm_envelope({"failure_probability": fp.model_dump(mode="json")})
+    return _pdm_envelope({"failure_probability": fp.model_dump(mode="json")}, scope=scope)
 
 
-@app.get("/api/v1/equipment/{asset_id}/envelope", dependencies=AUTHENTICATED)
-def equipment_envelope(asset_id: str) -> dict:
+@app.get("/api/v1/equipment/{asset_id}/envelope")
+def equipment_envelope(asset_id: str, scope: Scope = Depends(facility_scope)) -> dict:
     """Operating-envelope regime fractions (BEP / low-flow / high-pressure / ...)."""
     _require_asset(asset_id)
     env = pdm.envelope_for(asset_id)
-    return _pdm_envelope({"envelope": env.model_dump(mode="json")})
+    return _pdm_envelope({"envelope": env.model_dump(mode="json")}, scope=scope)
 
 
-@app.get("/api/v1/equipment/{asset_id}/root-cause", dependencies=AUTHENTICATED)
-def equipment_root_cause(asset_id: str) -> dict:
+@app.get("/api/v1/equipment/{asset_id}/root-cause")
+def equipment_root_cause(asset_id: str, scope: Scope = Depends(facility_scope)) -> dict:
     """Causal root-cause ranking (probabilities sum to ~1.0)."""
     _require_asset(asset_id)
     rc = pdm.root_cause_for(asset_id)
-    return _pdm_envelope({"root_cause": rc.model_dump(mode="json")})
+    return _pdm_envelope({"root_cause": rc.model_dump(mode="json")}, scope=scope)
 
 
-@app.get("/api/v1/membrane/{asset_id}/health", dependencies=AUTHENTICATED)
-def membrane_health(asset_id: str, fouling: Optional[float] = None) -> dict:
+@app.get("/api/v1/membrane/{asset_id}/health")
+def membrane_health(
+    asset_id: str, fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
+) -> dict:
     """Membrane fouling / scaling / health (reuses the Water Quality layer)."""
     _require_asset(asset_id)
     mh = membrane.compute_membrane_health(_wq_fouling(fouling), asset_id=asset_id)
-    return _pdm_envelope({"membrane": mh.model_dump(mode="json")})
+    return _pdm_envelope({"membrane": mh.model_dump(mode="json")}, scope=scope)
 
 
-def _route_pdm_recommendations(cards: list, actor: str = "system") -> None:
+def _route_pdm_recommendations(
+    cards: list, actor: str = "system", scope: Optional[Scope] = None
+) -> None:
     """Route PdM recommendation cards through the existing recommendation + audit
     path. Each card is created ``pending`` (operator approval required, no
     control write) and is idempotent by its asset-derived id so repeated polling
     does not duplicate cards or reset an operator's decision."""
     for card in cards:
+        _apply_scope(card, scope)
         if reco_store.get(card.recommendation_id) is not None:
             continue
         reco_store.put(card)
         store.save_recommendation(
             card.recommendation_id,
             card.model_dump(mode="json"),
+            tenant_id=card.tenant_id,
             facility_id=card.facility_id,
             train_id=card.train_id,
             status=card.approval_status.value,
@@ -664,25 +864,30 @@ def _route_pdm_recommendations(cards: list, actor: str = "system") -> None:
             payload={"recommendation_id": card.recommendation_id, "asset_id": card.asset_id},
             actor=actor,
             subject=card.recommendation_id,
+            tenant_id=card.tenant_id,
+            facility_id=card.facility_id,
         )
 
 
-@app.get("/api/v1/maintenance/ranking", dependencies=AUTHENTICATED)
-def maintenance_ranking(fouling: Optional[float] = None) -> dict:
+@app.get("/api/v1/maintenance/ranking")
+def maintenance_ranking(
+    fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
+) -> dict:
     """Risk-ranked predictive-maintenance view across all critical assets."""
     ranking = pdm.compute_ranking(_wq_fouling(fouling))
-    return _pdm_envelope({"ranking": [p.model_dump(mode="json") for p in ranking]})
+    return _pdm_envelope({"ranking": [p.model_dump(mode="json") for p in ranking]}, scope=scope)
 
 
 @app.get("/api/v1/maintenance/recommendations")
 def maintenance_recommendations(
     fouling: Optional[float] = None,
+    scope: Scope = Depends(facility_scope),
     user: Principal = Depends(get_current_user),
 ) -> dict:
     """PdM recommendations; each routes to the recommendation + audit path (pending)."""
     recs = pdm.compute_recommendations(_wq_fouling(fouling))
     cards = [pdm.build_pdm_card(rec) for rec in recs]
-    _route_pdm_recommendations(cards, actor=_actor(user))
+    _route_pdm_recommendations(cards, actor=_actor(user), scope=scope)
     return _pdm_envelope(
         {
             "recommendations": [p.model_dump(mode="json") for p in recs],
@@ -692,7 +897,8 @@ def maintenance_recommendations(
                 if rec.recommendation_id
                 and reco_store.get(rec.recommendation_id) is not None
             ],
-        }
+        },
+        scope=scope,
     )
 
 
@@ -712,11 +918,14 @@ def maintenance_recommendations(
 # ---------------------------------------------------------------------------
 
 
-def _value_envelope(payload: dict, provenance: DataProvenance) -> dict:
+def _value_envelope(
+    payload: dict, provenance: DataProvenance, scope: Optional[Scope] = None
+) -> dict:
     """Attach the read-only control boundary + provenance to a value response."""
     return {
         **payload,
-        "facility_id": wq.FACILITY_ID,
+        "tenant_id": scope.tenant_id if scope else config.DEFAULT_TENANT_ID,
+        "facility_id": scope.facility_id if scope else wq.FACILITY_ID,
         "train_id": wq.TRAIN_ID,
         "provenance": provenance.value,
         "control_boundary": ControlBoundary().model_dump(),
@@ -732,64 +941,76 @@ class GridOutageRequest(BaseModel):
     battery_bridge_minutes: Optional[float] = None
 
 
-@app.get("/api/v1/energy/summary", dependencies=AUTHENTICATED)
-def energy_summary(fouling: Optional[float] = None) -> dict:
+@app.get("/api/v1/energy/summary")
+def energy_summary(
+    fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
+) -> dict:
     """Energy-by-asset + current-vs-optimal specific-energy summary (estimated)."""
     return _value_envelope(
-        energy.energy_summary(_wq_fouling(fouling)), DataProvenance.estimated
+        energy.energy_summary(_wq_fouling(fouling)), DataProvenance.estimated, scope
     )
 
 
-@app.post("/api/v1/energy/optimize", dependencies=AUTHENTICATED)
-def energy_optimize(body: EnergyOptimizeRequest | None = None) -> dict:
+@app.post("/api/v1/energy/optimize")
+def energy_optimize(
+    body: EnergyOptimizeRequest | None = None, scope: Scope = Depends(facility_scope)
+) -> dict:
     """Optimal HP-pump setpoint + ESTIMATED savings (constrained RO optimisation)."""
     fouling = _wq_fouling(body.fouling if body else None)
     result = energy.optimization_result(fouling)
     return _value_envelope(
-        {"optimization": result.model_dump(mode="json")}, DataProvenance.estimated
+        {"optimization": result.model_dump(mode="json")}, DataProvenance.estimated, scope
     )
 
 
-@app.get("/api/v1/energy/losses", dependencies=AUTHENTICATED)
-def energy_losses(fouling: Optional[float] = None) -> dict:
+@app.get("/api/v1/energy/losses")
+def energy_losses(
+    fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
+) -> dict:
     """Avoidable specific-energy losses (estimated, synthetic basis)."""
     losses = energy.losses(_wq_fouling(fouling))
     return _value_envelope(
         {"losses": [loss.model_dump(mode="json") for loss in losses]},
         DataProvenance.estimated,
+        scope,
     )
 
 
-@app.get("/api/v1/resilience/criticality", dependencies=AUTHENTICATED)
-def resilience_criticality() -> dict:
+@app.get("/api/v1/resilience/criticality")
+def resilience_criticality(scope: Scope = Depends(facility_scope)) -> dict:
     """Resilience-criticality ranking of assets (highest impact/risk first)."""
     ranking = resil.criticality_ranking()
     return _value_envelope(
         {"criticality": [c.model_dump(mode="json") for c in ranking]},
         DataProvenance.preliminary,
+        scope,
     )
 
 
-@app.get("/api/v1/resilience/generator", dependencies=AUTHENTICATED)
-def resilience_generator() -> dict:
+@app.get("/api/v1/resilience/generator")
+def resilience_generator(scope: Scope = Depends(facility_scope)) -> dict:
     """Preliminary standby-generator start probability + fuel endurance."""
     gen = resil.generator_status()
     return _value_envelope(
-        {"generator": gen.model_dump(mode="json")}, DataProvenance.preliminary
+        {"generator": gen.model_dump(mode="json")}, DataProvenance.preliminary, scope
     )
 
 
-def _route_resilience_recommendation(card, actor: str = "system") -> None:
+def _route_resilience_recommendation(
+    card, actor: str = "system", scope: Optional[Scope] = None
+) -> None:
     """Route the grid-outage recommendation through the existing recommendation +
     audit path (pending, operator approval required, no control write). Idempotent
     by its deterministic id so repeated assessments do not duplicate the card or
     reset an operator's decision."""
+    _apply_scope(card, scope)
     if reco_store.get(card.recommendation_id) is not None:
         return
     reco_store.put(card)
     store.save_recommendation(
         card.recommendation_id,
         card.model_dump(mode="json"),
+        tenant_id=card.tenant_id,
         facility_id=card.facility_id,
         train_id=card.train_id,
         status=card.approval_status.value,
@@ -799,12 +1020,15 @@ def _route_resilience_recommendation(card, actor: str = "system") -> None:
         payload={"recommendation_id": card.recommendation_id, "asset_id": card.asset_id},
         actor=actor,
         subject=card.recommendation_id,
+        tenant_id=card.tenant_id,
+        facility_id=card.facility_id,
     )
 
 
 @app.post("/api/v1/resilience/grid-outage")
 def resilience_grid_outage(
     body: GridOutageRequest | None = None,
+    scope: Scope = Depends(facility_scope),
     user: Principal = Depends(get_current_user),
 ) -> dict:
     """Assess the grid-outage scenario: generator, shed plan, continuity, ranking.
@@ -819,7 +1043,7 @@ def resilience_grid_outage(
         fuel_level_fraction=fuel, battery_bridge_minutes=bridge
     )
     card = assessment["recommendation"]
-    _route_resilience_recommendation(card, actor=_actor(user))
+    _route_resilience_recommendation(card, actor=_actor(user), scope=scope)
     stored = reco_store.get(card.recommendation_id)
     return _value_envelope(
         {
@@ -831,26 +1055,33 @@ def resilience_grid_outage(
             "recommendation": (stored or card).model_dump(mode="json"),
         },
         DataProvenance.preliminary,
+        scope,
     )
 
 
-@app.get("/api/v1/executive/value-summary", dependencies=AUTHENTICATED)
-def executive_value_summary(fouling: Optional[float] = None) -> dict:
+@app.get("/api/v1/executive/value-summary")
+def executive_value_summary(
+    fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
+) -> dict:
     """Aggregated ESTIMATED value summary (illustrative, synthetic basis)."""
     summary = executive.value_summary(_wq_fouling(fouling))
     return _value_envelope(
         {"value_summary": summary.model_dump(mode="json"), "disclaimer": summary.disclaimer},
         DataProvenance.estimated,
+        scope,
     )
 
 
-@app.get("/api/v1/executive/roi", dependencies=AUTHENTICATED)
-def executive_roi(fouling: Optional[float] = None) -> dict:
+@app.get("/api/v1/executive/roi")
+def executive_roi(
+    fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
+) -> dict:
     """Illustrative pilot ROI, annualized benefit + payback (ESTIMATED)."""
     estimate = executive.roi(_wq_fouling(fouling))
     return _value_envelope(
         {"roi": estimate.model_dump(mode="json"), "disclaimer": estimate.disclaimer},
         DataProvenance.estimated,
+        scope,
     )
 
 
@@ -895,6 +1126,7 @@ def _route_assistant_recommendation(card) -> None:
     store.save_recommendation(
         card.recommendation_id,
         card.model_dump(mode="json"),
+        tenant_id=getattr(card, "tenant_id", None),
         facility_id=card.facility_id,
         train_id=card.train_id,
         status=card.approval_status.value,
@@ -903,6 +1135,8 @@ def _route_assistant_recommendation(card) -> None:
         "assistant.recommendation.created",
         payload={"recommendation_id": card.recommendation_id, "asset_id": card.asset_id},
         subject=card.recommendation_id,
+        tenant_id=getattr(card, "tenant_id", None),
+        facility_id=card.facility_id,
     )
 
 
