@@ -235,6 +235,19 @@ class Store:
         """
         return audit_chain.verify_chain(self.audit_chain_asc())
 
+    def audit_length(self) -> int:
+        """Return the number of events in the audit chain (cheap COUNT/len)."""
+        with self._lock:
+            if self.db_connected:
+                try:  # pragma: no cover - real DB only
+                    with self._conn.cursor() as cur:
+                        cur.execute("SELECT count(*) FROM audit_event")
+                        row = cur.fetchone()
+                    return int(row[0]) if row else 0
+                except Exception as exc:  # pragma: no cover - real DB only
+                    logger.warning("audit count failed; using memory", extra={"error": str(exc)})
+            return len(self._audit_mem)
+
     def recent_audit(self, n: int = 100) -> list[dict[str, Any]]:
         """Return up to ``n`` most-recent audit events, newest first."""
         with self._lock:
