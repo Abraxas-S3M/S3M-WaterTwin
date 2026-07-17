@@ -799,3 +799,107 @@ export interface AssistantExamplesResponse {
   examples: AssistantExample[];
   control_boundary: ControlBoundary;
 }
+
+// --- Administration: licensing, metering, updates, support ---
+// Commercial-hardening administration. Feature-gating is a product-packaging
+// concern only; it never touches the advisory/read-only control boundary.
+
+export interface EntitlementFeature {
+  label: string;
+  enabled: boolean;
+}
+
+export interface Entitlements {
+  tenant_id: string;
+  plan: string;
+  features: Record<string, EntitlementFeature>;
+  enabled_features: string[];
+  limits: Record<string, number>;
+}
+
+export interface LimitStatus {
+  metric: string;
+  used: number;
+  limit: number;
+  unlimited: boolean;
+  within_limit: boolean;
+}
+
+export interface EntitlementsResponse {
+  entitlements: Entitlements;
+  usage: UsageSnapshot;
+  limits_status: LimitStatus[];
+  safety_invariant_intact: boolean;
+  control_boundary: ControlBoundary;
+}
+
+export interface UsageSnapshot {
+  period: string;
+  facilities: number;
+  assets: number;
+  ingest_events: number;
+  api_calls: Record<string, number>;
+  facility_ids: string[];
+  asset_ids: string[];
+}
+
+export interface UsageResponse {
+  usage: UsageSnapshot;
+  control_boundary: ControlBoundary;
+}
+
+export interface BillingMetric {
+  metric: string;
+  quantity: number;
+  unit: string;
+  limit: number;
+  unlimited: boolean;
+  within_limit: boolean;
+}
+
+export interface BillingExport {
+  tenant_id: string;
+  plan: string;
+  period: string;
+  generated_at: string;
+  metrics: BillingMetric[];
+  api_calls: Record<string, number>;
+}
+
+export interface BillingExportResponse {
+  billing_export: BillingExport;
+  control_boundary: ControlBoundary;
+}
+
+export interface UpdateChannel {
+  current_version: string;
+  channel: string;
+  signature_algorithm: string;
+  public_key_configured: boolean;
+  public_key_fingerprint?: string | null;
+  auto_update_enabled: boolean;
+  verify_before_apply: boolean;
+  policy: string;
+  documentation: string;
+}
+
+export interface UpdateChannelResponse {
+  update_channel: UpdateChannel;
+  control_boundary: ControlBoundary;
+}
+
+export interface UpdateVerification {
+  verified: boolean;
+  reason: string;
+  algorithm: string;
+  fingerprint?: string | null;
+  manifest_version?: string | null;
+  applied: boolean;
+}
+
+export interface UpdateVerifyResponse {
+  verification: UpdateVerification;
+  applied: boolean;
+  note: string;
+  control_boundary: ControlBoundary;
+}

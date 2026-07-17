@@ -12,9 +12,13 @@ import type {
   Asset,
   AssistantExamplesResponse,
   AuditResponse,
+  BillingExportResponse,
   ControlBoundary,
   DecisionRequest,
   DocumentsResponse,
+  EntitlementsResponse,
+  UpdateChannelResponse,
+  UsageResponse,
   EnergyLossesResponse,
   EnergySummaryResponse,
   EquipmentEnvelopeResponse,
@@ -82,6 +86,10 @@ export const queryKeys = {
   executiveRoi: ['executive-roi'] as const,
   assistantExamples: ['assistant-examples'] as const,
   documents: ['documents'] as const,
+  entitlements: ['admin-entitlements'] as const,
+  usage: ['admin-usage'] as const,
+  billingExport: ['admin-billing-export'] as const,
+  updateChannel: ['admin-update-channel'] as const,
 };
 
 // Control boundary rarely changes; poll slowly but keep it fresh.
@@ -404,6 +412,44 @@ export function useDocuments(): UseQueryResult<DocumentsResponse> {
     queryFn: api.getDocuments,
     staleTime: POLL_INTERVAL_MS * 60,
   });
+}
+
+// --- Administration hooks (admin-only) ---
+
+export function useEntitlements(): UseQueryResult<EntitlementsResponse> {
+  return useQuery({
+    queryKey: queryKeys.entitlements,
+    queryFn: api.getEntitlements,
+    refetchInterval: POLL_INTERVAL_MS * 4,
+  });
+}
+
+export function useUsage(): UseQueryResult<UsageResponse> {
+  return useQuery({
+    queryKey: queryKeys.usage,
+    queryFn: api.getUsage,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useBillingExport(): UseQueryResult<BillingExportResponse> {
+  return useQuery({
+    queryKey: queryKeys.billingExport,
+    queryFn: api.getBillingExport,
+    refetchInterval: POLL_INTERVAL_MS * 4,
+  });
+}
+
+export function useUpdateChannel(): UseQueryResult<UpdateChannelResponse> {
+  return useQuery({
+    queryKey: queryKeys.updateChannel,
+    queryFn: api.getUpdateChannel,
+    staleTime: POLL_INTERVAL_MS * 15,
+  });
+}
+
+export function useSupportBundle() {
+  return useMutation({ mutationFn: () => api.downloadSupportBundle() });
 }
 
 export function useAskAssistant() {

@@ -6,7 +6,12 @@ import type {
   AssistantExamplesResponse,
   AssistantResponse,
   AuditResponse,
+  BillingExportResponse,
   ControlBoundary,
+  EntitlementsResponse,
+  UpdateChannelResponse,
+  UpdateVerifyResponse,
+  UsageResponse,
   DecisionRequest,
   DocumentsResponse,
   EquipmentEnvelopeResponse,
@@ -199,6 +204,36 @@ export const api = {
     }),
   getAssistantExamples: () => request<AssistantExamplesResponse>('/assistant/examples'),
   getDocuments: () => request<DocumentsResponse>('/documents'),
+
+  // Administration (admin-only): licensing, metering, updates, support.
+  getEntitlements: () => request<EntitlementsResponse>('/admin/entitlements'),
+  getUsage: () => request<UsageResponse>('/admin/metering/usage'),
+  getBillingExport: () => request<BillingExportResponse>('/admin/metering/billing-export'),
+  getUpdateChannel: () => request<UpdateChannelResponse>('/admin/update-channel'),
+  verifyUpdate: (manifest: unknown, signature: string, publicKey?: string) =>
+    request<UpdateVerifyResponse>('/admin/update-channel/verify', {
+      method: 'POST',
+      body: JSON.stringify({ manifest, signature, public_key: publicKey ?? null }),
+    }),
+  // The support bundle is a binary ZIP download rather than JSON.
+  downloadSupportBundle: async (): Promise<Blob> => {
+    let res = await doFetch('/admin/support/bundle', { method: 'POST' });
+    if (res.status === 401 && getAccessToken()) {
+      const refreshed = await refreshTokens();
+      if (refreshed) res = await doFetch('/admin/support/bundle', { method: 'POST' });
+    }
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        const body = await res.json();
+        detail = (body as { detail?: string }).detail ?? detail;
+      } catch {
+        /* non-JSON error body */
+      }
+      throw new ApiError(res.status, detail);
+    }
+    return res.blob();
+  },
 };
 
 export type ApiClient = typeof api;

@@ -15,6 +15,7 @@ import { EnergyOptimization } from './pages/EnergyOptimization';
 import { ResilienceCommand } from './pages/ResilienceCommand';
 import { ExecutiveValue } from './pages/ExecutiveValue';
 import { OperationsAssistant } from './pages/OperationsAssistant';
+import { Administration } from './pages/Administration';
 import { useDashboardStore, type PageId } from './state/store';
 
 interface NavEntry {
@@ -23,6 +24,7 @@ interface NavEntry {
   page: number;
   disabled?: boolean;
   note?: string;
+  adminOnly?: boolean;
 }
 
 const NAV: NavEntry[] = [
@@ -36,18 +38,20 @@ const NAV: NavEntry[] = [
   { id: 'executive', label: 'Executive Value / ROI', page: 10 },
   { id: 'assistant', label: 'Operations Assistant', page: 11 },
   { id: 'simulation', label: 'Simulation Center', page: 8, note: 'Phase 8–9' },
+  { id: 'administration', label: 'Administration', page: 12, adminOnly: true },
 ];
 
 function Nav() {
   const page = useDashboardStore((s) => s.page);
   const navigate = useDashboardStore((s) => s.navigate);
+  const { capabilities } = useAuth();
   return (
     <nav className="app-nav" aria-label="Primary">
       <div className="brand">
         <h1>S3M-WaterTwin</h1>
         <div className="sub">Operator Console</div>
       </div>
-      {NAV.map((item) => (
+      {NAV.filter((item) => !item.adminOnly || capabilities.administer).map((item) => (
         <button
           key={item.id}
           className={`nav-item${page === item.id ? ' active' : ''}`}
@@ -90,6 +94,8 @@ function CurrentPage() {
       return <OperationsAssistant />;
     case 'simulation':
       return <SimulationCenter />;
+    case 'administration':
+      return <Administration />;
     default:
       return <CommandOverview />;
   }

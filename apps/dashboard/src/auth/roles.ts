@@ -26,3 +26,7 @@ export function canReset(roles: readonly string[]): boolean {
 export function canReadAudit(roles: readonly string[]): boolean {
   return hasAny(roles, 'auditor', 'admin');
 }
+
+export function canAdminister(roles: readonly string[]): boolean {
+  return hasAny(roles, 'admin');
+}

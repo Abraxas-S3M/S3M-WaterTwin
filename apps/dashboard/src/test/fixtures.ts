@@ -4,8 +4,12 @@ import type {
   AssistantExamplesResponse,
   AssistantResponse,
   AuditResponse,
+  BillingExportResponse,
   ControlBoundary,
   DocumentsResponse,
+  EntitlementsResponse,
+  UpdateChannelResponse,
+  UsageResponse,
   EnergyLossesResponse,
   EnergyOptimizeResponse,
   EnergySummaryResponse,
@@ -916,4 +920,85 @@ export const overview: PlantOverview = {
   ],
   active_recommendations: [recommendation],
   service_continuity_risk: { score: 34, band: 'elevated', provenance: 'preliminary' },
+};
+
+// --- Administration fixtures ---
+
+export const entitlements: EntitlementsResponse = {
+  control_boundary: controlBoundary,
+  safety_invariant_intact: true,
+  entitlements: {
+    tenant_id: 'default',
+    plan: 'enterprise',
+    enabled_features: ['water_quality', 'energy_optimization', 'support_bundle'],
+    features: {
+      water_quality: { label: 'Water Quality Intelligence', enabled: true },
+      energy_optimization: { label: 'Energy Optimization', enabled: true },
+      signed_updates: { label: 'Signed-update channel', enabled: true },
+      support_bundle: { label: 'In-app support bundles', enabled: true },
+    },
+    limits: {
+      max_facilities: -1,
+      max_assets: -1,
+      max_monthly_ingest_events: -1,
+    },
+  },
+  usage: {
+    period: '2026-07',
+    facilities: 2,
+    assets: 5,
+    ingest_events: 1200,
+    api_calls: { scenario_run: 3 },
+    facility_ids: ['S3M-DESAL-01', 'S3M-DESAL-02'],
+    asset_ids: ['AST-HPP-01', 'AST-CF-01'],
+  },
+  limits_status: [
+    { metric: 'facilities', used: 2, limit: -1, unlimited: true, within_limit: true },
+    { metric: 'assets', used: 5, limit: -1, unlimited: true, within_limit: true },
+    { metric: 'ingest_events', used: 1200, limit: -1, unlimited: true, within_limit: true },
+  ],
+};
+
+export const usage: UsageResponse = {
+  control_boundary: controlBoundary,
+  usage: entitlements.usage,
+};
+
+export const billingExport: BillingExportResponse = {
+  control_boundary: controlBoundary,
+  billing_export: {
+    tenant_id: 'default',
+    plan: 'enterprise',
+    period: '2026-07',
+    generated_at: '2026-07-17T12:00:00Z',
+    api_calls: { scenario_run: 3 },
+    metrics: [
+      { metric: 'facilities', quantity: 2, unit: 'facility', limit: -1, unlimited: true, within_limit: true },
+      { metric: 'assets', quantity: 5, unit: 'asset', limit: -1, unlimited: true, within_limit: true },
+      {
+        metric: 'ingest_events',
+        quantity: 1200,
+        unit: 'reading',
+        limit: -1,
+        unlimited: true,
+        within_limit: true,
+      },
+    ],
+  },
+};
+
+export const updateChannel: UpdateChannelResponse = {
+  control_boundary: controlBoundary,
+  update_channel: {
+    current_version: '0.1.0',
+    channel: 'stable',
+    signature_algorithm: 'ed25519',
+    public_key_configured: false,
+    public_key_fingerprint: null,
+    auto_update_enabled: false,
+    verify_before_apply: true,
+    policy:
+      'Updates are verified before they may be applied, and are applied manually by an operator — never automatically in production.',
+    documentation: 'docs/operations/signed-updates.md',
+  },
 };
