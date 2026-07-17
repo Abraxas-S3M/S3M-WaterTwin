@@ -1,0 +1,23 @@
+# WaterTwin stack. TimescaleDB is added in Phase 10; for now only the API service.
+services:
+  watertwin-api:
+    build:
+      context: .
+      dockerfile: services/watertwin-api/Dockerfile
+    image: watertwin-api:latest
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      # Reach an S3M-Core running on the docker host by default.
+      WATERTWIN_S3M_BASE_URL: ${WATERTWIN_S3M_BASE_URL:-http://host.docker.internal:8081}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
