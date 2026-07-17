@@ -25,3 +25,11 @@ pymodbus==3.7.4
 # bus is advisory/notification-only (no control command is ever published) and
 # degrades gracefully to direct in-process delivery when the broker is down.
 nats-py==2.15.0
+# Observability: structured JSON logs + correlation ids, Prometheus /metrics and
+# OpenTelemetry traces (shared watertwin_observability package). See
+# docs/architecture/observability.md.
+prometheus-client==0.25.0
+opentelemetry-api==1.44.0
+opentelemetry-sdk==1.44.0
+opentelemetry-exporter-otlp-proto-http==1.44.0
+opentelemetry-instrumentation-fastapi==0.65b0

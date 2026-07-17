@@ -23,6 +23,11 @@ CORS_ORIGINS = os.environ.get("WATERTWIN_CORS_ORIGINS", "*").split(",")
 # memory and degrades gracefully; nothing here is ever a control-write path.
 DATABASE_URL = os.environ.get("WATERTWIN_DATABASE_URL") or None
 
+# Provisioned shared token an edge gateway presents (X-Ingest-Token header) to
+# the telemetry ingest path. When unset, ingest falls back to role-based auth
+# (see app.auth.require_ingest). Read at request time in app.auth, not here.
+INGEST_TOKEN = os.environ.get("WATERTWIN_INGEST_TOKEN") or None
+
 # ---------------------------------------------------------------------------
 # Advisory service-event bus (NATS).
 #

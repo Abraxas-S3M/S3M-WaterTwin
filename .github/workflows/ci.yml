@@ -44,7 +44,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [watertwin-api, hydraulic-sim, treatment-sim]
+        service: [watertwin-api, hydraulic-sim, treatment-sim, edge-gateway]
     steps:
       - uses: actions/checkout@v4
 
@@ -72,8 +72,16 @@ jobs:
             treatment-sim)
               # The treatment-sim test-suite exercises the analytical RO engine
               # (the WaterTAP/IDAES + ipopt stack is confined to the container
-              # image). Install the light runtime the analytical path needs.
-              pip install fastapi "uvicorn[standard]" pydantic httpx numpy
+              # image). Install the light runtime the analytical path needs plus
+              # the shared observability deps (Prometheus + OpenTelemetry).
+              pip install fastapi "uvicorn[standard]" pydantic httpx numpy \
+                prometheus-client opentelemetry-api opentelemetry-sdk \
+                opentelemetry-exporter-otlp-proto-http \
+                opentelemetry-instrumentation-fastapi
+              ;;
+            edge-gateway)
+              # Read-only telemetry store-and-forward edge gateway.
+              pip install -r services/edge-gateway/requirements.txt
               ;;
           esac
 
@@ -110,7 +118,12 @@ jobs:
         run: |
           set -euxo pipefail
           python -m pip install --upgrade pip
-          pip install pytest pydantic scipy==1.18.0
+          # scipy for the physics packages; prometheus-client + OpenTelemetry for
+          # the shared watertwin_observability package and its tests.
+          pip install pytest pydantic scipy==1.18.0 \
+            prometheus-client opentelemetry-api opentelemetry-sdk \
+            opentelemetry-exporter-otlp-proto-http \
+            opentelemetry-instrumentation-fastapi
 
       - name: Pytest
         working-directory: packages
@@ -296,3 +309,42 @@ jobs:
           name: gitleaks-report
           path: gitleaks.sarif
           if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # Load smoke (NON-BLOCKING): run the k6 smoke profile against a self-contained,
+  # in-memory watertwin-api (auth disabled) to catch gross ingest/read-path
+  # perf or breakage regressions. Non-blocking initially (continue-on-error) so
+  # it surfaces regressions without gating merges yet.
+  # ---------------------------------------------------------------------------
+  load-smoke:
+    name: load-smoke (k6, non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install API runtime
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip
+          pip install -r services/watertwin-api/requirements.txt
+
+      - name: Install k6
+        run: |
+          set -euxo pipefail
+          K6_VERSION=0.54.0
+          curl -sSL -o /tmp/k6.tar.gz \
+            "https://github.com/grafana/k6/releases/download/v${K6_VERSION}/k6-v${K6_VERSION}-linux-amd64.tar.gz"
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          sudo install "/tmp/k6-v${K6_VERSION}-linux-amd64/k6" /usr/local/bin/k6
+          k6 version
+
+      - name: Run k6 smoke profile (ingest + read paths)
+        env:
+          LOAD_PROFILE: smoke
+        run: tests/load/run_smoke.sh

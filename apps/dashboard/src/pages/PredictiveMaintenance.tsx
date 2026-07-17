@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { HealthBar } from '../components/HealthBar';
 import { ProvenanceBadge } from '../components/ProvenanceBadge';
 import { RecommendationCard } from '../components/RecommendationCard';
@@ -28,6 +29,7 @@ function bandFromScore(score: number): HealthBand {
 }
 
 export function PredictiveMaintenance() {
+  const { t } = useTranslation();
   const operator = useDashboardStore((s) => s.operatorName);
   const openAssetTwin = useDashboardStore((s) => s.openAssetTwin);
   const ranking = useMaintenanceRanking();
@@ -49,40 +51,42 @@ export function PredictiveMaintenance() {
     <div className="stack" data-testid="predictive-maintenance">
       <div className="page-header">
         <div>
-          <h2>Predictive Maintenance</h2>
+          <h2>{t('predictiveMaintenance.title')}</h2>
           <div className="context">
-            Risk-ranked equipment & membrane intelligence · advisory only
+            {t('predictiveMaintenance.context')}
             <ProvenanceBadge provenance="preliminary" />
           </div>
         </div>
       </div>
 
       <div className="card">
-        <h3>Risk-Ranked Assets</h3>
+        <h3>{t('predictiveMaintenance.riskRankedAssets')}</h3>
         <p className="muted">
-          Remaining-useful-life, failure probability and avoided-cost are{' '}
-          <strong>preliminary</strong> engineering estimates with uncertainty — not validated or
-          guaranteed. All actions require operator approval; no control write is issued.
+          <Trans i18nKey="predictiveMaintenance.disclaimer">
+            Remaining-useful-life, failure probability and avoided-cost are{' '}
+            <strong>preliminary</strong> engineering estimates with uncertainty — not validated or
+            guaranteed. All actions require operator approval; no control write is issued.
+          </Trans>
         </p>
         {ranking.isLoading ? (
-          <div className="spinner">Loading ranking…</div>
+          <div className="spinner">{t('predictiveMaintenance.loadingRanking')}</div>
         ) : rows.length === 0 ? (
-          <div className="empty">No assets ranked.</div>
+          <div className="empty">{t('predictiveMaintenance.noAssetsRanked')}</div>
         ) : (
           <table className="data" data-testid="pdm-ranking-table">
             <thead>
               <tr>
-                <th>Asset</th>
-                <th>Health</th>
-                <th>Predicted failure mode</th>
-                <th style={{ textAlign: 'right' }}>Fail prob (30d)</th>
-                <th style={{ textAlign: 'right' }}>RUL (d)</th>
-                <th style={{ textAlign: 'right' }}>Time-to-interv. (d)</th>
-                <th>Window</th>
-                <th>Spares</th>
-                <th style={{ textAlign: 'right' }}>Downtime (h)</th>
-                <th style={{ textAlign: 'right' }}>Maint. cost</th>
-                <th style={{ textAlign: 'right' }}>Avoided cost</th>
+                <th>{t('predictiveMaintenance.table.asset')}</th>
+                <th>{t('predictiveMaintenance.table.health')}</th>
+                <th>{t('predictiveMaintenance.table.predictedFailureMode')}</th>
+                <th style={{ textAlign: 'right' }}>{t('predictiveMaintenance.table.failProb30d')}</th>
+                <th style={{ textAlign: 'right' }}>{t('predictiveMaintenance.table.rulD')}</th>
+                <th style={{ textAlign: 'right' }}>{t('predictiveMaintenance.table.timeToInterv')}</th>
+                <th>{t('predictiveMaintenance.table.window')}</th>
+                <th>{t('predictiveMaintenance.table.spares')}</th>
+                <th style={{ textAlign: 'right' }}>{t('predictiveMaintenance.table.downtimeH')}</th>
+                <th style={{ textAlign: 'right' }}>{t('predictiveMaintenance.table.maintCost')}</th>
+                <th style={{ textAlign: 'right' }}>{t('predictiveMaintenance.table.avoidedCost')}</th>
               </tr>
             </thead>
             <tbody>
@@ -111,7 +115,7 @@ export function PredictiveMaintenance() {
                     <td style={{ textAlign: 'right' }}>{fmtNumber(r.time_to_intervention_days, 0)}</td>
                     <td className="muted">{r.recommended_window}</td>
                     <td className="muted">
-                      {r.spares_required.length ? r.spares_required.join(', ') : '—'}
+                      {r.spares_required.length ? r.spares_required.join(', ') : t('common.dash')}
                     </td>
                     <td style={{ textAlign: 'right' }}>{fmtNumber(r.expected_downtime_hours, 0)}</td>
                     <td style={{ textAlign: 'right' }}>{fmtMoney(r.maintenance_cost)}</td>
@@ -129,39 +133,60 @@ export function PredictiveMaintenance() {
           <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
             <h3>{selectedRec.asset_name ?? selectedRec.asset_id}</h3>
             <button className="btn" onClick={() => openAssetTwin(selectedRec.asset_id)}>
-              Open Asset Twin
+              {t('predictiveMaintenance.openAssetTwin')}
             </button>
           </div>
           <dl className="definition">
-            <dt>Predicted failure mode</dt>
+            <dt>{t('predictiveMaintenance.detail.predictedFailureMode')}</dt>
             <dd>{selectedRec.predicted_failure_mode}</dd>
-            <dt>Failure probability (30d)</dt>
+            <dt>{t('predictiveMaintenance.detail.failureProbability30d')}</dt>
             <dd>
               {fmtPct(selectedRec.failure_probability_30d)} <ProvenanceBadge provenance="preliminary" />
             </dd>
-            <dt>Preliminary RUL</dt>
+            <dt>{t('predictiveMaintenance.detail.preliminaryRul')}</dt>
             <dd>
-              {fmtNumber(selectedRec.rul_days, 0)} d ({fmtNumber(selectedRec.rul_lower_days, 0)}–
-              {fmtNumber(selectedRec.rul_upper_days, 0)} d){' '}
+              {t('predictiveMaintenance.detail.rulValue', {
+                value: fmtNumber(selectedRec.rul_days, 0),
+                lower: fmtNumber(selectedRec.rul_lower_days, 0),
+                upper: fmtNumber(selectedRec.rul_upper_days, 0),
+              })}{' '}
               <ProvenanceBadge provenance="preliminary" />
             </dd>
-            <dt>Time to intervention</dt>
-            <dd>{fmtNumber(selectedRec.time_to_intervention_days, 0)} d</dd>
-            <dt>Recommended window</dt>
-            <dd>{selectedRec.recommended_window}</dd>
-            <dt>Spares required</dt>
+            <dt>{t('predictiveMaintenance.detail.timeToIntervention')}</dt>
             <dd>
-              {selectedRec.spares_required.length ? selectedRec.spares_required.join(', ') : 'None'}
+              {t('predictiveMaintenance.detail.timeToInterventionValue', {
+                value: fmtNumber(selectedRec.time_to_intervention_days, 0),
+              })}
             </dd>
-            <dt>Expected downtime</dt>
-            <dd>{fmtNumber(selectedRec.expected_downtime_hours, 0)} h</dd>
-            <dt>Maintenance cost</dt>
-            <dd>{fmtMoney(selectedRec.maintenance_cost)} (preliminary)</dd>
-            <dt>Avoided-failure cost</dt>
-            <dd>{fmtMoney(selectedRec.avoided_failure_cost)} (preliminary)</dd>
+            <dt>{t('predictiveMaintenance.detail.recommendedWindow')}</dt>
+            <dd>{selectedRec.recommended_window}</dd>
+            <dt>{t('predictiveMaintenance.detail.sparesRequired')}</dt>
+            <dd>
+              {selectedRec.spares_required.length
+                ? selectedRec.spares_required.join(', ')
+                : t('common.noneCap')}
+            </dd>
+            <dt>{t('predictiveMaintenance.detail.expectedDowntime')}</dt>
+            <dd>
+              {t('predictiveMaintenance.detail.expectedDowntimeValue', {
+                value: fmtNumber(selectedRec.expected_downtime_hours, 0),
+              })}
+            </dd>
+            <dt>{t('predictiveMaintenance.detail.maintenanceCost')}</dt>
+            <dd>
+              {t('predictiveMaintenance.detail.maintenanceCostValue', {
+                value: fmtMoney(selectedRec.maintenance_cost),
+              })}
+            </dd>
+            <dt>{t('predictiveMaintenance.detail.avoidedFailureCost')}</dt>
+            <dd>
+              {t('predictiveMaintenance.detail.avoidedFailureCostValue', {
+                value: fmtMoney(selectedRec.avoided_failure_cost),
+              })}
+            </dd>
           </dl>
 
-          <h3 style={{ marginTop: 16 }}>Advisory Recommendation</h3>
+          <h3 style={{ marginTop: 16 }}>{t('predictiveMaintenance.advisoryRecommendation')}</h3>
           {selectedCard ? (
             <RecommendationCard
               rec={selectedCard}
@@ -170,12 +195,12 @@ export function PredictiveMaintenance() {
               onReject={(id) => handleDecision(id, 'reject')}
             />
           ) : (
-            <div className="empty">No routed recommendation card for this asset yet.</div>
+            <div className="empty">{t('predictiveMaintenance.noRoutedCard')}</div>
           )}
         </div>
       ) : (
         <div className="card">
-          <div className="empty">Select an asset row to see its PdM detail and recommendation.</div>
+          <div className="empty">{t('predictiveMaintenance.selectRow')}</div>
         </div>
       )}
     </div>
