@@ -21,17 +21,25 @@ CREATE TABLE IF NOT EXISTS telemetry (
     metric      TEXT             NOT NULL,
     value       DOUBLE PRECISION NOT NULL,
     unit        TEXT,
+    tenant_id   TEXT,
     facility_id TEXT,
     train_id    TEXT,
     provenance  TEXT             NOT NULL DEFAULT 'synthetic',
     quality     TEXT             NOT NULL DEFAULT 'good'
 );
 
+-- Multi-tenant scoping: add tenant_id to databases created before it existed and
+-- migrate the pre-existing single-facility data into the default tenant.
+ALTER TABLE telemetry ADD COLUMN IF NOT EXISTS tenant_id TEXT;
+UPDATE telemetry SET tenant_id = 's3m-default' WHERE tenant_id IS NULL;
+
 -- Convert to a TimescaleDB hypertable (idempotent).
 SELECT create_hypertable('telemetry', 'time', if_not_exists => TRUE);
 
 CREATE INDEX IF NOT EXISTS telemetry_asset_metric_time_idx
     ON telemetry (asset_id, metric, time DESC);
+CREATE INDEX IF NOT EXISTS telemetry_tenant_facility_time_idx
+    ON telemetry (tenant_id, facility_id, time DESC);
 
 -- Idempotency ledger for telemetry ingest. Each forwarded batch is recorded by
 -- its stable ``batch_id`` (an edge gateway's store-and-forward key). A repeat
@@ -58,15 +66,17 @@ CREATE INDEX IF NOT EXISTS telemetry_batch_ts_idx ON telemetry_batch (ts DESC);
 -- the chain (GET /api/v1/audit/verify). ``seq`` gives the deterministic append
 -- order used for verification.
 CREATE TABLE IF NOT EXISTS audit_event (
-    seq       BIGSERIAL,
-    id        UUID        PRIMARY KEY,
-    ts        TIMESTAMPTZ NOT NULL DEFAULT now(),
-    kind      TEXT        NOT NULL,
-    actor     TEXT        NOT NULL DEFAULT 'system',
-    subject   TEXT,
-    payload   JSONB       NOT NULL DEFAULT '{}'::jsonb,
-    prev_hash TEXT        NOT NULL DEFAULT '',
-    hash      TEXT        NOT NULL DEFAULT ''
+    seq         BIGSERIAL,
+    id          UUID        PRIMARY KEY,
+    ts          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    kind        TEXT        NOT NULL,
+    actor       TEXT        NOT NULL DEFAULT 'system',
+    subject     TEXT,
+    tenant_id   TEXT,
+    facility_id TEXT,
+    payload     JSONB       NOT NULL DEFAULT '{}'::jsonb,
+    prev_hash   TEXT        NOT NULL DEFAULT '',
+    hash        TEXT        NOT NULL DEFAULT ''
 );
 
 -- Backfill columns for databases created before the hash chain existed.
@@ -74,9 +84,19 @@ ALTER TABLE audit_event ADD COLUMN IF NOT EXISTS seq BIGSERIAL;
 ALTER TABLE audit_event ADD COLUMN IF NOT EXISTS prev_hash TEXT NOT NULL DEFAULT '';
 ALTER TABLE audit_event ADD COLUMN IF NOT EXISTS hash TEXT NOT NULL DEFAULT '';
 
+-- Add tenant/facility scoping and migrate pre-existing events into the default
+-- tenant. tenant_id/facility_id are NOT part of the hashed event core, so this
+-- backfill leaves every existing hash — and the append-only chain — unchanged.
+-- It runs before the append-only trigger is (re)installed below.
+ALTER TABLE audit_event ADD COLUMN IF NOT EXISTS tenant_id TEXT;
+ALTER TABLE audit_event ADD COLUMN IF NOT EXISTS facility_id TEXT;
+UPDATE audit_event SET tenant_id = 's3m-default' WHERE tenant_id IS NULL;
+
 CREATE INDEX IF NOT EXISTS audit_event_seq_idx ON audit_event (seq);
 CREATE INDEX IF NOT EXISTS audit_event_ts_idx ON audit_event (ts DESC);
 CREATE INDEX IF NOT EXISTS audit_event_kind_idx ON audit_event (kind);
+CREATE INDEX IF NOT EXISTS audit_event_tenant_facility_idx
+    ON audit_event (tenant_id, facility_id, seq DESC);
 
 -- Append-only enforcement at the storage layer: reject any UPDATE or DELETE of
 -- an audit row. Inserts (appends) are always allowed; TRUNCATE (used only by
@@ -99,11 +119,20 @@ CREATE TRIGGER audit_event_no_mutation
 CREATE TABLE IF NOT EXISTS recommendation (
     recommendation_id TEXT        PRIMARY KEY,
     ts                TIMESTAMPTZ NOT NULL DEFAULT now(),
+    tenant_id         TEXT,
     facility_id       TEXT,
     train_id          TEXT,
     status            TEXT        NOT NULL DEFAULT 'pending',
     card              JSONB       NOT NULL DEFAULT '{}'::jsonb
 );
 
+-- Add tenant scoping and migrate pre-existing recommendations into the default
+-- tenant/facility.
+ALTER TABLE recommendation ADD COLUMN IF NOT EXISTS tenant_id TEXT;
+UPDATE recommendation SET tenant_id = 's3m-default' WHERE tenant_id IS NULL;
+UPDATE recommendation SET facility_id = 'S3M-DESAL-01' WHERE facility_id IS NULL;
+
 CREATE INDEX IF NOT EXISTS recommendation_status_idx ON recommendation (status);
 CREATE INDEX IF NOT EXISTS recommendation_ts_idx ON recommendation (ts DESC);
+CREATE INDEX IF NOT EXISTS recommendation_tenant_facility_idx
+    ON recommendation (tenant_id, facility_id);

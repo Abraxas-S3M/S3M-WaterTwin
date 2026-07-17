@@ -37,6 +37,8 @@ import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from . import config
+
 logger = logging.getLogger("watertwin.auth")
 
 # The five advisory roles seeded in the Keycloak "watertwin" realm.
@@ -45,6 +47,13 @@ ROLES: frozenset[str] = frozenset(
 )
 
 _JWT_ALGORITHMS = ["RS256"]
+
+# Wildcard membership: a principal carrying this in ``tenants`` / ``facilities``
+# may read across every tenant / facility. It is granted only to the dev-bypass
+# synthetic admin; real Keycloak identities are always scoped to the explicit
+# tenant/facility membership carried in their token (defaulting to the single
+# legacy tenant/facility when a token predates multi-tenancy).
+WILDCARD = "*"
 
 
 # --------------------------------------------------------------------------- #
@@ -114,16 +123,39 @@ def ingest_token() -> Optional[str]:
 
 @dataclass(frozen=True)
 class Principal:
-    """The authenticated (or synthetic dev) identity behind a request."""
+    """The authenticated (or synthetic dev) identity behind a request.
+
+    In addition to advisory *roles* (what the caller may do), a principal carries
+    *tenant* and *facility* membership (what data the caller may see). Roles and
+    membership are orthogonal: an ``admin`` of tenant A still may not read tenant
+    B's data. Membership is enforced at the API layer so cross-tenant access is
+    denied before any store query runs.
+    """
 
     username: str
     roles: frozenset[str]
     subject: Optional[str] = None
     email: Optional[str] = None
     auth_mode: str = "keycloak"
+    #: Tenants this principal may read. ``{"*"}`` grants access to all tenants
+    #: (dev bypass only).
+    tenants: frozenset[str] = frozenset()
+    #: Facilities this principal may read. ``{"*"}`` grants access to every
+    #: facility within the principal's tenants.
+    facilities: frozenset[str] = frozenset()
 
     def has_any(self, *required: str) -> bool:
         return bool(self.roles.intersection(required))
+
+    def can_access_tenant(self, tenant_id: str) -> bool:
+        return WILDCARD in self.tenants or tenant_id in self.tenants
+
+    def can_access_facility(self, facility_id: str) -> bool:
+        return WILDCARD in self.facilities or facility_id in self.facilities
+
+    def can_access(self, tenant_id: str, facility_id: str) -> bool:
+        """True only when the principal may read this tenant *and* facility."""
+        return self.can_access_tenant(tenant_id) and self.can_access_facility(facility_id)
 
     @property
     def actor(self) -> str:
@@ -132,14 +164,17 @@ class Principal:
 
 
 # The synthetic principal used only when the dev bypass is active. It carries
-# every role so existing flows keep working, and is clearly labelled so the
-# audit trail never mistakes it for a real Keycloak identity.
+# every role and wildcard tenant/facility membership so existing single-facility
+# flows keep working, and is clearly labelled so the audit trail never mistakes
+# it for a real Keycloak identity.
 SYNTHETIC_ADMIN = Principal(
     username="dev-admin",
     roles=ROLES,
     subject="dev-admin",
     email=None,
     auth_mode="dev-bypass",
+    tenants=frozenset({WILDCARD}),
+    facilities=frozenset({WILDCARD}),
 )
 
 # The identity recorded for a batch delivered by an edge gateway that
@@ -233,6 +268,49 @@ def _roles_from_claims(claims: dict) -> frozenset[str]:
     return frozenset(r for r in roles if isinstance(r, str))
 
 
+def _string_set_from_claims(claims: dict, *names: str) -> frozenset[str]:
+    """Collect a string set from any of ``names`` (list, scalar, or CSV)."""
+    values: set[str] = set()
+    for name in names:
+        raw = claims.get(name)
+        if raw is None:
+            continue
+        if isinstance(raw, str):
+            values.update(part.strip() for part in raw.split(",") if part.strip())
+        elif isinstance(raw, (list, tuple, set, frozenset)):
+            values.update(str(item).strip() for item in raw if str(item).strip())
+    return frozenset(values)
+
+
+def _membership_from_claims(claims: dict) -> tuple[frozenset[str], frozenset[str]]:
+    """Extract tenant + facility membership from a Keycloak access token.
+
+    Recognises both plural (``tenant_ids`` / ``tenants``) and singular
+    (``tenant_id`` / ``tenant``) claim shapes, likewise for facilities. A token
+    that predates multi-tenancy (no tenant/facility claim) is treated as a member
+    of the single legacy default tenant, with access to every facility inside it
+    (facility wildcard) so existing single-facility deployments keep working.
+    Membership never widens across tenants implicitly: a token with tenant claims
+    but no facility claim is confined to the facilities it explicitly lists.
+    """
+    tenants = _string_set_from_claims(claims, "tenant_ids", "tenants", "tenant_id", "tenant")
+    facilities = _string_set_from_claims(
+        claims, "facility_ids", "facilities", "facility_id", "facility"
+    )
+    if not tenants:
+        tenants = frozenset({config.DEFAULT_TENANT_ID})
+        # Legacy single-tenant token: default to the legacy facility scope but
+        # keep the facility wildcard so pre-existing flows over the default
+        # facility keep working without a facility claim.
+        if not facilities:
+            facilities = frozenset({WILDCARD})
+    elif not facilities:
+        # Explicit tenant membership but no facility claim -> confine to the
+        # facilities inside those tenants (wildcard within the granted tenants).
+        facilities = frozenset({WILDCARD})
+    return tenants, facilities
+
+
 def _principal_from_claims(claims: dict) -> Principal:
     username = (
         claims.get("preferred_username")
@@ -240,12 +318,15 @@ def _principal_from_claims(claims: dict) -> Principal:
         or claims.get("sub")
         or "unknown"
     )
+    tenants, facilities = _membership_from_claims(claims)
     return Principal(
         username=username,
         roles=_roles_from_claims(claims),
         subject=claims.get("sub"),
         email=claims.get("email"),
         auth_mode="keycloak",
+        tenants=tenants,
+        facilities=facilities,
     )
 
 
