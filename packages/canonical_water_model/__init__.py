@@ -42,6 +42,15 @@ __all__ = [
     "ScalingRisk",
     "WaterQualityForecast",
     "WQAlert",
+    "ComponentHealth",
+    "OperatingEnvelope",
+    "RemainingUsefulLife",
+    "FailureProbability",
+    "MaintenancePriority",
+    "RootCauseRanking",
+    "FoulingSeverity",
+    "MembraneHealth",
+    "PdMRecommendation",
     "now_iso",
 ]
 
@@ -391,4 +400,156 @@ class WQAlert(BaseModel):
     confidence: float = Field(ge=0, le=1)
     recommended_action: str
     approval_required: bool = True
+    provenance: DataProvenance = DataProvenance.preliminary
+
+
+# ---------------------------------------------------------------------------
+# Equipment & Membrane Intelligence + Predictive Maintenance models
+#
+# Advisory, read-only artifacts for the Equipment & Membrane Intelligence and
+# Predictive Maintenance capabilities. Component health is a transparent
+# visible-penalty score; remaining-useful-life, failure probability and
+# avoided-cost are PRELIMINARY engineering estimates (never validated or
+# guaranteed) and are always stamped ``provenance = preliminary`` with an
+# uncertainty band. Every recommendation routes through the operator-approval +
+# audit path; nothing here writes to plant controls.
+# ---------------------------------------------------------------------------
+
+
+class ComponentHealth(BaseModel):
+    """Transparent 0-100 health for one component with a contribution breakdown.
+
+    Follows the platform's visible-penalty pattern: the score starts at a
+    perfect 100 and each labelled :class:`HealthContribution` (a negative
+    ``delta``) explains a deduction, so the score is fully auditable.
+    """
+
+    asset_id: str
+    component_type: str
+    score: float = Field(ge=0, le=100)
+    band: HealthBand
+    contributions: list[HealthContribution] = Field(default_factory=list)
+    provenance: DataProvenance = DataProvenance.preliminary
+
+
+class OperatingEnvelope(BaseModel):
+    """Fractions of operating time spent in each envelope regime (0-1 each)."""
+
+    asset_id: str
+    samples: int
+    at_bep_fraction: float = Field(ge=0, le=1)
+    low_flow_fraction: float = Field(ge=0, le=1)
+    high_pressure_fraction: float = Field(ge=0, le=1)
+    excess_temperature_fraction: float = Field(ge=0, le=1)
+    cavitation_risk_fraction: float = Field(ge=0, le=1)
+    provenance: DataProvenance = DataProvenance.preliminary
+
+
+class RemainingUsefulLife(BaseModel):
+    """Preliminary remaining-useful-life estimate with an uncertainty band.
+
+    Not a validated or guaranteed time-to-failure: ``lower_days``/``upper_days``
+    bracket the point estimate and ``provenance`` is always ``preliminary``.
+    """
+
+    asset_id: str
+    rul_days: float
+    lower_days: float
+    upper_days: float
+    method: str
+    basis: list[str] = Field(default_factory=list)
+    provenance: DataProvenance = DataProvenance.preliminary
+
+
+class FailureProbability(BaseModel):
+    """Preliminary failure probability over fixed horizons (monotonic hazard).
+
+    ``horizons`` maps a horizon label (``24h``/``7d``/``30d``/``90d``) to
+    ``P(fail before horizon)`` in ``[0, 1]``. Preliminary, not validated.
+    """
+
+    asset_id: str
+    horizons: dict[str, float] = Field(default_factory=dict)
+    predicted_failure_mode: Optional[str] = None
+    provenance: DataProvenance = DataProvenance.preliminary
+
+
+class MaintenancePriority(BaseModel):
+    """Maintenance priority rank score (higher = more urgent)."""
+
+    asset_id: str
+    rank_score: float
+    factors: dict[str, float] = Field(default_factory=dict)
+    provenance: DataProvenance = DataProvenance.preliminary
+
+
+class RootCauseRanking(BaseModel):
+    """Ordered candidate root causes whose probabilities sum to ``~1.0``."""
+
+    asset_id: str
+    ranked_causes: list[RankedCause] = Field(default_factory=list)
+    provenance: DataProvenance = DataProvenance.preliminary
+
+
+class FoulingSeverity(BaseModel):
+    """Membrane fouling/scaling severity components (0-1 each, screening)."""
+
+    organic: float = Field(ge=0, le=1)
+    colloidal: float = Field(ge=0, le=1)
+    biological: float = Field(ge=0, le=1)
+    scaling: float = Field(ge=0, le=1)
+
+
+class MembraneHealth(BaseModel):
+    """Preliminary membrane health derived from normalized WQ signals.
+
+    Reuses the Water Quality layer's normalized indices (permeate-flow decline,
+    salt-passage rise, differential-pressure rise) plus fouling/scaling
+    severity. ``cleaning_required`` flags a CIP when a normalized threshold is
+    crossed. Membrane RUL is a preliminary estimate with an uncertainty band.
+    """
+
+    asset_id: str
+    score: float = Field(ge=0, le=100)
+    band: HealthBand
+    normalized_permeate_flow_decline_pct: float
+    normalized_salt_passage_rise_pct: float
+    normalized_dp_rise_pct: float
+    fouling: FoulingSeverity
+    salt_passage_trend_pct_per_day: float
+    cleaning_required: bool = False
+    cleaning_reason: Optional[str] = None
+    underperforming_vessel: Optional[str] = None
+    rul: Optional[RemainingUsefulLife] = None
+    contributions: list[HealthContribution] = Field(default_factory=list)
+    provenance: DataProvenance = DataProvenance.preliminary
+
+
+class PdMRecommendation(BaseModel):
+    """A predictive-maintenance recommendation (advisory, approval-gated).
+
+    Bundles the preliminary failure mode, timing and cost estimates for one
+    asset. ``time_to_intervention_days``, ``expected_downtime_hours``,
+    ``maintenance_cost`` and ``avoided_failure_cost`` are PRELIMINARY estimates,
+    never guaranteed figures. The ``control_boundary`` stays read-only and every
+    recommendation is created ``pending`` operator approval.
+    """
+
+    asset_id: str
+    asset_name: Optional[str] = None
+    predicted_failure_mode: str
+    failure_probability_30d: float = Field(ge=0, le=1)
+    rul_days: float
+    rul_lower_days: float
+    rul_upper_days: float
+    time_to_intervention_days: float
+    recommended_window: str
+    spares_required: list[str] = Field(default_factory=list)
+    expected_downtime_hours: float
+    maintenance_cost: float
+    avoided_failure_cost: float
+    rank_score: float
+    recommendation_id: Optional[str] = None
+    control_boundary: ControlBoundary = Field(default_factory=ControlBoundary)
+    approval_status: ApprovalStatus = ApprovalStatus.pending
     provenance: DataProvenance = DataProvenance.preliminary

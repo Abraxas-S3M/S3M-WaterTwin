@@ -19,16 +19,31 @@ duplicate physics anywhere else in the repository.
 
 from __future__ import annotations
 
-from watertwin_engineering import calculations
+from watertwin_engineering import calculations, equipment, root_cause
 from watertwin_engineering.calculations import (
     ROReference,
     ro_performance,
     specific_energy,
 )
+from watertwin_engineering.equipment import (
+    ComponentHealthResult,
+    FailureProbabilityResult,
+    HealthContribution,
+    MaintenancePriorityResult,
+    OperatingEnvelopeResult,
+    RemainingUsefulLifeResult,
+    component_health,
+    failure_probability,
+    health_band,
+    maintenance_priority,
+    operating_envelope_score,
+    remaining_useful_life_days,
+)
 from watertwin_engineering.osmotic import (
     osmotic_pressure_bar,
     seawater_osmotic_pressure_bar,
 )
+from watertwin_engineering.root_cause import RootCause, root_cause_rank
 from watertwin_engineering.ro import (
     concentration_factor,
     net_driving_pressure_bar,
@@ -51,20 +66,36 @@ from watertwin_engineering.water_quality import (
 )
 
 __all__ = [
+    "ComponentHealthResult",
+    "FailureProbabilityResult",
+    "HealthContribution",
+    "MaintenancePriorityResult",
+    "OperatingEnvelopeResult",
     "ROReference",
+    "RemainingUsefulLifeResult",
+    "RootCause",
     "TrainEvaluation",
     "boron_rejection",
     "calculations",
     "colloidal_fouling_index",
+    "component_health",
     "concentration_factor",
+    "equipment",
     "evaluate_train",
+    "failure_probability",
+    "health_band",
     "langelier_saturation_index",
+    "maintenance_priority",
     "net_driving_pressure_bar",
     "normalized_differential_pressure",
     "normalized_salt_passage",
+    "operating_envelope_score",
     "osmotic_pressure_bar",
     "recovery_fraction",
+    "remaining_useful_life_days",
     "ro_performance",
+    "root_cause",
+    "root_cause_rank",
     "salt_passage_fraction",
     "salt_rejection_fraction",
     "seawater_osmotic_pressure_bar",
