@@ -1,0 +1,15 @@
+# Grafana dashboard provider: load every dashboard JSON from disk on startup.
+apiVersion: 1
+
+providers:
+  - name: watertwin
+    orgId: 1
+    folder: WaterTwin
+    type: file
+    disableDeletion: false
+    editable: true
+    allowUiUpdates: true
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

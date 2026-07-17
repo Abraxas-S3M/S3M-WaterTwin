@@ -1,0 +1,13 @@
+apiVersion: v2
+name: timescaledb
+description: >-
+  TimescaleDB / PostgreSQL 16 persistent store for WaterTwin (telemetry
+  hypertable, tamper-evident audit hash-chain, recommendations). The only
+  stateful component; source of truth for the audit trail.
+type: application
+version: 0.1.0
+appVersion: "2.17.2-pg16"
+dependencies:
+  - name: watertwin-common
+    version: 0.1.0
+    repository: "file://../../../watertwin-common"

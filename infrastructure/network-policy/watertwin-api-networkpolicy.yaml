@@ -1,0 +1,109 @@
+# Kubernetes NetworkPolicy for watertwin-api under the one-way / data-diode
+# (XiiD-ready) deployment profile.
+#
+# Intent (mirrors DEPLOYMENT_PROFILE=one_way_diode in the application layer):
+#   * The platform NEVER initiates a connection toward the OT zone.
+#   * Ingress to watertwin-api is limited to the dashboard and the edge gateway's
+#     mTLS tunnel endpoint (telemetry PUSH only).
+#   * Egress is an explicit allowlist: DNS, the in-cluster sims + database, and
+#     the identity provider. There is NO egress rule permitting traffic toward
+#     any OT CIDR -- so even a bug cannot open a platform->OT request path.
+#
+# This is a defence-in-depth complement to the fail-closed check in
+# services/watertwin-api/app/deployment.py. See
+# docs/deployment/edge-xiid-reference.md.
+#
+# NOTE: adjust namespace, labels, and the OT CIDR block(s) in the egress-deny
+# example to match your environment. A NetworkPolicy is allow-list based: once a
+# pod is selected, only the listed ingress/egress is permitted; everything else
+# (including any route into the OT zone) is denied by default.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: watertwin-api-one-way-diode
+  namespace: watertwin
+  labels:
+    app.kubernetes.io/name: watertwin-api
+    app.kubernetes.io/part-of: s3m-watertwin
+    watertwin.s3m/deployment-profile: one_way_diode
+  annotations:
+    watertwin.s3m/intent: >-
+      Outbound-only platform. No egress toward the OT zone; ingest telemetry only
+      via the edge gateway's mTLS push. Enforces the one-way/data-diode topology
+      at the network layer (see docs/deployment/edge-xiid-reference.md).
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: watertwin-api
+  policyTypes:
+    - Ingress
+    - Egress
+
+  # --- Ingress: only the dashboard and the edge-gateway tunnel may reach us ---
+  ingress:
+    # Dashboard (SPA backend / reverse proxy) calling the advisory API.
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: watertwin-dashboard
+      ports:
+        - protocol: TCP
+          port: 8000
+    # Edge gateway mTLS tunnel endpoint: telemetry PUSH from the OT side only.
+    # The gateway is the client; watertwin-api is the server. This is the single
+    # authenticated conduit crossing the OT zone boundary.
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: watertwin-edge-gateway
+      ports:
+        - protocol: TCP
+          port: 8443
+
+  # --- Egress: explicit allowlist. NOTHING here routes into the OT zone. ------
+  egress:
+    # DNS resolution.
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # In-cluster advisory simulation services (platform<->platform, not OT).
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: hydraulic-sim
+      ports:
+        - protocol: TCP
+          port: 8100
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: treatment-sim
+      ports:
+        - protocol: TCP
+          port: 8200
+    # Durable store (TimescaleDB/Postgres) -- audit + recommendations only.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: timescaledb
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Identity provider (Keycloak) for JWKS / token validation.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: keycloak
+      ports:
+        - protocol: TCP
+          port: 8080
+  # There is deliberately NO egress entry for any OT CIDR (OPC UA 4840,
+  # Modbus 502, historian REST/SQL, etc.). Under one_way_diode the platform must
+  # never initiate a connection toward OT; omitting the rule denies it by default.
