@@ -122,6 +122,11 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
   open-source **WaterTAP/IDAES** stack (analytical reference model when the
   ipopt solver is not present); baseline, optimize, sensitivity, and
   membrane-degradation what-ifs.
+- `services/edge-gateway` — **read-only** telemetry **store-and-forward** edge
+  gateway; reads/synthesizes plant telemetry and forwards it to the
+  `watertwin-api` ingest endpoint over a durable on-disk spool, so a gateway
+  killed mid-stream recovers with no data loss (idempotent ingest de-duplicates
+  replays). No control-write path.
 - `apps/dashboard` — React + TypeScript + Vite operator Simulation Center,
   built and served by nginx (which proxies `/api` to `watertwin-api`).
 - `packages/watertwin_engineering` — the single canonical physics package
@@ -139,6 +144,7 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
 | `watertwin-api` | http://localhost:8000 | Orchestration, recommendations, reports; persists to TimescaleDB |
 | `hydraulic-sim` | http://localhost:8100 | EPANET/WNTR hydraulic what-if |
 | `treatment-sim` | http://localhost:8081 | WaterTAP/IDAES RO process what-if |
+| `edge-gateway` | http://localhost:8200 | Read-only telemetry store-and-forward gateway |
 | `timescaledb` | localhost:5432 | Persistent store (`WATERTWIN_DATABASE_URL`) |
 | `prometheus` | http://localhost:9090 | Scrapes each service's `/metrics` |
 | `grafana` | http://localhost:3000 | Auto-provisioned WaterTwin dashboard (admin/admin) |
@@ -175,6 +181,21 @@ Additional Phase 10 capabilities:
   dev-mode env; the identity flows into the audit trail. This does **not** relax
   the advisory/read-only boundary. See
   [`docs/security/identity.md`](docs/security/identity.md).
+- **Telemetry ingest + edge store-and-forward**: `POST /api/v1/ingestion/telemetry`
+  is an **idempotent** (on `batch_id`) ingest path that records each batch in the
+  tamper-evident audit chain; the `edge-gateway` service buffers to a durable
+  spool and replays after an outage/crash with no data loss or duplication.
+- **Reliability drills & load tests**:
+  - **Load** — `tests/load/` (k6) drives the ingest + read paths;
+    `make load-smoke` runs a CI-friendly smoke profile (also a **non-blocking**
+    CI job).
+  - **Chaos** — `make chaos` (`tests/chaos/edge_gateway_chaos.sh`) kills the
+    edge-gateway mid-stream and asserts store-and-forward recovers with no data
+    loss and a still-valid audit chain.
+  - **Disaster recovery** — `make dr-drill` (`scripts/dr_drill.sh`, reusing
+    `scripts/backup_audit_db.sh`) backs up and restores via `pg_dump`/`pg_restore`
+    and verifies audit-chain integrity post-restore. See
+    [`docs/deployment/dr-runbook.md`](docs/deployment/dr-runbook.md).
 
 > Deferred to a later commercial-hardening work package (documented, not built):
 > PostGIS spatial features and multi-tenancy.
