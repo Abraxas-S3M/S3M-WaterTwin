@@ -36,6 +36,9 @@ import type {
   WQStatusResponse,
 } from './types';
 
+import { getAccessToken } from '../auth/store';
+import { refreshTokens } from '../auth/oidc';
+
 export const API_BASE = import.meta.env.VITE_API_BASE ?? '/api/v1';
 
 export class ApiError extends Error {
@@ -47,11 +50,31 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+function authHeaders(): Record<string, string> {
+  const token = getAccessToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function doFetch(path: string, init?: RequestInit): Promise<Response> {
+  return fetch(`${API_BASE}${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+      ...(init?.headers ?? {}),
+    },
     ...init,
   });
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  let res = await doFetch(path, init);
+
+  // On a 401 with a live session, try a single silent token refresh + retry.
+  if (res.status === 401 && getAccessToken()) {
+    const refreshed = await refreshTokens();
+    if (refreshed) res = await doFetch(path, init);
+  }
+
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -59,6 +82,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       detail = (body as { detail?: string }).detail ?? detail;
     } catch {
       /* non-JSON error body */
+    }
+    if (res.status === 401) {
+      detail = detail || 'Not authenticated — please sign in.';
+    } else if (res.status === 403) {
+      detail = detail || 'Your role is not permitted to perform this action.';
     }
     throw new ApiError(res.status, detail);
   }
