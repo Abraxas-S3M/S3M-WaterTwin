@@ -1,6 +1,7 @@
 // React hook exposing the current session + role-derived capabilities.
 
 import { useAuthStore } from './store';
+import { canAdminister, canApprove, canReadAudit, canReset, canRunScenario } from './roles';
 import {
   canAdministerConfig,
   canApprove,
@@ -20,6 +21,7 @@ export interface Capabilities {
   runScenario: boolean;
   reset: boolean;
   readAudit: boolean;
+  administer: boolean;
   administerConfig: boolean;
   approveConfig: boolean;
   readSecurity: boolean;
@@ -32,6 +34,7 @@ function capsFor(roles: readonly string[]): Capabilities {
     runScenario: canRunScenario(roles),
     reset: canReset(roles),
     readAudit: canReadAudit(roles),
+    administer: canAdminister(roles),
     administerConfig: canAdministerConfig(roles),
     approveConfig: canApproveConfig(roles),
     readSecurity: canReadSecurity(roles),
@@ -67,6 +70,7 @@ export function useCapabilities(): Capabilities {
     runScenario: canRunScenario(roles),
     reset: canReset(roles),
     readAudit: canReadAudit(roles),
+    administer: canAdminister(roles),
     administerConfig: canAdministerConfig(roles),
     approveConfig: canApproveConfig(roles),
     readSecurity: canReadSecurity(roles),

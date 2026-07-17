@@ -261,6 +261,18 @@ Additional Phase 10 capabilities:
     and verifies audit-chain integrity post-restore. See
     [`docs/deployment/dr-runbook.md`](docs/deployment/dr-runbook.md).
 
+- **Administration** (commercial hardening): an admin-only surface for
+  licensing/entitlement feature-gating by tenant/plan, usage metering
+  (facilities, assets, ingest volume) with a billing export, a signed-update
+  channel (verify-before-apply; never auto-updates), and in-app support bundles
+  (logs + SBOM + config snapshot, **secrets redacted**). These are packaging /
+  operational concerns only: **feature gates never touch the advisory/read-only
+  safety invariant**, and every response still carries
+  `control_write_enabled=false`. Endpoints live under `/api/v1/admin/*`
+  (`admin` role) and the dashboard **Administration** page. See
+  [`docs/operations/administration.md`](docs/operations/administration.md) and
+  [`docs/operations/signed-updates.md`](docs/operations/signed-updates.md).
+
 > Deferred to a later commercial-hardening work package (documented, not built):
 > multi-tenancy.
 

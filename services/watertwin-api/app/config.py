@@ -89,6 +89,16 @@ COMPLIANCE_LIMITS_JSON = os.environ.get("WATERTWIN_COMPLIANCE_LIMITS") or None
 # memory and degrades gracefully; nothing here is ever a control-write path.
 DATABASE_URL = os.environ.get("WATERTWIN_DATABASE_URL") or None
 
+# Directory holding the CycloneDX SBOMs bundled into support archives. Defaults
+# to the repository's ``docs/licensing/sbom`` (regenerated with ``make sbom``).
+SBOM_DIR = os.environ.get(
+    "WATERTWIN_SBOM_DIR",
+    os.path.normpath(
+        os.path.join(
+            os.path.dirname(__file__), "..", "..", "..", "docs", "licensing", "sbom"
+        )
+    ),
+)
 # Provisioned shared token an edge gateway presents (X-Ingest-Token header) to
 # the telemetry ingest path. When unset, ingest falls back to role-based auth
 # (see app.auth.require_ingest). Read at request time in app.auth, not here.

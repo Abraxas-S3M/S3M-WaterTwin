@@ -152,6 +152,30 @@ export function installFetchMock(overrides: Record<string, unknown> = {}): Fetch
       return json(overrides.trainingSession ?? fx.trainingSession);
 
     // S3M Operations Assistant.
+    // Administration: licensing, metering, updates, support.
+    if (path.startsWith('/admin/entitlements'))
+      return json(overrides.entitlements ?? fx.entitlements);
+    if (path.startsWith('/admin/metering/usage')) return json(overrides.usage ?? fx.usage);
+    if (path.startsWith('/admin/metering/billing-export'))
+      return json(overrides.billingExport ?? fx.billingExport);
+    if (path.startsWith('/admin/update-channel/verify') && method === 'POST')
+      return json(
+        overrides.updateVerify ?? {
+          verification: { verified: true, reason: 'signature is valid', algorithm: 'ed25519', applied: false },
+          applied: false,
+          note: 'Signature verification only.',
+          control_boundary: fx.controlBoundary,
+        },
+      );
+    if (path.startsWith('/admin/update-channel'))
+      return json(overrides.updateChannel ?? fx.updateChannel);
+    if (path.startsWith('/admin/support/bundle') && method === 'POST') {
+      const blob = new Blob([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], {
+        type: 'application/zip',
+      });
+      return Promise.resolve(new Response(blob, { status: 200 }));
+    }
+
     if (path.startsWith('/assistant/examples'))
       return json(overrides.assistantExamples ?? fx.assistantExamples);
     if (path.startsWith('/assistant/ask') && method === 'POST')

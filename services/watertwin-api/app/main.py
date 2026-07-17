@@ -16,7 +16,7 @@ from typing import Any, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from canonical_water_model import (
@@ -50,6 +50,10 @@ from . import cmms as cmms_pkg
 from . import documents
 from . import energy
 from . import executive
+from . import licensing
+from . import log_buffer
+from . import membrane
+from .metering import meter
 from . import maintenance
 from . import facilities as facilities_mod
 from . import membrane
@@ -60,6 +64,8 @@ from . import resilience as resil
 from . import security as security_analytics
 from . import siem_export
 from . import sources
+from . import support
+from . import updates
 from . import training
 from . import water_quality as wq
 from .config_store import ConfigStore
@@ -128,10 +134,28 @@ configure_logging(config.SERVICE_NAME)
 # the mode is visible even when the app is mounted without the lifespan hook.
 auth.log_auth_mode()
 
+# Retain a tail of recent logs in memory so an administrator can package them
+# into a redacted support bundle (see app/support.py). Advisory logs only.
+log_buffer.install()
+
 
 # Reusable dependency: any authenticated role may read advisory views. Under the
 # ``WATERTWIN_AUTH_DISABLED=true`` dev bypass this resolves to a synthetic admin.
 AUTHENTICATED = [Depends(get_current_user)]
+
+# Feature-gated dependency lists: authenticated *and* the tenant's plan must
+# include the feature (otherwise 402 Payment Required). Feature-gating hides
+# advisory features by plan; it NEVER touches the advisory/read-only safety
+# invariant (see app/licensing.py). The default plan (``enterprise``) includes
+# every feature, so a default deployment gates nothing.
+FEAT_WATER_QUALITY = licensing.authed_feature(licensing.FEATURE_WATER_QUALITY)
+FEAT_PREDICTIVE_MAINTENANCE = licensing.authed_feature(
+    licensing.FEATURE_PREDICTIVE_MAINTENANCE
+)
+FEAT_ENERGY = licensing.authed_feature(licensing.FEATURE_ENERGY_OPTIMIZATION)
+FEAT_RESILIENCE = licensing.authed_feature(licensing.FEATURE_RESILIENCE)
+FEAT_EXECUTIVE = licensing.authed_feature(licensing.FEATURE_EXECUTIVE_VALUE)
+FEAT_ASSISTANT = licensing.authed_feature(licensing.FEATURE_OPERATIONS_ASSISTANT)
 
 
 @dataclass(frozen=True)
@@ -518,6 +542,9 @@ def run_scenario(
     Running a what-if scenario is an engineer/admin action (RBAC matrix), and is
     confined to the caller's tenant/facility membership.
     """
+    # Usage metering (billing export): count the facility and the run.
+    meter.record_facility(request.facility_id)
+    meter.record_api_call("scenario_run")
     if not user.can_access(request.tenant_id, request.facility_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -966,6 +993,9 @@ def ingestion_normalize_preview(body: NormalizePreviewRequest) -> dict:
         )
         for r in body.readings
     ]
+    # Usage metering (billing export): count ingest volume (readings brought in
+    # through the read-only ingestion path).
+    meter.record_ingest(len(raw))
     result = normalize(raw, tag_map)
     events.publish_telemetry_ingested(
         tag_map=tag_map.map_id,
@@ -1170,6 +1200,8 @@ def _route_wq_alerts(
         )
 
 
+@app.get("/api/v1/water-quality/status", dependencies=FEAT_WATER_QUALITY)
+def water_quality_status(fouling: Optional[float] = None) -> dict:
 @app.get("/api/v1/water-quality/status")
 def water_quality_status(
     fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
@@ -1195,6 +1227,8 @@ def water_quality_status(
     )
 
 
+@app.get("/api/v1/water-quality/contaminant-matrix", dependencies=FEAT_WATER_QUALITY)
+def water_quality_contaminant_matrix(fouling: Optional[float] = None) -> dict:
 @app.get("/api/v1/water-quality/contaminant-matrix")
 def water_quality_contaminant_matrix(
     fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
@@ -1208,6 +1242,8 @@ def water_quality_contaminant_matrix(
     )
 
 
+@app.get("/api/v1/water-quality/removal", dependencies=FEAT_WATER_QUALITY)
+def water_quality_removal(fouling: Optional[float] = None) -> dict:
 @app.get("/api/v1/water-quality/removal")
 def water_quality_removal(
     fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
@@ -1217,6 +1253,8 @@ def water_quality_removal(
     return _wq_envelope({"removal": snap.removal}, DataProvenance.preliminary, scope)
 
 
+@app.get("/api/v1/water-quality/scaling", dependencies=FEAT_WATER_QUALITY)
+def water_quality_scaling(fouling: Optional[float] = None) -> dict:
 @app.get("/api/v1/water-quality/scaling")
 def water_quality_scaling(
     fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
@@ -1230,6 +1268,8 @@ def water_quality_scaling(
     )
 
 
+@app.get("/api/v1/water-quality/forecast", dependencies=FEAT_WATER_QUALITY)
+def water_quality_forecast(fouling: Optional[float] = None) -> dict:
 @app.get("/api/v1/water-quality/forecast")
 def water_quality_forecast(
     fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
@@ -1243,7 +1283,7 @@ def water_quality_forecast(
     )
 
 
-@app.get("/api/v1/water-quality/alerts")
+@app.get("/api/v1/water-quality/alerts", dependencies=FEAT_WATER_QUALITY)
 def water_quality_alerts(
     fouling: Optional[float] = None,
     scope: Scope = Depends(facility_scope),
@@ -1301,8 +1341,12 @@ def _require_asset(asset_id: str) -> None:
             status_code=404,
             detail=f"unknown asset: {asset_id}; known: {pdm.list_asset_ids()}",
         )
+    # Usage metering (billing export): count distinct assets under management.
+    meter.record_asset(asset_id)
 
 
+@app.get("/api/v1/equipment/{asset_id}/health", dependencies=FEAT_PREDICTIVE_MAINTENANCE)
+def equipment_health(asset_id: str, fouling: Optional[float] = None) -> dict:
 @app.get("/api/v1/equipment/{asset_id}/health")
 def equipment_health(
     asset_id: str, fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
@@ -1313,6 +1357,8 @@ def equipment_health(
     return _pdm_envelope({"health": health.model_dump(mode="json")}, scope=scope)
 
 
+@app.get("/api/v1/equipment/{asset_id}/rul", dependencies=FEAT_PREDICTIVE_MAINTENANCE)
+def equipment_rul(asset_id: str, fouling: Optional[float] = None) -> dict:
 @app.get("/api/v1/equipment/{asset_id}/rul")
 def equipment_rul(
     asset_id: str, fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
@@ -1323,6 +1369,11 @@ def equipment_rul(
     return _pdm_envelope({"rul": rul.model_dump(mode="json")}, scope=scope)
 
 
+@app.get(
+    "/api/v1/equipment/{asset_id}/failure-probability",
+    dependencies=FEAT_PREDICTIVE_MAINTENANCE,
+)
+def equipment_failure_probability(asset_id: str, fouling: Optional[float] = None) -> dict:
 @app.get("/api/v1/equipment/{asset_id}/failure-probability")
 def equipment_failure_probability(
     asset_id: str, fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
@@ -1333,6 +1384,8 @@ def equipment_failure_probability(
     return _pdm_envelope({"failure_probability": fp.model_dump(mode="json")}, scope=scope)
 
 
+@app.get("/api/v1/equipment/{asset_id}/envelope", dependencies=FEAT_PREDICTIVE_MAINTENANCE)
+def equipment_envelope(asset_id: str) -> dict:
 @app.get("/api/v1/equipment/{asset_id}/envelope")
 def equipment_envelope(asset_id: str, scope: Scope = Depends(facility_scope)) -> dict:
     """Operating-envelope regime fractions (BEP / low-flow / high-pressure / ...)."""
@@ -1341,6 +1394,8 @@ def equipment_envelope(asset_id: str, scope: Scope = Depends(facility_scope)) ->
     return _pdm_envelope({"envelope": env.model_dump(mode="json")}, scope=scope)
 
 
+@app.get("/api/v1/equipment/{asset_id}/root-cause", dependencies=FEAT_PREDICTIVE_MAINTENANCE)
+def equipment_root_cause(asset_id: str) -> dict:
 @app.get("/api/v1/equipment/{asset_id}/root-cause")
 def equipment_root_cause(asset_id: str, scope: Scope = Depends(facility_scope)) -> dict:
     """Causal root-cause ranking (probabilities sum to ~1.0)."""
@@ -1349,6 +1404,8 @@ def equipment_root_cause(asset_id: str, scope: Scope = Depends(facility_scope)) 
     return _pdm_envelope({"root_cause": rc.model_dump(mode="json")}, scope=scope)
 
 
+@app.get("/api/v1/membrane/{asset_id}/health", dependencies=FEAT_PREDICTIVE_MAINTENANCE)
+def membrane_health(asset_id: str, fouling: Optional[float] = None) -> dict:
 @app.get("/api/v1/membrane/{asset_id}/health")
 def membrane_health(
     asset_id: str, fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
@@ -1392,6 +1449,8 @@ def _route_pdm_recommendations(
         )
 
 
+@app.get("/api/v1/maintenance/ranking", dependencies=FEAT_PREDICTIVE_MAINTENANCE)
+def maintenance_ranking(fouling: Optional[float] = None) -> dict:
 @app.get("/api/v1/maintenance/ranking")
 def maintenance_ranking(
     fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
@@ -1401,7 +1460,7 @@ def maintenance_ranking(
     return _pdm_envelope({"ranking": [p.model_dump(mode="json") for p in ranking]}, scope=scope)
 
 
-@app.get("/api/v1/maintenance/recommendations")
+@app.get("/api/v1/maintenance/recommendations", dependencies=FEAT_PREDICTIVE_MAINTENANCE)
 def maintenance_recommendations(
     fouling: Optional[float] = None,
     scope: Scope = Depends(facility_scope),
@@ -1886,6 +1945,8 @@ class GridOutageRequest(BaseModel):
     battery_bridge_minutes: Optional[float] = None
 
 
+@app.get("/api/v1/energy/summary", dependencies=FEAT_ENERGY)
+def energy_summary(fouling: Optional[float] = None) -> dict:
 @app.get("/api/v1/energy/summary")
 def energy_summary(
     fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
@@ -1896,6 +1957,8 @@ def energy_summary(
     )
 
 
+@app.post("/api/v1/energy/optimize", dependencies=FEAT_ENERGY)
+def energy_optimize(body: EnergyOptimizeRequest | None = None) -> dict:
 @app.post("/api/v1/energy/optimize")
 def energy_optimize(
     body: EnergyOptimizeRequest | None = None, scope: Scope = Depends(facility_scope)
@@ -1908,6 +1971,8 @@ def energy_optimize(
     )
 
 
+@app.get("/api/v1/energy/losses", dependencies=FEAT_ENERGY)
+def energy_losses(fouling: Optional[float] = None) -> dict:
 @app.get("/api/v1/energy/losses")
 def energy_losses(
     fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
@@ -1921,6 +1986,8 @@ def energy_losses(
     )
 
 
+@app.get("/api/v1/resilience/criticality", dependencies=FEAT_RESILIENCE)
+def resilience_criticality() -> dict:
 @app.get("/api/v1/resilience/criticality")
 def resilience_criticality(scope: Scope = Depends(facility_scope)) -> dict:
     """Resilience-criticality ranking of assets (highest impact/risk first)."""
@@ -1932,6 +1999,8 @@ def resilience_criticality(scope: Scope = Depends(facility_scope)) -> dict:
     )
 
 
+@app.get("/api/v1/resilience/generator", dependencies=FEAT_RESILIENCE)
+def resilience_generator() -> dict:
 @app.get("/api/v1/resilience/generator")
 def resilience_generator(scope: Scope = Depends(facility_scope)) -> dict:
     """Preliminary standby-generator start probability + fuel endurance."""
@@ -1970,7 +2039,7 @@ def _route_resilience_recommendation(
     )
 
 
-@app.post("/api/v1/resilience/grid-outage")
+@app.post("/api/v1/resilience/grid-outage", dependencies=FEAT_RESILIENCE)
 def resilience_grid_outage(
     body: GridOutageRequest | None = None,
     scope: Scope = Depends(facility_scope),
@@ -2004,6 +2073,8 @@ def resilience_grid_outage(
     )
 
 
+@app.get("/api/v1/executive/value-summary", dependencies=FEAT_EXECUTIVE)
+def executive_value_summary(fouling: Optional[float] = None) -> dict:
 @app.get("/api/v1/executive/value-summary")
 def executive_value_summary(
     fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
@@ -2017,6 +2088,8 @@ def executive_value_summary(
     )
 
 
+@app.get("/api/v1/executive/roi", dependencies=FEAT_EXECUTIVE)
+def executive_roi(fouling: Optional[float] = None) -> dict:
 @app.get("/api/v1/executive/roi")
 def executive_roi(
     fouling: Optional[float] = None, scope: Scope = Depends(facility_scope)
@@ -2085,7 +2158,7 @@ def _route_assistant_recommendation(card) -> None:
     )
 
 
-@app.post("/api/v1/assistant/ask")
+@app.post("/api/v1/assistant/ask", dependencies=FEAT_ASSISTANT)
 def assistant_ask(body: AssistantAskRequest) -> dict:
     """Answer an operator question with a grounded, evidence-backed response.
 
@@ -2115,7 +2188,7 @@ def assistant_ask(body: AssistantAskRequest) -> dict:
     return response.model_dump(mode="json")
 
 
-@app.get("/api/v1/assistant/examples")
+@app.get("/api/v1/assistant/examples", dependencies=FEAT_ASSISTANT)
 def assistant_examples() -> dict:
     """Return the canonical example questions (one per supported intent)."""
     return {
@@ -2332,6 +2405,7 @@ def reset(user: Principal = Depends(require_role("engineer"))) -> dict:
     work_order_store.clear()
     training_store.reset()
     store.reset()
+    meter.reset()
     store.audit("system.reset", actor=_actor(user), subject="watertwin-api")
     return {"status": "reset", "control_boundary": ControlBoundary().model_dump()}
 
@@ -2366,6 +2440,48 @@ def scenario_report(
 
 
 # ---------------------------------------------------------------------------
+# Administration (admin-only): licensing/entitlements, usage metering + billing
+# export, the signed-update channel reference, and support-bundle generation.
+#
+# These are commercial-hardening capabilities. None of them is a control path
+# and none can relax the advisory/read-only safety invariant: feature-gating
+# only hides advisory features by plan, metering is advisory bookkeeping, the
+# update channel only verifies (never applies) a signed manifest, and support
+# bundles are read-only, secret-redacted diagnostics. Every response still
+# carries the control boundary; the CI boundary guard remains in force.
+# ---------------------------------------------------------------------------
+
+
+def _admin_health_snapshot() -> dict:
+    """A lightweight, network-free health snapshot for support bundles."""
+    cb = ControlBoundary()
+    try:
+        telemetry = get_source_resolution().describe()
+    except Exception:  # pragma: no cover - resolver never raises
+        telemetry = {}
+    return {
+        "service": config.SERVICE_NAME,
+        "version": config.SERVICE_VERSION,
+        "status": "healthy",
+        "db_connected": store.db_connected,
+        "telemetry_source": telemetry.get("active_source"),
+        "auth_mode": "dev-bypass" if auth.auth_disabled() else "enforced",
+        "control_boundary": cb.model_dump(),
+    }
+
+
+@app.get("/api/v1/admin/entitlements", dependencies=[Depends(require_role("admin"))])
+def admin_entitlements() -> dict:
+    """The tenant's licensing entitlement, plan features, and usage vs. limits."""
+    ent = licensing.current_entitlements()
+    usage = meter.snapshot()
+    return {
+        "entitlements": ent.describe(),
+        "usage": usage,
+        "limits_status": ent.limits_status(usage),
+        # Explicit, machine-checkable assurance that feature-gating leaves the
+        # advisory/read-only invariant untouched.
+        "safety_invariant_intact": licensing.safety_invariant_intact(),
 # Model governance registry (D1/D2 governance) + regulatory compliance
 # (advisory, read-only).
 #
@@ -2391,6 +2507,11 @@ def models_registry(fouling: Optional[float] = None) -> dict:
     }
 
 
+@app.get("/api/v1/admin/metering/usage", dependencies=[Depends(require_role("admin"))])
+def admin_metering_usage() -> dict:
+    """Current billing-period usage counts (facilities, assets, ingest volume)."""
+    return {
+        "usage": meter.snapshot(),
 @app.get("/api/v1/models/{model_id}", dependencies=AUTHENTICATED)
 def model_detail(model_id: str, fouling: Optional[float] = None) -> dict:
     """Governance detail for a single registered model."""
@@ -2406,6 +2527,17 @@ def model_detail(model_id: str, fouling: Optional[float] = None) -> dict:
     }
 
 
+@app.get(
+    "/api/v1/admin/metering/billing-export",
+    dependencies=[Depends(require_role("admin"))],
+)
+def admin_metering_billing_export() -> dict:
+    """Render a billing export of metered usage against the plan limits."""
+    ent = licensing.current_entitlements()
+    return {
+        "billing_export": meter.billing_export(
+            tenant_id=ent.tenant_id, plan=ent.plan, limits=ent.limits
+        ),
 @app.get("/api/v1/compliance/limits", dependencies=AUTHENTICATED)
 def compliance_limits() -> dict:
     """Return the configured per-parameter regulatory limits (A1 config store)."""
@@ -2417,6 +2549,11 @@ def compliance_limits() -> dict:
     }
 
 
+@app.get("/api/v1/admin/update-channel", dependencies=[Depends(require_role("admin"))])
+def admin_update_channel() -> dict:
+    """Report the signed-update channel status (verify-before-apply; no auto-update)."""
+    return {
+        "update_channel": updates.channel_info(),
 @app.get("/api/v1/compliance/status", dependencies=AUTHENTICATED)
 def compliance_status(fouling: Optional[float] = None) -> dict:
     """Screen current values against the configured limits (flag exceedances)."""
@@ -2427,6 +2564,89 @@ def compliance_status(fouling: Optional[float] = None) -> dict:
     }
 
 
+class UpdateVerifyRequest(BaseModel):
+    #: The update manifest as a JSON object (signed with the release key).
+    manifest: dict[str, Any]
+    #: Hex-encoded Ed25519 signature over the canonical manifest.
+    signature: str
+    #: Optional PEM public key to verify against (else the configured key).
+    public_key: Optional[str] = None
+
+
+@app.post(
+    "/api/v1/admin/update-channel/verify",
+    dependencies=[Depends(require_role("admin"))],
+)
+def admin_update_channel_verify(
+    body: UpdateVerifyRequest,
+    user: Principal = Depends(get_current_user),
+) -> dict:
+    """Verify a signed update manifest. NEVER applies the update.
+
+    This is the *verify* half of "verify before apply". The service has no code
+    path that downloads or applies an update; applying a verified release is an
+    out-of-band, operator-driven redeploy (documented, not automated).
+    """
+    result = updates.verify_manifest(
+        body.manifest, body.signature, key_pem=body.public_key
+    )
+    store.audit(
+        "update.signature.verified",
+        payload={
+            "verified": result.get("verified"),
+            "manifest_version": body.manifest.get("version"),
+            "fingerprint": result.get("fingerprint"),
+            "applied": False,
+        },
+        actor=_actor(user),
+        subject=str(body.manifest.get("version") or "unknown"),
+    )
+    return {
+        "verification": result,
+        "applied": False,
+        "note": (
+            "Signature verification only. This service never applies an update; "
+            "apply a verified release out-of-band via a redeploy."
+        ),
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+@app.post("/api/v1/admin/support/bundle", dependencies=[Depends(require_role("admin"))])
+def admin_support_bundle(user: Principal = Depends(get_current_user)) -> Response:
+    """Generate a redacted support bundle (logs + SBOM + config snapshot).
+
+    Secrets are redacted: secret-named env values and URL credentials are
+    masked, and every discovered secret literal is scrubbed from logs and audit
+    payloads (see app/support.py). The bundle contains no control state.
+    """
+    ent = licensing.current_entitlements()
+    data, manifest = support.build_support_bundle(
+        entitlements=ent.describe(),
+        usage=meter.snapshot(),
+        health=_admin_health_snapshot(),
+        audit_events=store.recent_audit(200),
+        config_env=dict(os.environ),
+        log_lines=log_buffer.recent_lines(),
+        sbom_dir=config.SBOM_DIR,
+    )
+    store.audit(
+        "support.bundle.generated",
+        payload={
+            "bytes": len(data),
+            "files": len(manifest.get("contents", [])),
+            "secret_values_scrubbed": manifest.get("redaction", {}).get(
+                "secret_values_scrubbed"
+            ),
+        },
+        actor=_actor(user),
+        subject="watertwin-api",
+    )
+    ts = manifest["generated_at"].replace(":", "").replace("-", "")
+    filename = f"watertwin-support-bundle-{ts}.zip"
+    return Response(
+        content=data,
+        media_type="application/zip",
 @app.post("/api/v1/reports/compliance")
 def compliance_report(
     fouling: Optional[float] = None,

@@ -37,6 +37,7 @@ interface NavEntry {
   page: number;
   disabled?: boolean;
   note?: string;
+  adminOnly?: boolean;
   requiresSecurity?: boolean;
   noteKey?: string;
 }
@@ -57,6 +58,7 @@ const NAV: NavEntry[] = [
   { id: 'security', label: 'Cyber-Physical Security', page: 12, requiresSecurity: true },
   { id: 'training', label: 'Training Simulator', page: 12, note: 'SIMULATION' },
   { id: 'simulation', label: 'Simulation Center', page: 8, note: 'Phase 8–9' },
+  { id: 'administration', label: 'Administration', page: 12, adminOnly: true },
   { id: 'administration', label: 'Administration', page: 12 },
   { id: 'command', page: 1 },
   { id: 'process', page: 2 },
@@ -93,6 +95,7 @@ function Nav() {
   const { t } = useTranslation();
   const page = useDashboardStore((s) => s.page);
   const navigate = useDashboardStore((s) => s.navigate);
+  const { capabilities } = useAuth();
   const setDisplayMode = useDashboardStore((s) => s.setDisplayMode);
   const openReport = useDashboardStore((s) => s.openReport);
   const { capabilities } = useAuth();
@@ -103,6 +106,7 @@ function Nav() {
         <h1>S3M-WaterTwin</h1>
         <div className="sub">Operator Console</div>
       </div>
+      {NAV.filter((item) => !item.adminOnly || capabilities.administer).map((item) => (
       {entries.map((item) => (
       <FacilitySwitcher />
     <nav className="app-nav" aria-label={t('nav.ariaLabel')}>
