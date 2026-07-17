@@ -19,6 +19,7 @@ import { EnergyOptimization } from './pages/EnergyOptimization';
 import { ResilienceCommand } from './pages/ResilienceCommand';
 import { ExecutiveValue } from './pages/ExecutiveValue';
 import { OperationsAssistant } from './pages/OperationsAssistant';
+import { TrainingSimulator } from './pages/TrainingSimulator';
 import { useDashboardStore, type PageId } from './state/store';
 
 interface NavEntry {
@@ -28,6 +29,17 @@ interface NavEntry {
 }
 
 const NAV: NavEntry[] = [
+  { id: 'command', label: 'Command Overview', page: 1 },
+  { id: 'process', label: 'Process Twin', page: 2 },
+  { id: 'asset', label: 'Asset Twin', page: 4 },
+  { id: 'water-quality', label: 'Water Quality', page: 5 },
+  { id: 'predictive-maintenance', label: 'Predictive Maintenance', page: 6 },
+  { id: 'energy', label: 'Energy Optimization', page: 7 },
+  { id: 'resilience', label: 'Resilience Command', page: 9 },
+  { id: 'executive', label: 'Executive Value / ROI', page: 10 },
+  { id: 'assistant', label: 'Operations Assistant', page: 11 },
+  { id: 'training', label: 'Training Simulator', page: 12, note: 'SIMULATION' },
+  { id: 'simulation', label: 'Simulation Center', page: 8, note: 'Phase 8–9' },
   { id: 'command', page: 1 },
   { id: 'process', page: 2 },
   { id: 'asset', page: 4 },
@@ -103,6 +115,8 @@ function CurrentPage() {
       return <ExecutiveValue />;
     case 'assistant':
       return <OperationsAssistant />;
+    case 'training':
+      return <TrainingSimulator />;
     case 'simulation':
       return <SimulationCenter />;
     default:

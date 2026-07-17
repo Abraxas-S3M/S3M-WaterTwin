@@ -41,6 +41,7 @@ from . import models as d1_models
 from . import predictive_maintenance as pdm
 from . import resilience as resil
 from . import sources
+from . import training
 from . import water_quality as wq
 from .tag_normalization import RawReading, TagMap, TagMapError, load_tag_map, normalize
 from .hydraulic_client import HydraulicSimClient, HydraulicSimError
@@ -122,6 +123,10 @@ reco_store = RecommendationStore(config.RECOMMENDATION_STORE_PATH)
 # The store fires the advisory ``audit-appended`` event after every successful
 # append. The hook resolves the bus lazily so tests can inject their own bus.
 store = Store(config.DATABASE_URL, event_sink=events.audit_event_sink)
+
+# Operator Training Simulator sessions + records (SIMULATION only). Held in
+# memory; the training sandbox has no control-write path (see app.training).
+training_store = training.TrainingStore()
 
 # Completed runs cached by simulation job id so a downloadable report can be
 # regenerated on demand. Advisory, read-only what-if data only.
@@ -1304,6 +1309,181 @@ def get_document(document_id: str) -> dict:
     return {**doc, "control_boundary": ControlBoundary().model_dump()}
 
 
+# ---------------------------------------------------------------------------
+# Operator Training Simulator (SIMULATION, sandboxed, read-only)
+#
+# A guided operator-training capability built on the platform's EXISTING
+# replayable synthetic telemetry + scenario engines (synthetic PdM telemetry,
+# the hydraulic what-if ``ScenarioType`` and the resilience grid-outage
+# assessment). An operator injects a drill (pump degradation / leak / outage /
+# storm-power-loss), diagnoses the SIMULATED twin snapshot, and has their
+# actions + approvals captured in a sandbox and scored against an
+# expected-response rubric to produce a durable training record.
+#
+# HARD BOUNDARY: this is a SIMULATION. The training sandbox CANNOT emit any
+# command -- there is no control path, no OT connector, and no PLC/SCADA/VFD/
+# valve/pump write. Every response carries the read-only control boundary,
+# ``provenance = "simulated"`` and a mandatory SIMULATION disclaimer. Session
+# lifecycle events are audited. Nothing here writes to any control system.
+# ---------------------------------------------------------------------------
+
+
+class TrainingSessionRequest(BaseModel):
+    scenario_id: str
+    operator: Optional[str] = None
+
+
+class TrainingActionRequest(BaseModel):
+    #: One of diagnosis | action | approval | note (sandboxed, never a command).
+    kind: str = "action"
+    text: str = Field(min_length=1, max_length=2000)
+    rubric_key: Optional[str] = None
+    approved: Optional[bool] = None
+
+
+_TRAINING_ACTION_KINDS = {"diagnosis", "action", "approval", "note"}
+
+
+def _training_envelope(payload: dict) -> dict:
+    """Attach the read-only boundary + simulated provenance + disclaimer."""
+    return {
+        **payload,
+        "facility_id": wq.FACILITY_ID,
+        "train_id": wq.TRAIN_ID,
+        "provenance": DataProvenance.simulated.value,
+        "simulation": True,
+        "disclaimer": training.TRAINING_DISCLAIMER,
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+@app.get("/api/v1/training/scenarios", dependencies=AUTHENTICATED)
+def training_scenarios() -> dict:
+    """List the reference operator-training drills (SIMULATION)."""
+    return _training_envelope(
+        {"scenarios": [s.model_dump(mode="json") for s in training.list_scenarios()]}
+    )
+
+
+@app.post("/api/v1/training/sessions")
+def training_start_session(
+    body: TrainingSessionRequest,
+    user: Principal = Depends(get_current_user),
+) -> dict:
+    """Inject a drill scenario and open a sandboxed training session (SIMULATION).
+
+    The injected twin snapshot reuses the platform's synthetic telemetry +
+    read-only scenario engines; nothing is written to any control system.
+    """
+    operator = _actor(user, body.operator)
+    try:
+        session = training.inject_scenario(body.scenario_id, operator)
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"unknown training scenario: {body.scenario_id}",
+        )
+    training_store.open_session(session)
+    store.audit(
+        "training.session.started",
+        payload={
+            "session_id": session.session_id,
+            "scenario_id": session.scenario_id,
+            "simulation": True,
+        },
+        actor=operator,
+        subject=session.session_id,
+    )
+    return _training_envelope({"session": session.model_dump(mode="json")})
+
+
+@app.get("/api/v1/training/sessions/{session_id}", dependencies=AUTHENTICATED)
+def training_get_session(session_id: str) -> dict:
+    """Return the current state of a training session (SIMULATION)."""
+    session = training_store.get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail=f"unknown training session: {session_id}")
+    return _training_envelope({"session": session.model_dump(mode="json")})
+
+
+@app.post("/api/v1/training/sessions/{session_id}/actions")
+def training_capture_action(
+    session_id: str,
+    body: TrainingActionRequest,
+    user: Principal = Depends(get_current_user),
+) -> dict:
+    """Capture an operator action/approval in the sandbox (SIMULATION, no command).
+
+    The action is recorded for scoring only. The training sandbox has no
+    control-write path: nothing here reaches any plant, OT, PLC or SCADA system.
+    """
+    kind = body.kind.lower().strip()
+    if kind not in _TRAINING_ACTION_KINDS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"kind must be one of {sorted(_TRAINING_ACTION_KINDS)}",
+        )
+    action = training_store.capture_action(
+        session_id,
+        kind,
+        body.text,
+        rubric_key=body.rubric_key,
+        approved=body.approved,
+    )
+    if action is None:
+        raise HTTPException(status_code=404, detail=f"unknown training session: {session_id}")
+    session = training_store.get_session(session_id)
+    store.audit(
+        "training.action.captured",
+        payload={
+            "session_id": session_id,
+            "action_id": action.action_id,
+            "kind": action.kind,
+            "emitted_command": action.emitted_command,
+        },
+        actor=_actor(user),
+        subject=session_id,
+    )
+    return _training_envelope(
+        {
+            "action": action.model_dump(mode="json"),
+            "session": session.model_dump(mode="json"),
+        }
+    )
+
+
+@app.post("/api/v1/training/sessions/{session_id}/submit")
+def training_submit_session(
+    session_id: str,
+    user: Principal = Depends(get_current_user),
+) -> dict:
+    """Score the drill against its rubric and produce a training record (SIMULATION)."""
+    record = training_store.score_session(session_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"unknown training session: {session_id}")
+    store.audit(
+        "training.session.scored",
+        payload={
+            "session_id": session_id,
+            "record_id": record.record_id,
+            "scenario_id": record.scenario_id,
+            "percentage": record.score.percentage,
+            "passed": record.score.passed,
+        },
+        actor=_actor(user),
+        subject=record.record_id,
+    )
+    return _training_envelope({"record": record.model_dump(mode="json")})
+
+
+@app.get("/api/v1/training/records", dependencies=AUTHENTICATED)
+def training_records() -> dict:
+    """List the training records produced in this session store (SIMULATION)."""
+    return _training_envelope(
+        {"records": [r.model_dump(mode="json") for r in training_store.list_records()]}
+    )
+
+
 @app.post("/api/v1/reset")
 def reset(user: Principal = Depends(require_role("engineer"))) -> dict:
     """Clear cached runs, recommendations, and audit trail (demo convenience).
@@ -1316,6 +1496,7 @@ def reset(user: Principal = Depends(require_role("engineer"))) -> dict:
         _latest_telemetry.clear()
         _gateway_state.clear()
     reco_store.clear()
+    training_store.reset()
     store.reset()
     store.audit("system.reset", actor=_actor(user), subject="watertwin-api")
     return {"status": "reset", "control_boundary": ControlBoundary().model_dump()}

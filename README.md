@@ -375,6 +375,31 @@ GET  /api/v1/audit
 POST /api/v1/reset
 ```
 
+### Operator Training Simulator (SIMULATION, sandboxed, read-only)
+
+A guided operator-training capability built on the platform's *existing*
+replayable synthetic telemetry + scenario engines. An operator injects a drill
+(pump degradation / leak / outage / storm–power-loss), diagnoses the **simulated**
+twin snapshot, has their actions + approvals captured in a sandbox, and is scored
+against an expected-response rubric to produce a durable training record.
+
+It is clearly labelled **SIMULATION** and the sandbox **cannot emit any command** —
+there is no control path, no OT connector and no PLC/SCADA/VFD/valve/pump write.
+Every response carries the read-only control boundary, `provenance="simulated"`
+and a mandatory SIMULATION disclaimer; session lifecycle events are audited.
+
+```
+GET  /api/v1/training/scenarios
+POST /api/v1/training/sessions
+GET  /api/v1/training/sessions/{session_id}
+POST /api/v1/training/sessions/{session_id}/actions
+POST /api/v1/training/sessions/{session_id}/submit
+GET  /api/v1/training/records
+```
+
+The dashboard surfaces this as the **Training Simulator** page
+(`apps/dashboard/src/pages/TrainingSimulator.tsx`).
+
 ## Licensing of dependencies
 
 See [`docs/licensing/open-source-register.md`](docs/licensing/open-source-register.md).
