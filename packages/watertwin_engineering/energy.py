@@ -26,8 +26,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from scipy.optimize import minimize
-
 from watertwin_engineering.calculations import specific_energy
 from watertwin_engineering.osmotic import osmotic_pressure_bar
 from watertwin_engineering.ro import net_driving_pressure_bar
@@ -398,6 +396,10 @@ def ro_operating_point_optimization(
         )
 
     # 2) Refine with a bounded SLSQP minimize seeded from the feasible grid best.
+    # scipy is imported lazily so importing this package never requires scipy for
+    # consumers that don't run the optimiser (e.g. the treatment-sim reference).
+    from scipy.optimize import minimize
+
     big = 1e6
 
     def objective(x: list[float]) -> float:
