@@ -26,9 +26,11 @@ import type {
   ExecutiveValueSummaryResponse,
   GridOutageResponse,
   HealthScore,
+  LeakLocalizationResponse,
   MaintenanceRankingResponse,
   MaintenanceRecommendationsResponse,
   MembraneHealthResponse,
+  NetworkResponse,
   PlantOverview,
   PumpCurve,
   RecommendationCard,
@@ -82,6 +84,8 @@ export const queryKeys = {
   executiveRoi: ['executive-roi'] as const,
   assistantExamples: ['assistant-examples'] as const,
   documents: ['documents'] as const,
+  network: ['network'] as const,
+  leakLocalization: ['leak-localization'] as const,
 };
 
 // Control boundary rarely changes; poll slowly but keep it fresh.
@@ -425,6 +429,25 @@ function useInvalidateRecommendationViews() {
     void qc.invalidateQueries({ queryKey: ['audit'] });
     void qc.invalidateQueries({ queryKey: queryKeys.overview });
   };
+}
+
+// --- Network Twin hooks (GeoJSON topology + C1 leak-localization overlay) ---
+
+// Topology rarely changes; keep it fresh but do not poll aggressively.
+export function useNetwork(): UseQueryResult<NetworkResponse> {
+  return useQuery({
+    queryKey: queryKeys.network,
+    queryFn: api.getNetwork,
+    staleTime: POLL_INTERVAL_MS * 30,
+  });
+}
+
+export function useLeakLocalization(): UseQueryResult<LeakLocalizationResponse> {
+  return useQuery({
+    queryKey: queryKeys.leakLocalization,
+    queryFn: api.getLeakLocalization,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
 }
 
 export function useAskS3M() {

@@ -21,9 +21,11 @@ import type {
   ExecutiveValueSummaryResponse,
   GridOutageResponse,
   HealthScore,
+  LeakLocalizationResponse,
   MaintenanceRankingResponse,
   MaintenanceRecommendationsResponse,
   MembraneHealthResponse,
+  NetworkResponse,
   PlantOverview,
   ResilienceCriticalityResponse,
   ResilienceGeneratorResponse,
@@ -199,6 +201,10 @@ export const api = {
     }),
   getAssistantExamples: () => request<AssistantExamplesResponse>('/assistant/examples'),
   getDocuments: () => request<DocumentsResponse>('/documents'),
+
+  // Network Twin: GeoJSON topology + C1 leak-localization overlay (preliminary)
+  getNetwork: () => request<NetworkResponse>('/network'),
+  getLeakLocalization: () => request<LeakLocalizationResponse>('/network/leak-localization'),
 };
 
 export type ApiClient = typeof api;
