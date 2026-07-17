@@ -1,0 +1,167 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Safety boundary guard: the read-only posture is a build-breaking invariant.
+  # If a control-write path is ever introduced, the build fails here.
+  # ---------------------------------------------------------------------------
+  boundary-guard:
+    name: boundary-guard (read-only invariant)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail if a control-write path exists
+        run: |
+          set -euo pipefail
+          echo "Scanning services/ and packages/ for a control-write path..."
+          if grep -RInE 'control_write_enabled[[:space:]]*=[[:space:]]*True' services packages; then
+            echo "::error::A control-write path was detected (control_write_enabled = True)."
+            echo "The platform is advisory-only; this invariant is build-breaking."
+            exit 1
+          fi
+          echo "OK: no control-write path found. Read-only boundary intact."
+
+  # ---------------------------------------------------------------------------
+  # Quality: lint + type-check + tests for every service.
+  # ---------------------------------------------------------------------------
+  quality:
+    name: quality (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [watertwin-api, hydraulic-sim, treatment-sim]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip
+          pip install ruff mypy pytest pytest-asyncio
+          case "${{ matrix.service }}" in
+            watertwin-api)
+              # Integration tests spin up a live hydraulic-sim, so install the
+              # API deps plus WNTR/EPANET (unpinned, to avoid clashing with the
+              # API's pinned fastapi/pydantic).
+              pip install -r services/watertwin-api/requirements.txt
+              pip install wntr
+              ;;
+            hydraulic-sim)
+              pip install -r services/hydraulic-sim/requirements.txt
+              ;;
+            treatment-sim)
+              # The treatment-sim test-suite exercises the analytical RO engine
+              # (the WaterTAP/IDAES + ipopt stack is confined to the container
+              # image). Install the light runtime the analytical path needs.
+              pip install fastapi "uvicorn[standard]" pydantic httpx numpy
+              ;;
+          esac
+
+      - name: Ruff (lint)
+        working-directory: services/${{ matrix.service }}
+        run: ruff check .
+
+      - name: Mypy (type-check, non-blocking)
+        continue-on-error: true
+        working-directory: services/${{ matrix.service }}
+        env:
+          PYTHONPATH: ${{ github.workspace }}/packages
+        run: mypy app
+
+      - name: Pytest
+        working-directory: services/${{ matrix.service }}
+        run: python -m pytest -q
+
+  # ---------------------------------------------------------------------------
+  # Supply chain: CycloneDX SBOMs + dependency & secret scanning.
+  # ---------------------------------------------------------------------------
+  security:
+    name: sbom + scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install SBOM + scanning tools
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip
+          pip install cyclonedx-bom pip-audit detect-secrets
+
+      - name: Generate CycloneDX SBOMs (Python)
+        run: |
+          set -euxo pipefail
+          mkdir -p docs/licensing/sbom
+          for svc in watertwin-api hydraulic-sim treatment-sim; do
+            python -m cyclonedx_py requirements "services/$svc/requirements.txt" \
+              -o "docs/licensing/sbom/sbom-$svc.cdx.json"
+          done
+
+      - name: Generate CycloneDX SBOM (dashboard / npm)
+        working-directory: apps/dashboard
+        run: |
+          set -euxo pipefail
+          npx --yes @cyclonedx/cyclonedx-npm@latest --package-lock-only \
+            --output-format JSON \
+            --output-file ../../docs/licensing/sbom/sbom-dashboard.cdx.json
+
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@v4
+        with:
+          name: sboms
+          path: docs/licensing/sbom/*.cdx.json
+
+      - name: Dependency scan (pip-audit, non-blocking)
+        continue-on-error: true
+        run: |
+          set -euxo pipefail
+          for svc in watertwin-api hydraulic-sim treatment-sim; do
+            echo "::group::pip-audit $svc"
+            pip-audit -r "services/$svc/requirements.txt" || true
+            echo "::endgroup::"
+          done
+
+      - name: Secret scan (detect-secrets, non-blocking)
+        continue-on-error: true
+        run: |
+          set -euxo pipefail
+          detect-secrets scan --all-files > detect-secrets.report.json
+          python - <<'PY'
+          import json
+          data = json.load(open("detect-secrets.report.json"))
+          results = data.get("results", {})
+          if results:
+              print(f"::warning::detect-secrets flagged {len(results)} file(s); review the report.")
+              for path in results:
+                  print(f"  potential secret in: {path}")
+          else:
+              print("OK: no secrets detected.")
+          PY
