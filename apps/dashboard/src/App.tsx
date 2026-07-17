@@ -15,6 +15,8 @@ import { EnergyOptimization } from './pages/EnergyOptimization';
 import { ResilienceCommand } from './pages/ResilienceCommand';
 import { ExecutiveValue } from './pages/ExecutiveValue';
 import { OperationsAssistant } from './pages/OperationsAssistant';
+import { MultiFacilityAdmin } from './pages/MultiFacilityAdmin';
+import { FacilitySwitcher } from './components/FacilitySwitcher';
 import { useDashboardStore, type PageId } from './state/store';
 
 interface NavEntry {
@@ -38,15 +40,23 @@ const NAV: NavEntry[] = [
   { id: 'simulation', label: 'Simulation Center', page: 8, note: 'Phase 8–9' },
 ];
 
+// Administration section entries. Gated behind the facility-management
+// capability so facility-operators never see the fleet-wide admin surface.
+const ADMIN_NAV: NavEntry[] = [
+  { id: 'admin-facilities', label: 'Multi-Facility', page: 12 },
+];
+
 function Nav() {
   const page = useDashboardStore((s) => s.page);
   const navigate = useDashboardStore((s) => s.navigate);
+  const { capabilities } = useAuth();
   return (
     <nav className="app-nav" aria-label="Primary">
       <div className="brand">
         <h1>S3M-WaterTwin</h1>
         <div className="sub">Operator Console</div>
       </div>
+      <FacilitySwitcher />
       {NAV.map((item) => (
         <button
           key={item.id}
@@ -58,6 +68,23 @@ function Nav() {
           {item.note ? <span className="phase-tag">{item.note}</span> : null}
         </button>
       ))}
+      {capabilities.manageFacilities ? (
+        <div className="nav-section" data-testid="admin-nav-section">
+          <div className="nav-section-title">Administration</div>
+          {ADMIN_NAV.map((item) => (
+            <button
+              key={item.id}
+              className={`nav-item${page === item.id ? ' active' : ''}`}
+              onClick={() => navigate(item.id)}
+              aria-current={page === item.id ? 'page' : undefined}
+              data-testid={`nav-${item.id}`}
+            >
+              <span>{item.label}</span>
+              {item.note ? <span className="phase-tag">{item.note}</span> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div style={{ flex: 1 }} />
       <UserBadge />
       <div className="brand">
@@ -90,6 +117,8 @@ function CurrentPage() {
       return <OperationsAssistant />;
     case 'simulation':
       return <SimulationCenter />;
+    case 'admin-facilities':
+      return <MultiFacilityAdmin />;
     default:
       return <CommandOverview />;
   }

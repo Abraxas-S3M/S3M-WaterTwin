@@ -131,6 +131,56 @@ button {
   padding: 20px 24px 48px;
 }
 
+/* --- Facility switcher --- */
+.facility-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.facility-switcher-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+}
+
+.facility-switcher-select {
+  width: 100%;
+}
+
+.facility-switcher-single {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* --- Nav section (Administration) --- */
+.nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.nav-section-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  padding: 4px 12px;
+}
+
+/* Highlight the active facility row in fleet / admin tables. */
+table.data tr.active-row td {
+  background: rgba(56, 189, 248, 0.12);
+}
+
 /* --- Safety banner --- */
 .safety-banner {
   display: flex;

@@ -46,7 +46,8 @@ export type PageId =
   | 'energy'
   | 'resilience'
   | 'executive'
-  | 'assistant';
+  | 'assistant'
+  | 'admin-facilities';
 
 interface DashboardState {
   page: PageId;
@@ -54,12 +55,17 @@ interface DashboardState {
   selectedStage: string | null;
   scenario: ScenarioId;
   operatorName: string;
+  // The facility currently in focus in the shell switcher. Ephemeral UI state;
+  // it is validated against the identity's scoped facilities before use so it can
+  // never point at a facility outside the caller's tenant/entitlement.
+  activeFacilityId: string | null;
   navigate: (page: PageId) => void;
   setSelectedAsset: (assetId: string | null) => void;
   openAssetTwin: (assetId: string) => void;
   setSelectedStage: (stage: string | null) => void;
   setScenario: (scenario: ScenarioId) => void;
   setOperatorName: (name: string) => void;
+  setActiveFacility: (facilityId: string | null) => void;
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -68,10 +74,12 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   selectedStage: null,
   scenario: 'baseline',
   operatorName: 'operator',
+  activeFacilityId: null,
   navigate: (page) => set({ page }),
   setSelectedAsset: (assetId) => set({ selectedAssetId: assetId }),
   openAssetTwin: (assetId) => set({ selectedAssetId: assetId, page: 'asset' }),
   setSelectedStage: (stage) => set({ selectedStage: stage }),
   setScenario: (scenario) => set({ scenario }),
   setOperatorName: (name) => set({ operatorName: name }),
+  setActiveFacility: (facilityId) => set({ activeFacilityId: facilityId }),
 }));

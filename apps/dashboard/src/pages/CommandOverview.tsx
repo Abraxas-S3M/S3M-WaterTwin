@@ -2,6 +2,7 @@ import { KpiCard } from '../components/KpiCard';
 import { HealthBar } from '../components/HealthBar';
 import { RecommendationCard } from '../components/RecommendationCard';
 import { ProvenanceBadge } from '../components/ProvenanceBadge';
+import { FleetRollup } from '../components/FleetRollup';
 import { useOverview, useDecision } from '../hooks';
 import { useDashboardStore } from '../state/store';
 import { fmtNumber, riskColor } from '../lib/format';
@@ -36,6 +37,8 @@ export function CommandOverview() {
         </div>
         <ProvenanceBadge provenance={data.provenance} />
       </div>
+
+      <FleetRollup />
 
       <div className="grid kpis">
         <KpiCard
