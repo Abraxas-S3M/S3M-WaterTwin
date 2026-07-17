@@ -18,3 +18,7 @@ RECOMMENDATION_STORE_PATH = os.environ.get(
 
 # CORS origins allowed to call this API (the dashboard).
 CORS_ORIGINS = os.environ.get("WATERTWIN_CORS_ORIGINS", "*").split(",")
+
+# Durable store (TimescaleDB/Postgres). When unset the store runs purely in
+# memory and degrades gracefully; nothing here is ever a control-write path.
+DATABASE_URL = os.environ.get("WATERTWIN_DATABASE_URL") or None

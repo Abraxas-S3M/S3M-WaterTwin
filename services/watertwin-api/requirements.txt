@@ -1,17 +1,9 @@
 # watertwin-api service dependencies (pinned).
-fastapi==0.139.2
-uvicorn[standard]==0.51.0
-pydantic==2.13.4
-httpx==0.28.1
-
-# Test-only:
-pytest==9.1.1
+# Orchestration API for the Simulation Center: drives hydraulic-sim (read-only
+# what-if), builds recommendation cards, generates scenario reports, and
+# persists audit + recommendations to TimescaleDB (with in-memory fallback).
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
 httpx==0.28.1
-fastapi
-uvicorn
-pydantic>=2
-httpx
-psycopg[binary]
+psycopg[binary]==3.2.3

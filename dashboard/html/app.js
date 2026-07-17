@@ -1,166 +1,306 @@
-// Simulation Center front-end. Calls watertwin-api through the nginx /api proxy.
-const API = window.WATERTWIN_API_BASE || "";
+"use strict";
 
-let currentScenario = "pump_outage";
+// S3M-WaterTwin Simulation Center dashboard.
+// Read-only advisory client. Talks to watertwin-api via the nginx proxy
+// (/health and /api/*). Handles loading / empty / offline / error states.
 
 const $ = (id) => document.getElementById(id);
 
-async function checkHealth() {
+const el = {
+  offlineBanner: $("offline-banner"),
+  retryBtn: $("retry-btn"),
+  healthDot: $("health-dot"),
+  healthText: $("health-text"),
+  pumpSelect: $("pump-select"),
+  leakNodeSelect: $("leak-node-select"),
+  leakArea: $("leak-area"),
+  leakCd: $("leak-cd"),
+  runBtn: $("run-btn"),
+  runStatus: $("run-status"),
+  emptyState: $("empty-state"),
+  loadingState: $("loading-state"),
+  errorState: $("error-state"),
+  errorMessage: $("error-message"),
+  errorDismiss: $("error-dismiss"),
+  results: $("results"),
+  kpiBaseline: $("kpi-baseline"),
+  kpiScenario: $("kpi-scenario"),
+  kpiDelta: $("kpi-delta"),
+  kpiConfidence: $("kpi-confidence"),
+  pressureTable: $("pressure-table").querySelector("tbody"),
+  flowTable: $("flow-table").querySelector("tbody"),
+  violations: $("violations"),
+  reco: $("reco"),
+  recoActions: $("reco-actions"),
+  approveBtn: $("approve-btn"),
+  rejectBtn: $("reject-btn"),
+  reportBtn: $("report-btn"),
+  decisionStatus: $("decision-status"),
+};
+
+let currentScenario = "pump_outage";
+let lastRun = null; // { jobId, recommendationId }
+let healthTimer = null;
+
+const fmt = (v, digits = 1) =>
+  v === null || v === undefined || Number.isNaN(v) ? "–" : Number(v).toFixed(digits);
+
+function setOffline(isOffline) {
+  el.offlineBanner.classList.toggle("hidden", !isOffline);
+  el.runBtn.disabled = isOffline;
+  if (isOffline) {
+    el.healthDot.className = "dot dot-bad";
+    el.healthText.textContent = "offline";
+  }
+}
+
+function showOnly(section) {
+  for (const s of [el.emptyState, el.loadingState, el.errorState, el.results]) {
+    s.classList.add("hidden");
+  }
+  if (section) section.classList.remove("hidden");
+}
+
+async function api(path, options) {
+  const resp = await fetch(path, options);
+  if (!resp.ok) {
+    let detail = `${resp.status} ${resp.statusText}`;
+    try {
+      const body = await resp.json();
+      if (body && body.detail) detail = body.detail;
+    } catch (_) {
+      /* non-JSON error body */
+    }
+    throw new Error(detail);
+  }
+  return resp;
+}
+
+// -- Health / connectivity ---------------------------------------------------
+
+async function pollHealth() {
   try {
-    const r = await fetch(`${API}/health`);
-    const body = await r.json();
-    const ok = body.status === "healthy" && body.hydraulic_sim_reachable;
-    $("health-dot").className = "dot " + (ok ? "dot-ok" : "dot-bad");
-    $("health-text").textContent = ok ? "hydraulic-sim healthy" : "hydraulic-sim unreachable";
-  } catch (e) {
-    $("health-dot").className = "dot dot-bad";
-    $("health-text").textContent = "API unreachable";
+    const resp = await api("/health");
+    const body = await resp.json();
+    setOffline(false);
+    const ok = body.status === "healthy";
+    el.healthDot.className = ok ? "dot dot-ok" : "dot dot-bad";
+    const db = body.db_connected ? "db✓" : "db·mem";
+    const sim = body.hydraulic_sim_reachable ? "sim✓" : "sim✗";
+    el.healthText.textContent = `${ok ? "healthy" : "degraded"} · ${sim} · ${db}`;
+    el.runBtn.disabled = false;
+  } catch (err) {
+    setOffline(true);
+  }
+}
+
+// -- Network form ------------------------------------------------------------
+
+function fillSelect(select, items) {
+  select.innerHTML = "";
+  if (!items || items.length === 0) {
+    const opt = document.createElement("option");
+    opt.textContent = "none available";
+    opt.disabled = true;
+    select.appendChild(opt);
+    return;
+  }
+  for (const item of items) {
+    const opt = document.createElement("option");
+    opt.value = item;
+    opt.textContent = item;
+    select.appendChild(opt);
   }
 }
 
 async function loadNetwork() {
   try {
-    const r = await fetch(`${API}/api/v1/simulation-center/network`);
-    const net = await r.json();
-    const pumpSel = $("pump-select");
-    pumpSel.innerHTML = "";
-    (net.pumps || []).forEach((p) => {
-      const o = document.createElement("option");
-      o.value = p; o.textContent = p; pumpSel.appendChild(o);
-    });
-    if (pumpSel.options.length > 1) pumpSel.selectedIndex = pumpSel.options.length - 1;
-
-    const leakSel = $("leak-node-select");
-    leakSel.innerHTML = "";
-    (net.demand_nodes || []).forEach((n) => {
-      const o = document.createElement("option");
-      o.value = n; o.textContent = n; leakSel.appendChild(o);
-    });
-  } catch (e) {
-    $("run-status").textContent = "Could not load network metadata.";
+    const resp = await api("/api/v1/simulation-center/network");
+    const info = await resp.json();
+    fillSelect(el.pumpSelect, info.pumps);
+    fillSelect(el.leakNodeSelect, info.demand_nodes || info.demandNodes);
+  } catch (err) {
+    fillSelect(el.pumpSelect, []);
+    fillSelect(el.leakNodeSelect, []);
+    el.runStatus.textContent = `Could not load network: ${err.message}`;
   }
 }
 
+// -- Rendering ---------------------------------------------------------------
+
+function renderDeltaRows(tbody, baselineMap, scenarioMap, deltaMap) {
+  tbody.innerHTML = "";
+  const keys = Object.keys(deltaMap || {}).sort();
+  if (keys.length === 0) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="4" class="muted">No significant change</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+  for (const key of keys) {
+    const base = baselineMap ? baselineMap[key] : undefined;
+    const scen = scenarioMap ? scenarioMap[key] : undefined;
+    const delta = deltaMap[key];
+    const cls = delta < 0 ? "neg" : delta > 0 ? "pos" : "";
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      `<td>${key}</td><td>${fmt(base)}</td><td>${fmt(scen)}</td>` +
+      `<td class="${cls}">${fmt(delta)}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function renderViolations(violations) {
+  el.violations.innerHTML = "";
+  if (!violations || violations.length === 0) {
+    el.violations.innerHTML = `<li class="muted">None</li>`;
+    return;
+  }
+  for (const v of violations) {
+    const li = document.createElement("li");
+    li.className = v.severity === "critical" ? "critical" : "warn";
+    li.textContent = `${v.element_id} · ${v.metric} = ${fmt(v.value)} (limit ${fmt(v.limit)}) — ${v.description}`;
+    el.violations.appendChild(li);
+  }
+}
+
+function renderRecommendation(reco) {
+  el.decisionStatus.textContent = "";
+  if (!reco) {
+    el.reco.className = "muted";
+    el.reco.textContent = "No recommendation.";
+    el.recoActions.classList.add("hidden");
+    return;
+  }
+  el.reco.className = "";
+  el.reco.innerHTML =
+    `<div class="summary">${reco.summary || ""}</div>` +
+    `<div class="action">${reco.recommended_action || ""}</div>`;
+  el.recoActions.classList.remove("hidden");
+}
+
+function renderRun(run) {
+  const comp = run.comparison || {};
+  el.kpiBaseline.textContent = fmt(comp.delivered_flow_baseline_m3h);
+  el.kpiScenario.textContent = fmt(comp.delivered_flow_scenario_m3h);
+  el.kpiDelta.textContent = fmt(comp.delivered_flow_delta_m3h);
+  el.kpiConfidence.textContent = fmt(run.confidence, 2);
+
+  const baseOut = (run.baseline || {}).outputs || {};
+  const scenOut = (run.scenario_result || {}).outputs || {};
+  renderDeltaRows(el.pressureTable, baseOut.node_pressure_m, scenOut.node_pressure_m, comp.pressure_delta_m);
+  renderDeltaRows(el.flowTable, baseOut.link_flow_m3h, scenOut.link_flow_m3h, comp.flow_delta_m3h);
+  renderViolations((run.scenario_result || {}).constraint_violations);
+  renderRecommendation(run.recommendation);
+
+  lastRun = {
+    jobId: (run.scenario_result || {}).job_id,
+    recommendationId: run.recommendation ? run.recommendation.recommendation_id : null,
+  };
+  showOnly(el.results);
+}
+
+// -- Actions -----------------------------------------------------------------
+
+function buildRequest() {
+  if (currentScenario === "pump_outage") {
+    return { scenario: "pump_outage", parameters: { pump_id: el.pumpSelect.value } };
+  }
+  return {
+    scenario: "leak",
+    parameters: {
+      node_id: el.leakNodeSelect.value,
+      area_m2: Number(el.leakArea.value),
+      discharge_coeff: Number(el.leakCd.value),
+    },
+  };
+}
+
+async function runScenario() {
+  el.runBtn.disabled = true;
+  el.runStatus.textContent = "";
+  showOnly(el.loadingState);
+  try {
+    const resp = await api("/api/v1/simulation-center/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(buildRequest()),
+    });
+    const run = await resp.json();
+    renderRun(run);
+  } catch (err) {
+    el.errorMessage.textContent = err.message;
+    showOnly(el.errorState);
+  } finally {
+    el.runBtn.disabled = false;
+  }
+}
+
+async function decide(status) {
+  if (!lastRun || !lastRun.recommendationId) return;
+  el.decisionStatus.textContent = "saving…";
+  try {
+    const resp = await api(`/api/v1/recommendations/${lastRun.recommendationId}/decision`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, actor: "operator" }),
+    });
+    const card = await resp.json();
+    el.decisionStatus.textContent = `Recommendation ${card.approval_status} · audited`;
+  } catch (err) {
+    el.decisionStatus.textContent = `Failed: ${err.message}`;
+  }
+}
+
+async function downloadReport() {
+  if (!lastRun || !lastRun.jobId) return;
+  el.decisionStatus.textContent = "generating report…";
+  try {
+    const resp = await api(`/api/v1/reports/scenario/${lastRun.jobId}`, { method: "POST" });
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `scenario-report-${lastRun.jobId}.md`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    el.decisionStatus.textContent = "report downloaded";
+  } catch (err) {
+    el.decisionStatus.textContent = `Report failed: ${err.message}`;
+  }
+}
+
+// -- Wiring ------------------------------------------------------------------
+
 function selectScenario(scenario) {
   currentScenario = scenario;
-  document.querySelectorAll(".tab").forEach((t) =>
-    t.classList.toggle("active", t.dataset.scenario === scenario)
-  );
+  document.querySelectorAll(".tab").forEach((t) => {
+    t.classList.toggle("active", t.dataset.scenario === scenario);
+  });
   $("params-pump_outage").classList.toggle("hidden", scenario !== "pump_outage");
   $("params-leak").classList.toggle("hidden", scenario !== "leak");
 }
 
-function fmt(v, d = 1) {
-  return v === null || v === undefined ? "–" : Number(v).toFixed(d);
-}
-
-function buildParams() {
-  if (currentScenario === "pump_outage") {
-    return { pump_id: $("pump-select").value };
-  }
-  return {
-    node_id: $("leak-node-select").value,
-    area_m2: parseFloat($("leak-area").value),
-    discharge_coeff: parseFloat($("leak-cd").value),
-  };
-}
-
-function renderDeltaTable(tbodyId, baselineMap, scenarioMap, deltaMap) {
-  const tbody = document.querySelector(`#${tbodyId} tbody`);
-  tbody.innerHTML = "";
-  Object.keys(deltaMap).sort().forEach((k) => {
-    const b = baselineMap[k], s = scenarioMap[k], d = deltaMap[k];
-    const tr = document.createElement("tr");
-    const cls = d < -0.05 ? "delta-neg" : d > 0.05 ? "delta-pos" : "";
-    tr.innerHTML = `<td>${k}</td><td>${fmt(b)}</td><td>${fmt(s)}</td><td class="${cls}">${fmt(d)}</td>`;
-    tbody.appendChild(tr);
+function init() {
+  document.querySelectorAll(".tab").forEach((tab) => {
+    tab.addEventListener("click", () => selectScenario(tab.dataset.scenario));
   });
-}
-
-function renderViolations(list) {
-  const ul = $("violations");
-  ul.innerHTML = "";
-  if (!list || list.length === 0) {
-    ul.innerHTML = '<li class="muted">None</li>';
-    return;
-  }
-  list.forEach((v) => {
-    const li = document.createElement("li");
-    if (v.severity === "critical") li.classList.add("critical");
-    li.textContent = `${v.element_id}: ${v.description}`;
-    ul.appendChild(li);
+  el.runBtn.addEventListener("click", runScenario);
+  el.approveBtn.addEventListener("click", () => decide("approved"));
+  el.rejectBtn.addEventListener("click", () => decide("rejected"));
+  el.reportBtn.addEventListener("click", downloadReport);
+  el.errorDismiss.addEventListener("click", () => showOnly(el.emptyState));
+  el.retryBtn.addEventListener("click", () => {
+    pollHealth();
+    loadNetwork();
   });
+
+  showOnly(el.emptyState);
+  pollHealth();
+  loadNetwork();
+  healthTimer = setInterval(pollHealth, 10000);
 }
 
-function renderRecommendation(reco) {
-  const el = $("reco");
-  if (!reco) { el.className = "muted"; el.textContent = "No recommendation."; return; }
-  el.className = "";
-  const simTags = (reco.evidence.simulation_ids || [])
-    .map((s) => `<span class="tag">sim: ${s}</span>`).join("");
-  el.innerHTML = `
-    <p><strong>${reco.summary}</strong></p>
-    <div class="action"><strong>Recommended action:</strong> ${reco.recommended_action}</div>
-    <p class="muted" style="margin-top:10px">Confidence ${(reco.confidence * 100).toFixed(0)}% ·
-      approval required · control write disabled</p>
-    <div>${simTags}</div>`;
-}
-
-async function run() {
-  const btn = $("run-btn");
-  btn.disabled = true;
-  $("run-status").textContent = "Running EPANET what-if…";
-  try {
-    const r = await fetch(`${API}/api/v1/simulation-center/run`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        scenario: currentScenario,
-        parameters: buildParams(),
-        create_recommendation: true,
-      }),
-    });
-    if (!r.ok) throw new Error(`API ${r.status}`);
-    const body = await r.json();
-    const c = body.comparison;
-
-    $("kpi-baseline").textContent = fmt(c.delivered_flow_baseline_m3h);
-    $("kpi-scenario").textContent = fmt(c.delivered_flow_scenario_m3h);
-    const delta = $("kpi-delta");
-    delta.textContent = fmt(c.delivered_flow_delta_m3h);
-    delta.className = "kpi-value " + (c.delivered_flow_delta_m3h < 0 ? "bad" : "good");
-    $("kpi-confidence").textContent = (body.confidence * 100).toFixed(0) + "%";
-
-    renderDeltaTable(
-      "pressure-table",
-      body.baseline.outputs.node_pressure_m,
-      body.scenario_result.outputs.node_pressure_m,
-      c.pressure_delta_m
-    );
-    renderDeltaTable(
-      "flow-table",
-      body.baseline.outputs.link_flow_m3h,
-      body.scenario_result.outputs.link_flow_m3h,
-      c.flow_delta_m3h
-    );
-    renderViolations(body.scenario_result.constraint_violations);
-    renderRecommendation(body.recommendation);
-
-    $("results").classList.remove("hidden");
-    $("run-status").textContent =
-      `Done · scenario "${body.scenario}" · provenance ${body.scenario_result.provenance} · status ${body.scenario_result.status}`;
-  } catch (e) {
-    $("run-status").textContent = "Simulation failed: " + e.message;
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-document.querySelectorAll(".tab").forEach((t) =>
-  t.addEventListener("click", () => selectScenario(t.dataset.scenario))
-);
-$("run-btn").addEventListener("click", run);
-
-checkHealth();
-loadNetwork();
-setInterval(checkHealth, 15000);
+document.addEventListener("DOMContentLoaded", init);

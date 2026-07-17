@@ -79,7 +79,7 @@ def simulate_ro_watertap(
 
     from idaes.core import FlowsheetBlock
     from idaes.core.solvers import get_solver
-    from pyomo.environ import ConcreteModel, TransformationFactory, units as pyunits
+    from pyomo.environ import ConcreteModel, TransformationFactory
     from watertap.core.solvers import get_solver as wt_get_solver  # noqa: F401
     from watertap.property_models.NaCl_prop_pack import NaClParameterBlock
     from watertap.unit_models.reverse_osmosis_0D import (

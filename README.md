@@ -117,8 +117,45 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
 - `services/watertwin-api` — orchestration API for the dashboard Simulation
   Center; drives hydraulic-sim and attaches each run's `simulation_id` to
   recommendation `evidence.simulation_ids`.
+- `services/treatment-sim` — **read-only** RO process simulation on the
+  open-source **WaterTAP/IDAES** stack (analytical reference model when the
+  ipopt solver is not present); baseline, optimize, sensitivity, and
+  membrane-degradation what-ifs.
 - `dashboard` — static Simulation Center (nginx) showing baseline-vs-scenario
   pressure/flow deltas, confidence, and recommendations.
+
+## Full persistent stack (Phase 10)
+
+`docker compose up --build` brings up the whole stack **persistently**:
+
+| Service | URL | Notes |
+| --- | --- | --- |
+| `dashboard` | http://localhost:8080 | Operator Simulation Center (nginx) |
+| `watertwin-api` | http://localhost:8000 | Orchestration, recommendations, reports; persists to TimescaleDB |
+| `hydraulic-sim` | http://localhost:8100 | EPANET/WNTR hydraulic what-if |
+| `treatment-sim` | http://localhost:8081 | WaterTAP/IDAES RO process what-if |
+| `timescaledb` | localhost:5432 | Persistent store (`WATERTWIN_DATABASE_URL`) |
+
+The API persists audit events and recommendations to TimescaleDB
+(`infrastructure/database/init.sql` creates the telemetry hypertable and the
+audit + recommendation tables) and degrades gracefully to in-memory when no
+database is configured.
+
+Additional Phase 10 capabilities:
+
+- **Downloadable scenario reports**: `POST /api/v1/reports/scenario/{job_id}`
+  returns a Markdown report (baseline vs scenario, impacts, recommended
+  response, confidence, provenance, and a mandatory read-only boundary footer).
+- **CI safety-boundary guard**: `.github/workflows/ci.yml` fails the build if a
+  control-write path (`control_write_enabled = True`) ever appears in
+  `services/` or `packages/`, alongside per-service lint/type/test and a
+  supply-chain job (CycloneDX SBOMs + `pip-audit` + secret scanning).
+- **SBOMs**: `docs/licensing/sbom/*.cdx.json` (regenerate with `make sbom`).
+- **Guided demo**: `docs/demonstrations/demo-script.md` (`make scenario-degrade`,
+  `make reset`).
+
+> Deferred to a later commercial-hardening work package (documented, not built):
+> PostGIS spatial features and Keycloak authentication / SSO / multi-tenancy.
 
 ## Run the stack
 Operator-facing digital twin for seawater reverse-osmosis (SWRO) water

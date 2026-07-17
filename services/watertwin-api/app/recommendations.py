@@ -67,6 +67,11 @@ class RecommendationStore:
         with self._lock:
             return sorted(self._items.values(), key=lambda c: c.created_at, reverse=True)
 
+    def clear(self) -> None:
+        with self._lock:
+            self._items.clear()
+            self._flush()
+
 
 def _summarize(result: SimulationResult) -> tuple[str, str, list[RankedCause]]:
     out = result.outputs

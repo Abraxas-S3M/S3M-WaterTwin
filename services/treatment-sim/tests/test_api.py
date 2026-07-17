@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 
 import httpx
-import pytest
 from httpx import ASGITransport
 
 from app.main import app
