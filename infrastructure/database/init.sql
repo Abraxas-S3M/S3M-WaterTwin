@@ -139,6 +139,26 @@ UPDATE recommendation SET facility_id = 'S3M-DESAL-01' WHERE facility_id IS NULL
 CREATE INDEX IF NOT EXISTS recommendation_status_idx ON recommendation (status);
 CREATE INDEX IF NOT EXISTS recommendation_ts_idx ON recommendation (ts DESC);
 
+-- 5. Operator feedback -----------------------------------------------------
+-- One row per operator confirm/dismiss decision recorded against a
+-- condition-intelligence alert. This is the ground-truth signal the condition
+-- framework's back-test and calibration harnesses learn from. Advisory only;
+-- there is no control state or control-write path here.
+CREATE TABLE IF NOT EXISTS operator_feedback (
+    feedback_id       TEXT        PRIMARY KEY,
+    ts                TIMESTAMPTZ NOT NULL DEFAULT now(),
+    alert_id          TEXT        NOT NULL,
+    recommendation_id TEXT,
+    asset_id          TEXT,
+    model_id          TEXT,
+    decision          TEXT        NOT NULL,
+    actor             TEXT        NOT NULL DEFAULT 'operator',
+    note              TEXT,
+    payload           JSONB       NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS operator_feedback_alert_idx ON operator_feedback (alert_id);
+CREATE INDEX IF NOT EXISTS operator_feedback_ts_idx ON operator_feedback (ts DESC);
 -- 5. Configuration versions ------------------------------------------------
 -- Versioned, approval-gated customer configuration (asset hierarchy, tag
 -- discovery/mapping, engineering units, alarm thresholds, rated equipment,

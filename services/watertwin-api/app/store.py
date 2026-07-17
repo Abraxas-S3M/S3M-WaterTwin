@@ -158,6 +158,28 @@ CREATE TABLE IF NOT EXISTS recommendation (
 );
 """
 
+# Operator-feedback capture: one row per confirm/dismiss decision an operator
+# records against a condition-intelligence alert. This is the ground-truth
+# signal the condition framework's back-test and calibration harnesses learn
+# from. Append-only in spirit (each decision is a new row, keyed by feedback_id)
+# and, like everything else here, advisory only -- it never writes to control.
+_CREATE_FEEDBACK = """
+CREATE TABLE IF NOT EXISTS operator_feedback (
+    feedback_id TEXT PRIMARY KEY,
+    ts TIMESTAMPTZ NOT NULL DEFAULT now(),
+    alert_id TEXT NOT NULL,
+    recommendation_id TEXT,
+    asset_id TEXT,
+    model_id TEXT,
+    decision TEXT NOT NULL,
+    actor TEXT NOT NULL DEFAULT 'operator',
+    note TEXT,
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+"""
+
+#: The operator decisions the feedback store accepts on an alert.
+FEEDBACK_DECISIONS: frozenset[str] = frozenset({"confirm", "dismiss"})
 # Versioned, approval-gated customer configuration. Each row is one immutable
 # *version* of a logical configuration (``entity_type`` + ``config_id``). The
 # lifecycle (draft -> submitted -> approved -> active -> superseded) is enforced
@@ -274,6 +296,7 @@ class Store:
         # In-memory mirrors used whenever the database is unavailable.
         self._audit_mem: list[dict[str, Any]] = []
         self._rec_mem: dict[str, dict[str, Any]] = {}
+        self._feedback_mem: list[dict[str, Any]] = []
         # Config versions, keyed by version_id, in insertion order.
         self._config_mem: dict[str, dict[str, Any]] = {}
         self._telemetry_mem: list[dict[str, Any]] = []
@@ -300,6 +323,7 @@ class Store:
                     cur.execute(stmt, scope_params)
                 cur.execute(_APPEND_ONLY_GUARD)
                 cur.execute(_CREATE_RECOMMENDATION)
+                cur.execute(_CREATE_FEEDBACK)
                 cur.execute(_CREATE_CONFIG_VERSION)
                 for stmt in _MIGRATE_RECOMMENDATION:
                     cur.execute(stmt, scope_params)
@@ -814,6 +838,46 @@ class Store:
             if rec is not None:
                 rec["status"] = status
 
+    # -- operator feedback ----------------------------------------------------
+
+    def record_feedback(
+        self,
+        alert_id: str,
+        decision: str,
+        *,
+        recommendation_id: str | None = None,
+        asset_id: str | None = None,
+        model_id: str | None = None,
+        actor: str = "operator",
+        note: str | None = None,
+        payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Record an operator confirm/dismiss decision on a condition alert.
+
+        This is the ground-truth capture the condition-intelligence framework's
+        back-test and calibration harnesses consume. It is advisory metadata
+        only and never writes to any control system. Returns the stored record.
+
+        Raises:
+            ValueError: If ``decision`` is not one of :data:`FEEDBACK_DECISIONS`.
+        """
+        norm = decision.lower().strip()
+        if norm not in FEEDBACK_DECISIONS:
+            raise ValueError(
+                f"decision must be one of {sorted(FEEDBACK_DECISIONS)}; got {decision!r}."
+            )
+        record = {
+            "feedback_id": str(uuid.uuid4()),
+            "ts": _utcnow_iso(),
+            "alert_id": alert_id,
+            "recommendation_id": recommendation_id,
+            "asset_id": asset_id,
+            "model_id": model_id,
+            "decision": norm,
+            "actor": actor,
+            "note": note,
+            "payload": payload or {},
+        }
     # -- configuration versions ----------------------------------------------
 
     @staticmethod
@@ -836,6 +900,36 @@ class Store:
                 try:
                     from psycopg.types.json import Jsonb
 
+                    with self._conn.cursor() as cur:
+                        cur.execute(
+                            "INSERT INTO operator_feedback "
+                            "(feedback_id, ts, alert_id, recommendation_id, asset_id, "
+                            "model_id, decision, actor, note, payload) "
+                            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                            (
+                                record["feedback_id"],
+                                record["ts"],
+                                record["alert_id"],
+                                record["recommendation_id"],
+                                record["asset_id"],
+                                record["model_id"],
+                                record["decision"],
+                                record["actor"],
+                                record["note"],
+                                Jsonb(record["payload"]),
+                            ),
+                        )
+                    return record
+                except Exception as exc:  # pragma: no cover - real DB only
+                    logger.warning(
+                        "feedback write failed; mirroring to memory",
+                        extra={"error": str(exc)},
+                    )
+            self._feedback_mem.append(record)
+        return record
+
+    def feedback_for(self, alert_id: str) -> list[dict[str, Any]]:
+        """Return every recorded feedback decision for one alert (oldest first)."""
                     values = dict(row)
                     values["payload"] = Jsonb(values.get("payload") or {})
                     placeholders = ", ".join(["%s"] * len(_CONFIG_COLUMNS))
@@ -890,6 +984,19 @@ class Store:
                 try:
                     with self._conn.cursor() as cur:
                         cur.execute(
+                            "SELECT feedback_id, ts, alert_id, recommendation_id, asset_id, "
+                            "model_id, decision, actor, note, payload "
+                            "FROM operator_feedback WHERE alert_id = %s ORDER BY ts ASC",
+                            (alert_id,),
+                        )
+                        rows = cur.fetchall()
+                    return [self._feedback_row(r) for r in rows]
+                except Exception as exc:  # pragma: no cover - real DB only
+                    logger.warning("feedback read failed; using memory", extra={"error": str(exc)})
+            return [f for f in self._feedback_mem if f["alert_id"] == alert_id]
+
+    def recent_feedback(self, n: int = 100) -> list[dict[str, Any]]:
+        """Return up to ``n`` most-recent feedback decisions, newest first."""
                             f"SELECT {', '.join(_CONFIG_COLUMNS)} FROM config_version "
                             "WHERE version_id = %s",
                             (version_id,),
@@ -932,6 +1039,31 @@ class Store:
                 try:
                     with self._conn.cursor() as cur:
                         cur.execute(
+                            "SELECT feedback_id, ts, alert_id, recommendation_id, asset_id, "
+                            "model_id, decision, actor, note, payload "
+                            "FROM operator_feedback ORDER BY ts DESC LIMIT %s",
+                            (n,),
+                        )
+                        rows = cur.fetchall()
+                    return [self._feedback_row(r) for r in rows]
+                except Exception as exc:  # pragma: no cover - real DB only
+                    logger.warning("feedback read failed; using memory", extra={"error": str(exc)})
+            return list(reversed(self._feedback_mem))[:n]
+
+    @staticmethod
+    def _feedback_row(r: Any) -> dict[str, Any]:  # pragma: no cover - real DB only
+        return {
+            "feedback_id": str(r[0]),
+            "ts": r[1].isoformat() if hasattr(r[1], "isoformat") else r[1],
+            "alert_id": r[2],
+            "recommendation_id": r[3],
+            "asset_id": r[4],
+            "model_id": r[5],
+            "decision": r[6],
+            "actor": r[7],
+            "note": r[8],
+            "payload": r[9],
+        }
                             f"SELECT {', '.join(_CONFIG_COLUMNS)} FROM config_version "
                             "WHERE entity_type = %s AND status = 'active' ORDER BY config_id ASC",
                             (entity_type,),
@@ -1017,6 +1149,7 @@ class Store:
         with self._lock:
             self._audit_mem.clear()
             self._rec_mem.clear()
+            self._feedback_mem.clear()
             self._config_mem.clear()
             self._telemetry_mem.clear()
             self._batch_mem.clear()
@@ -1026,6 +1159,7 @@ class Store:
                     with self._conn.cursor() as cur:
                         cur.execute("TRUNCATE audit_event")
                         cur.execute("TRUNCATE recommendation")
+                        cur.execute("TRUNCATE operator_feedback")
                         cur.execute("TRUNCATE config_version")
                         cur.execute("TRUNCATE telemetry")
                         cur.execute("TRUNCATE telemetry_batch")

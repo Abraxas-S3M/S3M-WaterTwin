@@ -19,7 +19,7 @@ duplicate physics anywhere else in the repository.
 
 from __future__ import annotations
 
-from watertwin_engineering import calculations, equipment, root_cause
+from watertwin_engineering import calculations, condition, equipment, root_cause
 from watertwin_engineering.calculations import (
     ROReference,
     ro_performance,
@@ -98,6 +98,7 @@ __all__ = [
     "colloidal_fouling_index",
     "component_health",
     "concentration_factor",
+    "condition",
     "energy_cost",
     "equipment",
     "evaluate_operating_point",
