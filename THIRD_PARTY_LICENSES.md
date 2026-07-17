@@ -12,6 +12,8 @@ would encumber this project.
 | fastapi     | 0.115.6  | MIT          |
 | pydantic    | 2.10.4   | MIT          |
 | uvicorn     | 0.34.0   | BSD-3-Clause |
+| asyncua     | 1.1.6    | LGPL-3.0-only (dynamic use only; read-only OPC UA client) |
+| pymodbus    | 3.7.4    | BSD-3-Clause (read function codes only) |
 
 ### Transitive runtime dependencies
 

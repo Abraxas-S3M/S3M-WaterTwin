@@ -1,0 +1,49 @@
+{
+  "map_id": "example-plant-v1",
+  "description": "Sample customer tag map for the reference RO train. Maps customer OT tags (PLC / SCADA point names) onto the canonical asset_id.metric model. Read-only / advisory reference only.",
+  "provenance": "measured",
+  "tags": {
+    "PLC1.HPP_A.WINDING_TEMP": {
+      "asset_id": "AST-HPP-01",
+      "metric": "winding_temp_c",
+      "unit": "degC",
+      "scale": 1.0,
+      "offset": 0.0
+    },
+    "PLC1.HPP_A.WINDING_TEMP_F": {
+      "asset_id": "AST-HPP-01",
+      "metric": "winding_temp_c",
+      "unit": "degC",
+      "scale": 0.5555556,
+      "offset": -17.7778
+    },
+    "PLC1.HPP_A.VIBRATION": {
+      "asset_id": "AST-HPP-01",
+      "metric": "vibration_mm_s",
+      "unit": "mm/s",
+      "scale": 1.0,
+      "offset": 0.0
+    },
+    "PLC1.HPP_A.BEARING_TEMP": {
+      "asset_id": "AST-HPP-01",
+      "metric": "bearing_temp_c",
+      "unit": "degC",
+      "scale": 1.0,
+      "offset": 0.0
+    },
+    "PLC1.CF_1.DP_MBAR": {
+      "asset_id": "AST-CF-01",
+      "metric": "dp_bar",
+      "unit": "bar",
+      "scale": 0.001,
+      "offset": 0.0
+    },
+    "PLC1.ERD_1.TRANSFER_EFF": {
+      "asset_id": "AST-ERD-01",
+      "metric": "transfer_efficiency_pct",
+      "unit": "%",
+      "scale": 1.0,
+      "offset": 0.0
+    }
+  }
+}
