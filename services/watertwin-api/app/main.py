@@ -21,6 +21,8 @@ from canonical_water_model import ControlBoundary, DataProvenance, WQAlert
 from simulation_contracts import ScenarioType, SimulationResult
 
 from . import config
+from . import membrane
+from . import predictive_maintenance as pdm
 from . import water_quality as wq
 from .hydraulic_client import HydraulicSimClient, HydraulicSimError
 from .recommendations import RecommendationStore, build_recommendation
@@ -378,6 +380,135 @@ def water_quality_alerts(fouling: Optional[float] = None) -> dict:
             ],
         },
         DataProvenance.preliminary,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Equipment & Membrane Intelligence + Predictive Maintenance (advisory, read-only)
+#
+# Component health, preliminary RUL + failure probability, operating envelope,
+# causal root-cause ranking, membrane fouling/scaling/health (reusing the WQ
+# layer) and risk-ranked predictive-maintenance recommendations. Every response
+# carries the control boundary + provenance. RUL / failure-probability /
+# avoided-cost are preliminary engineering estimates (never validated or
+# guaranteed). PdM recommendations route through the existing recommendation +
+# audit path with operator approval required and control write disabled.
+# ---------------------------------------------------------------------------
+
+
+def _pdm_envelope(payload: dict, provenance: DataProvenance = DataProvenance.preliminary) -> dict:
+    """Attach the read-only control boundary + provenance to every PdM response."""
+    return {
+        **payload,
+        "facility_id": wq.FACILITY_ID,
+        "train_id": wq.TRAIN_ID,
+        "provenance": provenance.value,
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+def _require_asset(asset_id: str) -> None:
+    if asset_id not in pdm.ASSETS:
+        raise HTTPException(
+            status_code=404,
+            detail=f"unknown asset: {asset_id}; known: {pdm.list_asset_ids()}",
+        )
+
+
+@app.get("/api/v1/equipment/{asset_id}/health")
+def equipment_health(asset_id: str, fouling: Optional[float] = None) -> dict:
+    """Transparent component health with a contribution breakdown."""
+    _require_asset(asset_id)
+    health = pdm.component_health_for(asset_id, _wq_fouling(fouling))
+    return _pdm_envelope({"health": health.model_dump(mode="json")})
+
+
+@app.get("/api/v1/equipment/{asset_id}/rul")
+def equipment_rul(asset_id: str, fouling: Optional[float] = None) -> dict:
+    """Preliminary remaining-useful-life with an uncertainty band."""
+    _require_asset(asset_id)
+    rul = pdm.rul_for(asset_id, _wq_fouling(fouling))
+    return _pdm_envelope({"rul": rul.model_dump(mode="json")})
+
+
+@app.get("/api/v1/equipment/{asset_id}/failure-probability")
+def equipment_failure_probability(asset_id: str, fouling: Optional[float] = None) -> dict:
+    """Preliminary failure probability over {24h, 7d, 30d, 90d} horizons."""
+    _require_asset(asset_id)
+    fp = pdm.failure_probability_for(asset_id, _wq_fouling(fouling))
+    return _pdm_envelope({"failure_probability": fp.model_dump(mode="json")})
+
+
+@app.get("/api/v1/equipment/{asset_id}/envelope")
+def equipment_envelope(asset_id: str) -> dict:
+    """Operating-envelope regime fractions (BEP / low-flow / high-pressure / ...)."""
+    _require_asset(asset_id)
+    env = pdm.envelope_for(asset_id)
+    return _pdm_envelope({"envelope": env.model_dump(mode="json")})
+
+
+@app.get("/api/v1/equipment/{asset_id}/root-cause")
+def equipment_root_cause(asset_id: str) -> dict:
+    """Causal root-cause ranking (probabilities sum to ~1.0)."""
+    _require_asset(asset_id)
+    rc = pdm.root_cause_for(asset_id)
+    return _pdm_envelope({"root_cause": rc.model_dump(mode="json")})
+
+
+@app.get("/api/v1/membrane/{asset_id}/health")
+def membrane_health(asset_id: str, fouling: Optional[float] = None) -> dict:
+    """Membrane fouling / scaling / health (reuses the Water Quality layer)."""
+    _require_asset(asset_id)
+    mh = membrane.compute_membrane_health(_wq_fouling(fouling), asset_id=asset_id)
+    return _pdm_envelope({"membrane": mh.model_dump(mode="json")})
+
+
+def _route_pdm_recommendations(cards: list) -> None:
+    """Route PdM recommendation cards through the existing recommendation + audit
+    path. Each card is created ``pending`` (operator approval required, no
+    control write) and is idempotent by its asset-derived id so repeated polling
+    does not duplicate cards or reset an operator's decision."""
+    for card in cards:
+        if reco_store.get(card.recommendation_id) is not None:
+            continue
+        reco_store.put(card)
+        store.save_recommendation(
+            card.recommendation_id,
+            card.model_dump(mode="json"),
+            facility_id=card.facility_id,
+            train_id=card.train_id,
+            status=card.approval_status.value,
+        )
+        store.audit(
+            "pdm.recommendation.created",
+            payload={"recommendation_id": card.recommendation_id, "asset_id": card.asset_id},
+            subject=card.recommendation_id,
+        )
+
+
+@app.get("/api/v1/maintenance/ranking")
+def maintenance_ranking(fouling: Optional[float] = None) -> dict:
+    """Risk-ranked predictive-maintenance view across all critical assets."""
+    ranking = pdm.compute_ranking(_wq_fouling(fouling))
+    return _pdm_envelope({"ranking": [p.model_dump(mode="json") for p in ranking]})
+
+
+@app.get("/api/v1/maintenance/recommendations")
+def maintenance_recommendations(fouling: Optional[float] = None) -> dict:
+    """PdM recommendations; each routes to the recommendation + audit path (pending)."""
+    recs = pdm.compute_recommendations(_wq_fouling(fouling))
+    cards = [pdm.build_pdm_card(rec) for rec in recs]
+    _route_pdm_recommendations(cards)
+    return _pdm_envelope(
+        {
+            "recommendations": [p.model_dump(mode="json") for p in recs],
+            "cards": [
+                reco_store.get(rec.recommendation_id).model_dump(mode="json")
+                for rec in recs
+                if rec.recommendation_id
+                and reco_store.get(rec.recommendation_id) is not None
+            ],
+        }
     )
 
 
