@@ -92,6 +92,38 @@ export function installFetchMock(overrides: Record<string, unknown> = {}): Fetch
       return json(overrides.executiveValueSummary ?? fx.executiveValueSummary);
     if (path.startsWith('/executive/roi')) return json(overrides.executiveRoi ?? fx.executiveRoi);
 
+    // Operator Training Simulator (SIMULATION, sandboxed).
+    if (path.startsWith('/training/scenarios'))
+      return json(overrides.trainingScenarios ?? fx.trainingScenarios);
+    if (path.startsWith('/training/records'))
+      return json(overrides.trainingRecords ?? fx.trainingRecords);
+    if (/\/training\/sessions\/[^/]+\/actions$/.test(path) && method === 'POST') {
+      const base = (overrides.trainingSession ?? fx.trainingSession) as typeof fx.trainingSession;
+      const session = {
+        ...base.session,
+        actions: [
+          ...base.session.actions,
+          {
+            action_id: `act-${calls.length}`,
+            kind: (body as { kind?: string })?.kind ?? 'action',
+            text: (body as { text?: string })?.text ?? '',
+            rubric_key: (body as { rubric_key?: string | null })?.rubric_key ?? null,
+            approved: null,
+            sandboxed: true,
+            emitted_command: false,
+            recorded_at: '2026-07-17T07:01:00Z',
+          },
+        ],
+      };
+      return json({ ...base, action: session.actions[session.actions.length - 1], session });
+    }
+    if (/\/training\/sessions\/[^/]+\/submit$/.test(path) && method === 'POST')
+      return json(overrides.trainingRecord ?? fx.trainingRecord);
+    if (path.startsWith('/training/sessions') && method === 'POST')
+      return json(overrides.trainingSession ?? fx.trainingSession);
+    if (/\/training\/sessions\/[^/]+$/.test(path))
+      return json(overrides.trainingSession ?? fx.trainingSession);
+
     // S3M Operations Assistant.
     if (path.startsWith('/assistant/examples'))
       return json(overrides.assistantExamples ?? fx.assistantExamples);

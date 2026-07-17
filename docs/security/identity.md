@@ -31,6 +31,51 @@ Five realm roles are seeded in the `watertwin` realm:
 | `auditor` | Everything a viewer can, **plus** read the audit trail. |
 | `admin` | Superset of all roles. |
 
+## Tenant &amp; facility scoping (multi-tenancy)
+
+Roles decide *what a caller may do*; **tenant / facility membership** decides
+*what data a caller may see*. The two are orthogonal — an `admin` of one tenant
+still may not read another tenant's data. Every canonical record and persisted
+row (`audit_event`, `recommendation`, `telemetry`) carries a `tenant_id` /
+`facility_id`, and reads are **row-level scoped** so cross-tenant access is
+denied (`403`) at the API layer before any store query runs.
+
+Membership is carried in the access token and extracted in `auth.py`:
+
+| Claim (any accepted) | Meaning |
+| --- | --- |
+| `tenant_ids` / `tenants` / `tenant_id` / `tenant` | Tenants the caller may read (list, scalar, or CSV). |
+| `facility_ids` / `facilities` / `facility_id` / `facility` | Facilities the caller may read. |
+
+Resolution rules (backward compatible):
+
+- A token with **no tenant claim** is treated as a member of the single default
+  tenant (`s3m-default`) with access to every facility in it — so legacy
+  single-facility tokens keep working unchanged.
+- A token with tenant claims but **no facility claim** may read every facility
+  *within its tenants*.
+- The dev bypass (`WATERTWIN_AUTH_DISABLED=true`) runs as a wildcard
+  (`*`) admin with access to all tenants/facilities.
+
+Scoped read/write surfaces:
+
+- **Analytics** (`water-quality/*`, `equipment/*`, `membrane/*`,
+  `maintenance/*`, `energy/*`, `resilience/*`, `executive/*`) accept optional
+  `tenant_id` / `facility_id` query parameters (defaulting to the platform
+  defaults) and echo the resolved scope in the response envelope.
+- **Config** (`recommendations`, `recommendations/{id}`) only ever lists /
+  returns records inside the caller's tenant/facility.
+- **Audit** (`audit`) is filtered to the caller's tenant (and optional
+  facility); an auditor of one tenant can never read another's trail. The
+  tamper-evident hash chain is a single global chain and `audit/verify` still
+  verifies it in full — `tenant_id` / `facility_id` are stored *alongside* the
+  hashed event core, never inside it, so scoping leaves the chain invariant
+  unchanged.
+
+Pre-existing single-facility data is migrated into the default tenant/facility
+on connect (`store.py` backfill + `infrastructure/database/init.sql`), so nothing
+breaks on upgrade.
+
 ## RBAC matrix (enforced in `watertwin-api`)
 
 | Endpoint(s) | Method | Required role |

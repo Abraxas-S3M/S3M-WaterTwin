@@ -1,0 +1,14 @@
+# Grafana datasource provisioning: the WaterTwin Prometheus instance.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    # In docker-compose this resolves to the prometheus service; the Helm chart
+    # overrides it via GF_ env / its own provisioning ConfigMap.
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s

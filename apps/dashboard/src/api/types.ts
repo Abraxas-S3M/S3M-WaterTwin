@@ -799,3 +799,134 @@ export interface AssistantExamplesResponse {
   examples: AssistantExample[];
   control_boundary: ControlBoundary;
 }
+
+// --- Operator Training Simulator (SIMULATION, sandboxed, read-only) ---
+
+export type TrainingScenarioType =
+  | 'pump_degradation'
+  | 'leak'
+  | 'outage'
+  | 'storm_power_loss';
+
+export interface TrainingRubricItem {
+  key: string;
+  prompt: string;
+  guidance: string;
+  weight: number;
+}
+
+export interface TrainingScenario {
+  scenario_id: string;
+  scenario_type: TrainingScenarioType;
+  title: string;
+  category: string;
+  difficulty: string;
+  briefing: string;
+  derived_from: string;
+  learning_objectives: string[];
+  rubric: TrainingRubricItem[];
+}
+
+export interface CapturedAction {
+  action_id: string;
+  kind: string;
+  text: string;
+  rubric_key?: string | null;
+  approved?: boolean | null;
+  sandboxed: boolean;
+  emitted_command: boolean;
+  recorded_at: string;
+}
+
+export interface TrainingSession {
+  session_id: string;
+  scenario_id: string;
+  scenario: TrainingScenario;
+  operator: string;
+  status: string;
+  simulation: boolean;
+  twin_summary: {
+    headline?: string;
+    observed?: Record<string, number | boolean | null>;
+    affected_asset?: string;
+    reused_scenario?: string;
+  };
+  injected_telemetry: TelemetryReading[];
+  actions: CapturedAction[];
+  started_at: string;
+  provenance: DataProvenance;
+  control_boundary: ControlBoundary;
+  disclaimer: string;
+}
+
+export interface ScoredItem {
+  key: string;
+  prompt: string;
+  weight: number;
+  matched: boolean;
+  awarded: number;
+  feedback: string;
+}
+
+export interface TrainingScore {
+  total_score: number;
+  max_score: number;
+  percentage: number;
+  band: string;
+  passed: boolean;
+  items: ScoredItem[];
+  provenance: DataProvenance;
+}
+
+export interface TrainingRecord {
+  record_id: string;
+  session_id: string;
+  scenario_id: string;
+  scenario_title: string;
+  operator: string;
+  score: TrainingScore;
+  actions: CapturedAction[];
+  started_at: string;
+  completed_at: string;
+  simulation: boolean;
+  provenance: DataProvenance;
+  control_boundary: ControlBoundary;
+  disclaimer: string;
+}
+
+interface TrainingEnvelope {
+  facility_id: string;
+  train_id: string;
+  provenance: DataProvenance;
+  simulation: boolean;
+  disclaimer: string;
+  control_boundary: ControlBoundary;
+}
+
+export interface TrainingScenariosResponse extends TrainingEnvelope {
+  scenarios: TrainingScenario[];
+}
+
+export interface TrainingSessionResponse extends TrainingEnvelope {
+  session: TrainingSession;
+}
+
+export interface TrainingActionResponse extends TrainingEnvelope {
+  action: CapturedAction;
+  session: TrainingSession;
+}
+
+export interface TrainingRecordResponse extends TrainingEnvelope {
+  record: TrainingRecord;
+}
+
+export interface TrainingRecordsResponse extends TrainingEnvelope {
+  records: TrainingRecord[];
+}
+
+export interface TrainingActionRequest {
+  kind: string;
+  text: string;
+  rubric_key?: string | null;
+  approved?: boolean | null;
+}

@@ -30,6 +30,12 @@ import type {
   PumpCurve,
   RecommendationCard,
   TelemetryReading,
+  TrainingActionRequest,
+  TrainingActionResponse,
+  TrainingRecordResponse,
+  TrainingRecordsResponse,
+  TrainingScenariosResponse,
+  TrainingSessionResponse,
   WaterStream,
   WQAlertsResponse,
   WQContaminantMatrixResponse,
@@ -206,6 +212,27 @@ export const api = {
     }),
   getAssistantExamples: () => request<AssistantExamplesResponse>('/assistant/examples'),
   getDocuments: () => request<DocumentsResponse>('/documents'),
+
+  // Operator Training Simulator (SIMULATION, sandboxed — never emits a command)
+  getTrainingScenarios: () => request<TrainingScenariosResponse>('/training/scenarios'),
+  startTrainingSession: (scenarioId: string, operator?: string) =>
+    request<TrainingSessionResponse>('/training/sessions', {
+      method: 'POST',
+      body: JSON.stringify({ scenario_id: scenarioId, operator: operator ?? null }),
+    }),
+  getTrainingSession: (sessionId: string) =>
+    request<TrainingSessionResponse>(`/training/sessions/${encodeURIComponent(sessionId)}`),
+  captureTrainingAction: (sessionId: string, body: TrainingActionRequest) =>
+    request<TrainingActionResponse>(
+      `/training/sessions/${encodeURIComponent(sessionId)}/actions`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  submitTrainingSession: (sessionId: string) =>
+    request<TrainingRecordResponse>(
+      `/training/sessions/${encodeURIComponent(sessionId)}/submit`,
+      { method: 'POST', body: JSON.stringify({}) },
+    ),
+  getTrainingRecords: () => request<TrainingRecordsResponse>('/training/records'),
 };
 
 export type ApiClient = typeof api;

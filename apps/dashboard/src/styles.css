@@ -12,6 +12,8 @@
   --ok: #2ecc71;
   --radius: 10px;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.25);
+  /* Ink used on top of the strong accent; overridable by customer branding. */
+  --accent-contrast: #04222f;
   color-scheme: dark;
 }
 
@@ -60,7 +62,7 @@ button {
   width: 232px;
   flex-shrink: 0;
   background: var(--bg-elev);
-  border-right: 1px solid var(--border);
+  border-inline-end: 1px solid var(--border);
   padding: 16px 12px;
   display: flex;
   flex-direction: column;
@@ -95,7 +97,7 @@ button {
   border: none;
   background: none;
   width: 100%;
-  text-align: left;
+  text-align: start;
   font-size: 13px;
 }
 
@@ -106,7 +108,7 @@ button {
 
 .nav-item.active {
   background: var(--accent-strong);
-  color: #04222f;
+  color: var(--accent-contrast);
   font-weight: 600;
 }
 
@@ -116,7 +118,7 @@ button {
 }
 
 .nav-item .phase-tag {
-  margin-left: auto;
+  margin-inline-start: auto;
   font-size: 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -291,7 +293,7 @@ table.data tr.active-row td {
   font-size: 13px;
   color: var(--text-dim);
   font-weight: 400;
-  margin-left: 4px;
+  margin-inline-start: 4px;
 }
 
 .kpi .kpi-foot {
@@ -330,7 +332,7 @@ table.data tr.active-row td {
 
 /* Push an inline provenance badge to the trailing edge of a flex header. */
 .prov-inline {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 
 /* --- Health bar --- */
@@ -350,7 +352,9 @@ table.data tr.active-row td {
 
 .health-bar .fill {
   position: absolute;
-  inset: 0 auto 0 0;
+  top: 0;
+  bottom: 0;
+  inset-inline-start: 0;
   border-radius: 999px;
 }
 
@@ -409,7 +413,7 @@ table.data tr.active-row td {
 }
 
 .contrib-value {
-  text-align: right;
+  text-align: end;
   font-variant-numeric: tabular-nums;
   font-size: 12px;
 }
@@ -446,7 +450,7 @@ table.data tr.active-row td {
 
 .rec-card ol.causes {
   margin: 0;
-  padding-left: 18px;
+  padding-inline-start: 18px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -532,7 +536,7 @@ table.data tr.active-row td {
 .btn.primary {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
-  color: #04222f;
+  color: var(--accent-contrast);
 }
 
 /* --- Audit trail --- */
@@ -580,7 +584,7 @@ table.data {
 
 table.data th,
 table.data td {
-  text-align: left;
+  text-align: start;
   padding: 7px 10px;
   border-bottom: 1px solid var(--border);
 }
@@ -674,7 +678,7 @@ table.data tr.clickable:hover td {
   width: 10px;
   height: 10px;
   border-radius: 3px;
-  margin-right: 6px;
+  margin-inline-end: 6px;
   vertical-align: middle;
 }
 
@@ -900,4 +904,53 @@ input[type='text'] {
 .btn.ghost:hover {
   color: var(--text);
   border-color: var(--accent);
+}
+
+/* --- Customer branding --- */
+.brand-logo {
+  max-width: 100%;
+  max-height: 40px;
+  display: block;
+}
+
+/* --- Shell controls (language + units) --- */
+.shell-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.shell-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 90px;
+}
+
+.shell-control-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+.shell-control select {
+  width: 100%;
+}
+
+/* --- RTL support ---
+ * Layout mirrors automatically via CSS logical properties and [dir="rtl"] on
+ * <html>. Only a few visual affordances (directional glyphs) need an explicit
+ * flip since their direction is encoded in the character/rotation, not layout. */
+[dir='rtl'] .flow-arrow {
+  transform: scaleX(-1);
+  display: inline-block;
+}
+
+[dir='rtl'] .safety-banner,
+[dir='rtl'] .flow {
+  /* Preserve natural reading order for inline content in RTL. */
+  direction: rtl;
 }

@@ -3,9 +3,9 @@
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
   "version": 1,
-  "serialNumber": "urn:uuid:a3561a5e-4884-40bc-81f8-db8be1525067",
+  "serialNumber": "urn:uuid:4f8534da-44c7-4fb1-bb93-631e89e7f475",
   "metadata": {
-    "timestamp": "2026-07-17T08:16:56.319Z",
+    "timestamp": "2026-07-17T15:09:29.362Z",
     "tools": {
       "components": [
         {
@@ -554,6 +554,74 @@
     },
     {
       "type": "library",
+      "name": "i18next-browser-languagedetector",
+      "version": "8.2.1",
+      "bom-ref": "@s3m-watertwin/dashboard@0.7.0|i18next-browser-languagedetector@8.2.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/i18next-browser-languagedetector@8.2.1",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/i18next-browser-languagedetector/-/i18next-browser-languagedetector-8.2.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "6d983cfb86dd99a3a20290fb37b04f4fd5bc30b646fa73d338594b889893f2ecca5c58e1c70e2fda27ab0973b0079b050ccb6e0391b8920619d00ce767143f73"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/i18next-browser-languagedetector"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "i18next",
+      "version": "25.10.10",
+      "bom-ref": "@s3m-watertwin/dashboard@0.7.0|i18next@25.10.10",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/i18next@25.10.10",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/i18next/-/i18next-25.10.10.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "72a516d99dc4911c7b36a4b2cb08e48022caeca2c22fa20554570e346ee7558209dde919d7f3798d4b2284757a06adfb35f860b5ccf125cc5db842ed8d3c24b9"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/i18next"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "name": "jsdom",
       "version": "29.1.1",
       "bom-ref": "@s3m-watertwin/dashboard@0.7.0|jsdom@29.1.1",
@@ -655,6 +723,40 @@
         {
           "name": "cdx:npm:package:path",
           "value": "node_modules/react-dom"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-i18next",
+      "version": "16.6.6",
+      "bom-ref": "@s3m-watertwin/dashboard@0.7.0|react-i18next@16.6.6",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/react-i18next@16.6.6",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/react-i18next/-/react-i18next-16.6.6.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "6602f61d4a16df850a524395eee490144d420e744f0feb42477cb04ae587eeeda26a99f3f3a53c062dd5aeceb6d2a343cc27f5178ecdc609421247210930ce1f"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/react-i18next"
         }
       ]
     },
@@ -1171,10 +1273,6 @@
         }
       ],
       "properties": [
-        {
-          "name": "cdx:npm:package:development",
-          "value": "true"
-        },
         {
           "name": "cdx:npm:package:path",
           "value": "node_modules/@babel/runtime"
@@ -3038,6 +3136,74 @@
     },
     {
       "type": "library",
+      "name": "html-parse-stringify",
+      "version": "3.0.1",
+      "bom-ref": "@s3m-watertwin/dashboard@0.7.0|html-parse-stringify@3.0.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/html-parse-stringify@3.0.1",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/html-parse-stringify/-/html-parse-stringify-3.0.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "2a49c9e7491322727ba8849c1778de68546932913cfe57e24ddcdffedc17c8f04b006acb4539a4cf701d4e729e878d17f24f4bd9f758c04a7fe365865c844672"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/html-parse-stringify"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "use-sync-external-store",
+      "version": "1.6.0",
+      "bom-ref": "@s3m-watertwin/dashboard@0.7.0|use-sync-external-store@1.6.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/use-sync-external-store@1.6.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/use-sync-external-store/-/use-sync-external-store-1.6.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "3e9e864b018ffcdacf22bc551402243907b2c3c9457a73878a34169144eb0efac5e002eaca53f60bf28291e4bd76950cdcabd84508676b9bedec82fde7e650f7"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/use-sync-external-store"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "name": "lightningcss",
       "version": "1.32.0",
       "bom-ref": "@s3m-watertwin/dashboard@0.7.0|lightningcss@1.32.0",
@@ -4854,6 +5020,40 @@
         {
           "name": "cdx:npm:package:path",
           "value": "node_modules/resolve-protobuf-schema"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "void-elements",
+      "version": "3.1.0",
+      "bom-ref": "@s3m-watertwin/dashboard@0.7.0|void-elements@3.1.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/void-elements@3.1.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/void-elements/-/void-elements-3.1.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "0e1c738791d9ba21d085bbd35bd00c7ad15f0470cc629a36dd4a3d6ed3d781d60ffb74f94bea7e8e0372eeca6b6bebde62104fd9d09283147f8b6634da1e7feb"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/void-elements"
         }
       ]
     },
@@ -7258,9 +7458,12 @@
         "@s3m-watertwin/dashboard@0.7.0|@vitejs/plugin-react@6.0.3",
         "@s3m-watertwin/dashboard@0.7.0|echarts-for-react@3.0.6",
         "@s3m-watertwin/dashboard@0.7.0|echarts@6.1.0",
+        "@s3m-watertwin/dashboard@0.7.0|i18next-browser-languagedetector@8.2.1",
+        "@s3m-watertwin/dashboard@0.7.0|i18next@25.10.10",
         "@s3m-watertwin/dashboard@0.7.0|jsdom@29.1.1",
         "@s3m-watertwin/dashboard@0.7.0|maplibre-gl@5.24.0",
         "@s3m-watertwin/dashboard@0.7.0|react-dom@19.2.7",
+        "@s3m-watertwin/dashboard@0.7.0|react-i18next@16.6.6",
         "@s3m-watertwin/dashboard@0.7.0|react@19.2.7",
         "@s3m-watertwin/dashboard@0.7.0|typescript@5.9.3",
         "@s3m-watertwin/dashboard@0.7.0|vite@8.1.5",
@@ -7354,6 +7557,19 @@
       ]
     },
     {
+      "ref": "@s3m-watertwin/dashboard@0.7.0|i18next-browser-languagedetector@8.2.1",
+      "dependsOn": [
+        "@s3m-watertwin/dashboard@0.7.0|@babel/runtime@7.29.7"
+      ]
+    },
+    {
+      "ref": "@s3m-watertwin/dashboard@0.7.0|i18next@25.10.10",
+      "dependsOn": [
+        "@s3m-watertwin/dashboard@0.7.0|@babel/runtime@7.29.7",
+        "@s3m-watertwin/dashboard@0.7.0|typescript@5.9.3"
+      ]
+    },
+    {
       "ref": "@s3m-watertwin/dashboard@0.7.0|jsdom@29.1.1",
       "dependsOn": [
         "@s3m-watertwin/dashboard@0.7.0|@asamuzakjp/css-color@5.1.11",
@@ -7411,6 +7627,17 @@
       ]
     },
     {
+      "ref": "@s3m-watertwin/dashboard@0.7.0|react-i18next@16.6.6",
+      "dependsOn": [
+        "@s3m-watertwin/dashboard@0.7.0|@babel/runtime@7.29.7",
+        "@s3m-watertwin/dashboard@0.7.0|html-parse-stringify@3.0.1",
+        "@s3m-watertwin/dashboard@0.7.0|i18next@25.10.10",
+        "@s3m-watertwin/dashboard@0.7.0|react@19.2.7",
+        "@s3m-watertwin/dashboard@0.7.0|typescript@5.9.3",
+        "@s3m-watertwin/dashboard@0.7.0|use-sync-external-store@1.6.0"
+      ]
+    },
+    {
       "ref": "@s3m-watertwin/dashboard@0.7.0|react@19.2.7"
     },
     {
@@ -7462,7 +7689,8 @@
       "ref": "@s3m-watertwin/dashboard@0.7.0|zustand@5.0.14",
       "dependsOn": [
         "@s3m-watertwin/dashboard@0.7.0|@types/react@19.2.17",
-        "@s3m-watertwin/dashboard@0.7.0|react@19.2.7"
+        "@s3m-watertwin/dashboard@0.7.0|react@19.2.7",
+        "@s3m-watertwin/dashboard@0.7.0|use-sync-external-store@1.6.0"
       ]
     },
     {
@@ -7745,6 +7973,18 @@
       "ref": "@s3m-watertwin/dashboard@0.7.0|scheduler@0.27.0"
     },
     {
+      "ref": "@s3m-watertwin/dashboard@0.7.0|html-parse-stringify@3.0.1",
+      "dependsOn": [
+        "@s3m-watertwin/dashboard@0.7.0|void-elements@3.1.0"
+      ]
+    },
+    {
+      "ref": "@s3m-watertwin/dashboard@0.7.0|use-sync-external-store@1.6.0",
+      "dependsOn": [
+        "@s3m-watertwin/dashboard@0.7.0|react@19.2.7"
+      ]
+    },
+    {
       "ref": "@s3m-watertwin/dashboard@0.7.0|lightningcss@1.32.0",
       "dependsOn": [
         "@s3m-watertwin/dashboard@0.7.0|detect-libc@2.1.2",
@@ -8006,6 +8246,9 @@
       "dependsOn": [
         "@s3m-watertwin/dashboard@0.7.0|protocol-buffers-schema@3.6.1"
       ]
+    },
+    {
+      "ref": "@s3m-watertwin/dashboard@0.7.0|void-elements@3.1.0"
     },
     {
       "ref": "@s3m-watertwin/dashboard@0.7.0|detect-libc@2.1.2"

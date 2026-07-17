@@ -27,6 +27,10 @@ import type {
   ResilienceCriticalityResponse,
   ResilienceGeneratorResponse,
   TelemetryReading,
+  TrainingRecordResponse,
+  TrainingRecordsResponse,
+  TrainingScenariosResponse,
+  TrainingSessionResponse,
   WQAlertsResponse,
   WQContaminantMatrixResponse,
   WQForecastResponse,
@@ -1062,4 +1066,138 @@ export const overview: PlantOverview = {
   ],
   active_recommendations: [recommendation],
   service_continuity_risk: { score: 34, band: 'elevated', provenance: 'preliminary' },
+};
+
+// --- Operator Training Simulator (SIMULATION, sandboxed) ---
+
+const trainingEnvelope = {
+  facility_id: 'S3M-DESAL-01',
+  train_id: 'RO-TRAIN-001',
+  provenance: 'simulated' as const,
+  simulation: true,
+  disclaimer:
+    'SIMULATION — operator training drill on synthetic data. This is a sandboxed rehearsal only: no real control action is taken, no command is emitted.',
+  control_boundary: controlBoundary,
+};
+
+const pumpDegradationScenario: TrainingScenariosResponse['scenarios'][number] = {
+  scenario_id: 'pump-degradation',
+  scenario_type: 'pump_degradation',
+  title: 'High-Pressure Pump Degradation',
+  category: 'Rotating equipment',
+  difficulty: 'foundational',
+  briefing: 'The high-pressure feed pump shows a rising vibration trend and falling efficiency.',
+  derived_from: 'synthetic PdM telemetry (AST-HPP-01) + hydraulic pump_outage what-if',
+  learning_objectives: ['Recognise degradation from telemetry.'],
+  rubric: [
+    {
+      key: 'diagnose_vibration',
+      prompt: 'Identify the rising vibration / bearing-wear signature.',
+      guidance: 'Call out the vibration trend against the ISO alarm limit.',
+      weight: 2.0,
+    },
+    {
+      key: 'plan_maintenance',
+      prompt: 'Schedule a diagnostic / maintenance in a low-demand window.',
+      guidance: 'Plan an inspection rather than tripping the pump immediately.',
+      weight: 2.0,
+    },
+  ],
+};
+
+export const trainingScenarios: TrainingScenariosResponse = {
+  ...trainingEnvelope,
+  scenarios: [
+    pumpDegradationScenario,
+    {
+      ...pumpDegradationScenario,
+      scenario_id: 'leak',
+      scenario_type: 'leak',
+      title: 'Product-Water Leak',
+      category: 'Hydraulics',
+      difficulty: 'intermediate',
+    },
+  ],
+};
+
+export const trainingSession: TrainingSessionResponse = {
+  ...trainingEnvelope,
+  session: {
+    session_id: 'train-abc123',
+    scenario_id: 'pump-degradation',
+    scenario: pumpDegradationScenario,
+    operator: 'operator',
+    status: 'in_progress',
+    simulation: true,
+    twin_summary: {
+      headline: 'High-Pressure Pump A: rising vibration and bearing temperature.',
+      observed: { vibration_mm_s: 6.4, vibration_limit_mm_s: 4.5, efficiency_drift_pct: 6.0 },
+      affected_asset: 'AST-HPP-01',
+      reused_scenario: 'pump_outage',
+    },
+    injected_telemetry: [
+      {
+        asset_id: 'AST-HPP-01',
+        metric: 'vibration_mm_s',
+        value: 6.4,
+        unit: 'mm/s',
+        timestamp: '2026-07-17T07:00:00Z',
+        provenance: 'simulated',
+      },
+    ],
+    actions: [],
+    started_at: '2026-07-17T07:00:00Z',
+    provenance: 'simulated',
+    control_boundary: controlBoundary,
+    disclaimer: trainingEnvelope.disclaimer,
+  },
+};
+
+export const trainingRecord: TrainingRecordResponse = {
+  ...trainingEnvelope,
+  record: {
+    record_id: 'trec-abc123',
+    session_id: 'train-abc123',
+    scenario_id: 'pump-degradation',
+    scenario_title: 'High-Pressure Pump Degradation',
+    operator: 'operator',
+    score: {
+      total_score: 4.0,
+      max_score: 4.0,
+      percentage: 100.0,
+      band: 'Exemplary',
+      passed: true,
+      provenance: 'simulated',
+      items: [
+        {
+          key: 'diagnose_vibration',
+          prompt: 'Identify the rising vibration / bearing-wear signature.',
+          weight: 2.0,
+          matched: true,
+          awarded: 2.0,
+          feedback: 'Addressed.',
+        },
+        {
+          key: 'plan_maintenance',
+          prompt: 'Schedule a diagnostic / maintenance in a low-demand window.',
+          weight: 2.0,
+          matched: true,
+          awarded: 2.0,
+          feedback: 'Addressed.',
+        },
+      ],
+    },
+    actions: [],
+    started_at: '2026-07-17T07:00:00Z',
+    completed_at: '2026-07-17T07:05:00Z',
+    simulation: true,
+    provenance: 'simulated',
+    control_boundary: controlBoundary,
+    disclaimer: trainingEnvelope.disclaimer,
+  },
+};
+
+export const trainingRecords: TrainingRecordsResponse = {
+  ...trainingEnvelope,
+  records: [trainingRecord.record],
 };

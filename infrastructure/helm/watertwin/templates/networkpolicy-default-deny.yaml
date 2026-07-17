@@ -1,0 +1,22 @@
+{{- if .Values.global.networkPolicy.defaultDeny }}
+# Namespace-wide default-deny. NetworkPolicies are additive allow-lists, so this
+# baseline isolates every pod (ingress + egress) until a component chart grants
+# specific access. This is the foundation of the zero-trust posture and, in
+# particular, guarantees OT segments can never initiate a connection into the
+# platform.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-default-deny
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/part-of: watertwin
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  annotations:
+    watertwin.s3m.io/posture: "namespace default-deny (zero-trust baseline)"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+{{- end }}
