@@ -147,6 +147,10 @@ services:
       NATS_URL: nats://nats:4222
       WATERTWIN_RECO_STORE: /data/recommendations.json
       WATERTWIN_CORS_ORIGINS: "*"
+      # Deployment profile: standard | one_way_diode. In one_way_diode the
+      # platform never initiates a connection toward OT (fail-closed at startup).
+      # See docs/deployment/edge-xiid-reference.md.
+      DEPLOYMENT_PROFILE: ${DEPLOYMENT_PROFILE:-standard}
       # Identity + RBAC: enforce Keycloak-issued JWTs by default. The issuer is
       # the browser-facing URL (token `iss`); JWKS is fetched over the internal
       # docker network. Flip WATERTWIN_AUTH_DISABLED=true only for local dev.
