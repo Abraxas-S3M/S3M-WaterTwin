@@ -1,6 +1,23 @@
 {
   "components": [
     {
+      "bom-ref": "requirements-L22",
+      "description": "requirements line 22: asyncua==1.1.6",
+      "bom-ref": "requirements-L23",
+      "description": "requirements line 23: asyncua==1.1.6",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/asyncua/"
+        }
+      ],
+      "name": "asyncua",
+      "purl": "pkg:pypi/asyncua@1.1.6",
+      "type": "library",
+      "version": "1.1.6"
+    },
+    {
       "bom-ref": "requirements-L7",
       "description": "requirements line 7: fastapi==0.139.2",
       "externalReferences": [
@@ -29,6 +46,90 @@
       "purl": "pkg:pypi/httpx@0.28.1",
       "type": "library",
       "version": "0.28.1"
+    },
+    {
+      "bom-ref": "requirements-L27",
+      "description": "requirements line 27: nats-py==2.15.0",
+      "bom-ref": "requirements-L29",
+      "description": "requirements line 29: opentelemetry-api==1.44.0",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/nats-py/"
+        }
+      ],
+      "name": "nats-py",
+      "purl": "pkg:pypi/nats-py@2.15.0",
+      "type": "library",
+      "version": "2.15.0"
+          "url": "https://pypi.org/simple/opentelemetry-api/"
+        }
+      ],
+      "name": "opentelemetry-api",
+      "purl": "pkg:pypi/opentelemetry-api@1.44.0",
+      "type": "library",
+      "version": "1.44.0"
+    },
+    {
+      "bom-ref": "requirements-L31",
+      "description": "requirements line 31: opentelemetry-exporter-otlp-proto-http==1.44.0",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/opentelemetry-exporter-otlp-proto-http/"
+        }
+      ],
+      "name": "opentelemetry-exporter-otlp-proto-http",
+      "purl": "pkg:pypi/opentelemetry-exporter-otlp-proto-http@1.44.0",
+      "type": "library",
+      "version": "1.44.0"
+    },
+    {
+      "bom-ref": "requirements-L32",
+      "description": "requirements line 32: opentelemetry-instrumentation-fastapi==0.65b0",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/opentelemetry-instrumentation-fastapi/"
+        }
+      ],
+      "name": "opentelemetry-instrumentation-fastapi",
+      "purl": "pkg:pypi/opentelemetry-instrumentation-fastapi@0.65b0",
+      "type": "library",
+      "version": "0.65b0"
+    },
+    {
+      "bom-ref": "requirements-L30",
+      "description": "requirements line 30: opentelemetry-sdk==1.44.0",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/opentelemetry-sdk/"
+        }
+      ],
+      "name": "opentelemetry-sdk",
+      "purl": "pkg:pypi/opentelemetry-sdk@1.44.0",
+      "type": "library",
+      "version": "1.44.0"
+    },
+    {
+      "bom-ref": "requirements-L28",
+      "description": "requirements line 28: prometheus-client==0.25.0",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/prometheus-client/"
+        }
+      ],
+      "name": "prometheus-client",
+      "purl": "pkg:pypi/prometheus-client@0.25.0",
+      "type": "library",
+      "version": "0.25.0"
     },
     {
       "bom-ref": "requirements-L11",
@@ -67,6 +168,27 @@
       "version": "2.10.4"
     },
     {
+      "bom-ref": "requirements-L17",
+      "description": "requirements line 17: pyjwt[crypto]==2.10.1",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/pyjwt/"
+        }
+      ],
+      "name": "pyjwt",
+      "properties": [
+        {
+          "name": "cdx:python:package:required-extra",
+          "value": "crypto"
+        }
+      ],
+      "purl": "pkg:pypi/pyjwt@2.10.1",
+      "type": "library",
+      "version": "2.10.1"
+    },
+    {
       "bom-ref": "requirements-L16",
       "description": "requirements line 16: pyjwt[crypto]==2.13.0",
       "externalReferences": [
@@ -86,6 +208,23 @@
       "purl": "pkg:pypi/pyjwt@2.13.0",
       "type": "library",
       "version": "2.13.0"
+    },
+    {
+      "bom-ref": "requirements-L23",
+      "description": "requirements line 23: pymodbus==3.7.4",
+      "bom-ref": "requirements-L24",
+      "description": "requirements line 24: pymodbus==3.7.4",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/pymodbus/"
+        }
+      ],
+      "name": "pymodbus",
+      "purl": "pkg:pypi/pymodbus@3.7.4",
+      "type": "library",
+      "version": "3.7.4"
     },
     {
       "bom-ref": "requirements-L13",
@@ -138,6 +277,32 @@
       "ref": "requirements-L16"
     },
     {
+      "ref": "requirements-L22"
+      "ref": "requirements-L17"
+    },
+    {
+      "ref": "requirements-L23"
+    },
+    {
+      "ref": "requirements-L27"
+      "ref": "requirements-L24"
+    },
+    {
+      "ref": "requirements-L28"
+    },
+    {
+      "ref": "requirements-L29"
+    },
+    {
+      "ref": "requirements-L30"
+    },
+    {
+      "ref": "requirements-L31"
+    },
+    {
+      "ref": "requirements-L32"
+    },
+    {
       "ref": "requirements-L7"
     },
     {
@@ -148,7 +313,8 @@
     }
   ],
   "metadata": {
-    "timestamp": "2026-07-17T13:56:02.123918+00:00",
+    "timestamp": "2026-07-17T14:59:50.246261+00:00",
+    "timestamp": "2026-07-17T14:55:41.932495+00:00",
     "tools": {
       "components": [
         {
@@ -252,7 +418,8 @@
       ]
     }
   },
-  "serialNumber": "urn:uuid:7b4bcc92-7bec-4b11-8fe5-488fb7c5dfe5",
+  "serialNumber": "urn:uuid:209685c8-938e-4cdc-9fd5-722f574787c9",
+  "serialNumber": "urn:uuid:e42b4fed-56bb-42a7-8aa3-5dba20072a4e",
   "version": 1,
   "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
   "bomFormat": "CycloneDX",

@@ -1,0 +1,118 @@
+# postgis dependency defaults. Overridden per-env under `postgis:`.
+componentTier: data
+
+replicaCount: 1
+
+image:
+  registry: ""
+  repository: postgis/postgis
+  tag: "16-3.4"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: postgis
+
+serviceAccount:
+  create: true
+  name: ""
+  automount: false
+  annotations: {}
+
+automountServiceAccountToken: false
+
+podSecurityContext:
+  fsGroup: 999
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+ports:
+  - name: postgres
+    containerPort: 5432
+    protocol: TCP
+
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+
+env:
+  POSTGRES_USER: watertwin
+  POSTGRES_DB: watertwin_gis
+  PGDATA: /var/lib/postgresql/data/pgdata
+
+# Password sourced from a Secret you create out-of-band, e.g.:
+#   kubectl create secret generic watertwin-postgis \
+#     --from-literal=postgres-password=<pw>
+secretEnv:
+  - name: POSTGRES_PASSWORD
+    secretName: watertwin-postgis
+    secretKey: postgres-password
+
+extraEnv: []
+envFrom: []
+
+persistence:
+  enabled: true
+  mountPath: /var/lib/postgresql/data
+  size: 5Gi
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+
+livenessProbe:
+  exec:
+    command:
+      - /bin/sh
+      - -c
+      - exec pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" -h 127.0.0.1
+  initialDelaySeconds: 30
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 6
+
+readinessProbe:
+  exec:
+    command:
+      - /bin/sh
+      - -c
+      - exec pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" -h 127.0.0.1
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 6
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+podLabels: {}
+
+networkPolicy:
+  enabled: true
+  allowDNS: true
+  ingress:
+    - from:
+        - component: watertwin-api
+        - component: hydraulic-sim
+      ports:
+        - port: 5432
+  egress: []

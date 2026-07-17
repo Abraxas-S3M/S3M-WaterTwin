@@ -1,0 +1,12 @@
+apiVersion: v2
+name: treatment-sim
+description: >-
+  Read-only WaterTAP/IDAES RO process-simulation service. Advisory only; never a
+  control-write path.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+dependencies:
+  - name: watertwin-common
+    version: 0.1.0
+    repository: "file://../../../watertwin-common"

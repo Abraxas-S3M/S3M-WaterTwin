@@ -1,0 +1,567 @@
+{
+  "app": {
+    "title": "S3M-WaterTwin",
+    "subtitle": "Operator Console"
+  },
+  "common": {
+    "dash": "—",
+    "yes": "yes",
+    "no": "no",
+    "none": "none",
+    "noneCap": "None",
+    "signingIn": "Signing in…"
+  },
+  "nav": {
+    "ariaLabel": "Primary",
+    "footerNote": "Pages 1, 2, 4 live · others in later phases",
+    "items": {
+      "command": "Command Overview",
+      "process": "Process Twin",
+      "asset": "Asset Twin",
+      "water-quality": "Water Quality",
+      "predictive-maintenance": "Predictive Maintenance",
+      "energy": "Energy Optimization",
+      "resilience": "Resilience Command",
+      "executive": "Executive Value / ROI",
+      "assistant": "Operations Assistant",
+      "simulation": "Simulation Center"
+    },
+    "notes": {
+      "simulation": "Phase 8–9"
+    }
+  },
+  "settings": {
+    "language": "Language",
+    "languageNames": {
+      "en": "English",
+      "ar": "العربية"
+    },
+    "units": "Units",
+    "unitNames": {
+      "metric": "Metric",
+      "imperial": "Imperial"
+    }
+  },
+  "safety": {
+    "writeEnabledBadge": "WRITE ENABLED",
+    "noWriteBadge": "NO CONTROL WRITE",
+    "writeEnabledMessage": "Warning: control write is enabled — this violates the advisory boundary.",
+    "advisoryMessage": "Advisory mode ({{mode}}). This system does not write to plant controls; all actions require operator approval and are recorded for audit."
+  },
+  "provenance": {
+    "measured": {
+      "label": "Measured",
+      "title": "Directly measured instrument data."
+    },
+    "synthetic": {
+      "label": "Synthetic",
+      "title": "Synthetic data — generated, not from live plant instruments."
+    },
+    "simulated": {
+      "label": "Simulated",
+      "title": "Model simulation output — not validated against plant."
+    },
+    "preliminary": {
+      "label": "Preliminary",
+      "title": "Preliminary model output — pending calibration/validation."
+    },
+    "estimated": {
+      "label": "Estimated",
+      "title": "Illustrative estimate on synthetic pilot data — not a validated saving or guaranteed outcome."
+    }
+  },
+  "units": {
+    "flow_m3h": "m³/h",
+    "flow_gpm": "gpm",
+    "pressure_bar": "bar",
+    "pressure_psi": "psi",
+    "temp_c": "°C",
+    "temp_f": "°F",
+    "productPerDay_m3": "m³/day",
+    "productPerDay_gal": "gal/day",
+    "power_kw": "kW",
+    "sec_kwh_m3": "kWh/m³",
+    "sec_kwh_kgal": "kWh/kgal",
+    "conductivity_us_cm": "µS/cm",
+    "concentration_mg_l": "mg/L",
+    "head_m": "m",
+    "head_ft": "ft",
+    "days": "days",
+    "daysShort": "d",
+    "hoursShort": "h",
+    "percent": "%"
+  },
+  "healthBar": {
+    "outOf100": "/ 100"
+  },
+  "contribution": {
+    "empty": "No contribution factors reported."
+  },
+  "recommendation": {
+    "confidence": "Confidence:",
+    "asset": "Asset: {{id}}",
+    "mode": "Mode: {{mode}}",
+    "rankedCauses": "Ranked probable causes",
+    "recommendedAction": "Recommended action:",
+    "evidenceAssumptions": "Evidence & assumptions",
+    "telemetryWindow": "Telemetry window: {{window}}",
+    "approve": "Approve",
+    "reject": "Reject",
+    "advisoryOnly": "Advisory only — no control write is issued.",
+    "roleGate": "Approving or rejecting requires the <1>operator</1> role.",
+    "status": {
+      "pending": "pending",
+      "approved": "approved",
+      "rejected": "rejected"
+    }
+  },
+  "audit": {
+    "immutableRecord": "Immutable record of advisory decisions",
+    "loading": "Loading audit trail…",
+    "empty": "No audit entries yet.",
+    "note": "Note: {{note}}"
+  },
+  "pumpCurve": {
+    "hqCurve": "H–Q curve",
+    "bep": "BEP",
+    "operatingPoint": "Operating point",
+    "flowAxis": "Flow ({{unit}})",
+    "headAxis": "Head ({{unit}})",
+    "loading": "Loading pump curve…",
+    "unavailable": "No pump curve available for this asset type.",
+    "caption": "Operating point vs best-efficiency point (BEP)"
+  },
+  "scenarios": {
+    "roleGateTitle": "Requires the engineer role to run what-if scenarios",
+    "roleGate": "Running what-if scenarios requires the <1>engineer</1> role.",
+    "notActive": "Simulation services connect in a later phase; showing baseline live data.",
+    "items": {
+      "baseline": {
+        "label": "Baseline",
+        "description": "Nominal operating conditions from the live twin."
+      },
+      "peak_demand": {
+        "label": "Peak Demand",
+        "description": "Higher product-water demand profile (simulation, later phase)."
+      },
+      "fouling_event": {
+        "label": "Membrane Fouling",
+        "description": "Progressive fouling stressor (simulation, later phase)."
+      },
+      "energy_saver": {
+        "label": "Energy Saver",
+        "description": "Minimize specific energy within limits (simulation, later phase)."
+      }
+    }
+  },
+  "auth": {
+    "loginPrompt": "Sign in with your operator identity to access the advisory console. All actions are read-only with respect to plant control and are recorded in the audit trail.",
+    "signInKeycloak": "Sign in with Keycloak",
+    "unknownUser": "unknown",
+    "signOut": "Sign out",
+    "devMode": "auth disabled (dev)"
+  },
+  "command": {
+    "title": "Command Overview",
+    "loading": "Loading command overview…",
+    "unavailableTitle": "Command overview unavailable",
+    "unavailableBody": "Could not load overview data.",
+    "kpi": {
+      "plantHealth": "Plant Health",
+      "production": "Production",
+      "productionFoot": "{{value}} m³/day product",
+      "recovery": "Recovery",
+      "permeateConductivity": "Permeate Conductivity",
+      "energy": "Energy",
+      "energyFoot": "Specific energy {{value}} kWh/m³",
+      "serviceContinuityRisk": "Service-Continuity Risk",
+      "riskFoot": "{{band}} risk"
+    },
+    "hpPumpStatus": "HP-Pump Status",
+    "membraneStatus": "Membrane Status",
+    "noStatus": "No status.",
+    "anomalyScore": "Anomaly score:",
+    "normSaltPassage": "Norm. salt passage:",
+    "activeAlarms": "Active Alarms",
+    "noActiveAlarms": "No active alarms.",
+    "activeRecommendations": "Active Recommendations",
+    "noPendingRecommendations": "No pending recommendations.",
+    "table": {
+      "severity": "Severity",
+      "asset": "Asset",
+      "message": "Message"
+    }
+  },
+  "process": {
+    "title": "Process Twin",
+    "loading": "Loading process twin…",
+    "context": "Select a stage to inspect; click an asset to open its twin.",
+    "productTrain": "Product Train — intake → product",
+    "concentrate": "Concentrate — RO reject → ERD → brine",
+    "noInstrumentedAsset": "No instrumented asset",
+    "openAssetTitle": "Open {{name}} twin",
+    "stageAssets": "{{stage}} — assets",
+    "noStageAssets": "No instrumented assets at this stage.",
+    "openTwin": "Open twin →",
+    "streams": "Streams",
+    "table": {
+      "asset": "Asset",
+      "type": "Type",
+      "criticality": "Criticality",
+      "health": "Health",
+      "stream": "Stream",
+      "from": "From",
+      "to": "To",
+      "description": "Description"
+    }
+  },
+  "asset": {
+    "loading": "Loading asset twin…",
+    "unavailableTitle": "Asset unavailable",
+    "unavailableBody": "Could not load asset.",
+    "unassignedStage": "unassigned stage",
+    "askS3M": "Ask S3M",
+    "askingS3M": "Asking S3M…",
+    "picker": {
+      "title": "Select an asset",
+      "help": "Choose an asset to open its twin, or click one from the Process Twin.",
+      "asset": "Asset",
+      "type": "Type",
+      "stage": "Stage",
+      "criticality": "Criticality"
+    },
+    "identity": "Identity",
+    "identityFields": {
+      "manufacturer": "Manufacturer",
+      "model": "Model",
+      "serial": "Serial",
+      "facilityTrain": "Facility / Train",
+      "location": "Location",
+      "criticality": "Criticality",
+      "installed": "Installed"
+    },
+    "ratedLimits": "Rated Limits",
+    "noRatedData": "No rated data on record.",
+    "rated": {
+      "rated_flow_m3h": "Rated flow",
+      "rated_head_m": "Rated head",
+      "rated_power_kw": "Rated power",
+      "rated_speed_rpm": "Rated speed",
+      "bep_flow_m3h": "BEP flow",
+      "min_flow_m3h": "Min flow",
+      "max_flow_m3h": "Max flow",
+      "temp_limit_c": "Temp limit",
+      "vibration_limit_mm_s": "Vibration limit"
+    },
+    "healthScore": "Health Score",
+    "contributionBreakdown": "Contribution Breakdown",
+    "loadingHealth": "Loading health…",
+    "anomalyScore": "Anomaly Score",
+    "outOf1": "/ 1.0",
+    "rankedDomains": "Ranked domains",
+    "loadingAnomaly": "Loading anomaly…",
+    "liveState": "Live State",
+    "noTelemetry": "No live telemetry for this asset.",
+    "telemetryTable": {
+      "metric": "Metric",
+      "value": "Value",
+      "unit": "Unit",
+      "quality": "Quality",
+      "provenance": "Provenance"
+    },
+    "pumpCurve": "Pump Curve",
+    "componentHealth": "Component Health",
+    "componentHealthTag": "(Predictive Maintenance)",
+    "rul": "Remaining Useful Life",
+    "rulDays": " days",
+    "rulBand": "Band: {{lower}}–{{upper}} days (preliminary, not guaranteed)",
+    "noRul": "No RUL estimate for this asset.",
+    "failureProbability": "Failure Probability",
+    "predictedMode": "Predicted mode: {{mode}}",
+    "horizon": "Horizon",
+    "pFailure": "P(failure)",
+    "noFailureProbability": "No failure-probability estimate for this asset.",
+    "operatingEnvelope": "Operating Envelope",
+    "envelopeHelp": "Fraction of observed duty ({{samples}} samples) spent in each regime. Time away from BEP accelerates wear.",
+    "envelopeRegimes": {
+      "at_bep_fraction": "At BEP",
+      "low_flow_fraction": "Low flow",
+      "high_pressure_fraction": "High pressure",
+      "excess_temperature_fraction": "Excess temperature",
+      "cavitation_risk_fraction": "Cavitation risk"
+    },
+    "observedDuty": "{{pct}}% of observed duty",
+    "rootCause": "Root-Cause Ranking",
+    "rootCauseTable": {
+      "cause": "Cause",
+      "probability": "Probability",
+      "evidence": "Evidence"
+    },
+    "membrane": "Membrane Intelligence",
+    "membraneFields": {
+      "permeateFlowDecline": "Permeate flow decline",
+      "saltPassageRise": "Salt passage rise",
+      "dpRise": "Differential pressure rise",
+      "fouling": "Fouling (org/coll/bio)",
+      "scalingSeverity": "Scaling severity",
+      "cipRequired": "CIP required",
+      "underperformingVessel": "Underperforming vessel"
+    },
+    "cipYes": "Yes — {{reason}}",
+    "cipNo": "No",
+    "maintenanceHistory": "Maintenance History & Degradation Basis",
+    "noMaintenanceHistory": "No maintenance history on record.",
+    "recommendations": "S3M Recommendations",
+    "noRecommendations": "No recommendations yet. Use “Ask S3M” to request an advisory analysis.",
+    "auditTrail": "Asset Audit Trail"
+  },
+  "simulation": {
+    "title": "Simulation Center",
+    "context": "What-if scenarios & digital-twin simulation",
+    "cardTitle": "Simulation services connect in a later phase",
+    "body1": "The Simulation Center is enabled in Phases 8–9. Scenario runs, what-if comparisons, and simulated outputs will appear here once the simulation services are wired in. Until then, the dashboard shows live baseline data from the WaterTwin API.",
+    "body2": "You can preview the scenario selector below; selections are UI intent only and do not yet drive a simulation."
+  },
+  "waterQuality": {
+    "title": "Water Quality Intelligence",
+    "loading": "Loading water quality…",
+    "context": "Advisory water-quality analytics. Forecasts and scaling/fouling/boron risks are <1>preliminary</1> engineering estimates with uncertainty — not validated production predictions or guaranteed compliance.",
+    "kpi": {
+      "recovery": "Recovery",
+      "saltRejection": "Salt Rejection",
+      "permeateTds": "Permeate TDS",
+      "permeateBoron": "Permeate Boron",
+      "normSaltPassage": "Norm. Salt Passage",
+      "normDp": "Norm. Differential Pressure"
+    },
+    "liveByStage": "Live Water Quality by Stage",
+    "stageTable": {
+      "stage": "Stage",
+      "compliance": "Compliance",
+      "recovery": "Recovery",
+      "saltRejection": "Salt rejection"
+    },
+    "withinLimits": "within limits",
+    "overLimit": "{{count}} over limit",
+    "contaminantMatrix": "Contaminant Matrix — intake → brine",
+    "matrixColumns": {
+      "intake": "Intake",
+      "post_pretreatment": "Post-pretreat",
+      "ro_feed": "RO feed",
+      "permeate": "Permeate",
+      "finished": "Finished",
+      "brine": "Brine"
+    },
+    "matrixTable": {
+      "contaminant": "Contaminant",
+      "unit": "Unit",
+      "removalPct": "Removal %"
+    },
+    "treatmentRemoval": "Treatment Removal — current vs design vs predicted",
+    "removalTable": {
+      "contaminant": "Contaminant",
+      "current": "Current",
+      "design": "Design",
+      "predicted": "Predicted",
+      "confidence": "Confidence"
+    },
+    "scalingRisk": "Scaling Risk (per compound)",
+    "scalingTable": {
+      "compound": "Compound",
+      "saturation": "Saturation",
+      "probability": "Probability",
+      "maxSafeRecovery": "Max safe recovery"
+    },
+    "forecasts": "Forecasts — salinity · boron · scaling · fouling",
+    "forecastsHelp": "Preliminary physics/trend estimates with uncertainty bounds (lower–upper). Horizons: 1h · shift · 24h · 7d.",
+    "forecastFamilies": {
+      "permeate_salinity": "Permeate salinity",
+      "permeate_boron": "Boron breakthrough",
+      "scaling_time_to_critical": "Scaling time-to-critical",
+      "fouling_risk": "Organic/colloidal/biofouling risk"
+    },
+    "forecastTable": {
+      "horizon": "Horizon",
+      "predicted": "Predicted",
+      "range": "Range (lower–upper)",
+      "unit": "Unit",
+      "confidence": "Confidence"
+    },
+    "alerts": "Water Quality Alerts",
+    "alertsHelp": "Every alert requires operator approval and issues no control write.",
+    "noAlerts": "No active water-quality alerts."
+  },
+  "predictiveMaintenance": {
+    "title": "Predictive Maintenance",
+    "context": "Risk-ranked equipment & membrane intelligence · advisory only",
+    "riskRankedAssets": "Risk-Ranked Assets",
+    "disclaimer": "Remaining-useful-life, failure probability and avoided-cost are <1>preliminary</1> engineering estimates with uncertainty — not validated or guaranteed. All actions require operator approval; no control write is issued.",
+    "loadingRanking": "Loading ranking…",
+    "noAssetsRanked": "No assets ranked.",
+    "table": {
+      "asset": "Asset",
+      "health": "Health",
+      "predictedFailureMode": "Predicted failure mode",
+      "failProb30d": "Fail prob (30d)",
+      "rulD": "RUL (d)",
+      "timeToInterv": "Time-to-interv. (d)",
+      "window": "Window",
+      "spares": "Spares",
+      "downtimeH": "Downtime (h)",
+      "maintCost": "Maint. cost",
+      "avoidedCost": "Avoided cost"
+    },
+    "openAssetTwin": "Open Asset Twin",
+    "detail": {
+      "predictedFailureMode": "Predicted failure mode",
+      "failureProbability30d": "Failure probability (30d)",
+      "preliminaryRul": "Preliminary RUL",
+      "rulValue": "{{value}} d ({{lower}}–{{upper}} d)",
+      "timeToIntervention": "Time to intervention",
+      "timeToInterventionValue": "{{value}} d",
+      "recommendedWindow": "Recommended window",
+      "sparesRequired": "Spares required",
+      "expectedDowntime": "Expected downtime",
+      "expectedDowntimeValue": "{{value}} h",
+      "maintenanceCost": "Maintenance cost",
+      "maintenanceCostValue": "{{value}} (preliminary)",
+      "avoidedFailureCost": "Avoided-failure cost",
+      "avoidedFailureCostValue": "{{value}} (preliminary)"
+    },
+    "advisoryRecommendation": "Advisory Recommendation",
+    "noRoutedCard": "No routed recommendation card for this asset yet.",
+    "selectRow": "Select an asset row to see its PdM detail and recommendation."
+  },
+  "energy": {
+    "title": "Energy Optimization",
+    "loading": "Loading energy optimization…",
+    "context": "Constrained RO specific-energy optimization (advisory). Optimal setpoint and savings are <1>ESTIMATED</1> and preliminary on a synthetic basis — not validated savings. No control write is issued; setpoints require operator action.",
+    "kpi": {
+      "totalPower": "Total Power",
+      "currentSec": "Current SEC",
+      "optimalSec": "Optimal SEC",
+      "secReduction": "SEC Reduction",
+      "estSaving": "Est. Saving",
+      "perDay": "/day"
+    },
+    "byAsset": "Energy by Asset",
+    "byAssetTable": {
+      "asset": "Asset",
+      "power": "Power ({{unit}})"
+    },
+    "setpointTitle": "Current vs Optimal Setpoint",
+    "optimizing": "Optimizing…",
+    "runOptimization": "Run optimization",
+    "setpointCurrent": "Current (baseline)",
+    "setpointOptimal": "Optimal (estimated)",
+    "setpointFields": {
+      "hpPressure": "HP-pump pressure",
+      "recovery": "Recovery",
+      "specificEnergy": "Specific energy",
+      "permeateFlow": "Permeate flow"
+    },
+    "optimizeResult": "Optimizer: optimal pressure <1>{{pressure}} bar</1> @ recovery <3>{{recovery}}%</3> → <5>{{sec}} kWh/m³</5> (from {{baseline}}). Constraints respected: {{respected}}.",
+    "losses": "Avoidable Energy Loss",
+    "lossesTable": {
+      "item": "Item",
+      "currentSec": "Current SEC",
+      "bestAchievable": "Best achievable",
+      "avoidable": "Avoidable",
+      "estSavingPerDay": "Est. saving/day"
+    }
+  },
+  "resilience": {
+    "title": "Resilience Command",
+    "context": "Grid-outage resilience & generator command (advisory). Generator start probability, fuel endurance and service-continuity duration are <1>preliminary</1> estimates on synthetic data — not guaranteed availability or run-time. Any recommendation requires operator approval; no control write is issued.",
+    "scenarioTitle": "Grid-Outage Scenario",
+    "assessing": "Assessing…",
+    "runScenario": "Run grid-outage scenario",
+    "scenarioBody": "Assess generator readiness, load-shed order, service continuity and asset criticality under a total grid loss. Read-only what-if only.",
+    "kpi": {
+      "startProbability": "Generator Start Probability",
+      "fuelEndurance": "Fuel Endurance",
+      "fuelLevel": "Fuel Level",
+      "loadFraction": "Load Fraction",
+      "serviceContinuity": "Service Continuity"
+    },
+    "loadShed": "Load-Shed Priority",
+    "loadShedBody": "Loads are shed lowest-priority first so the HP pump + essential loads are kept last. Retained load {{retained}} kW of {{total}} kW; critical loads sustained: {{sustained}}.",
+    "loadShedTable": {
+      "shedOrder": "Shed order",
+      "asset": "Asset",
+      "priority": "Priority",
+      "load": "Load ({{unit}})",
+      "status": "Status"
+    },
+    "retained": "retained",
+    "shed": "shed",
+    "criticality": "Asset Criticality Ranking",
+    "noCriticality": "No criticality ranking available.",
+    "criticalityTable": {
+      "rank": "Rank",
+      "asset": "Asset",
+      "score": "Score",
+      "impact": "Impact",
+      "failureProb": "Failure prob",
+      "recovery": "Recovery ({{unit}})"
+    },
+    "recommendedPriority": "Recommended Generator Priority"
+  },
+  "executive": {
+    "title": "Executive Value / ROI",
+    "loading": "Loading executive value…",
+    "context": "Aggregated value across the platform layers (advisory). Every figure is <1>ESTIMATED</1> and preliminary.",
+    "disclaimerBadge": "ESTIMATED · SYNTHETIC",
+    "defaultDisclaimer": "Illustrative estimates on synthetic pilot data — not validated savings or guaranteed outcomes.",
+    "kpi": {
+      "pilotRoi": "Pilot ROI",
+      "annualizedBenefit": "Annualized Benefit",
+      "paybackPeriod": "Payback Period",
+      "paybackUnit": "months",
+      "pilotInvestment": "Pilot Investment"
+    },
+    "annualizedBenefits": "Estimated Annualized Benefits",
+    "benefitTable": {
+      "category": "Benefit category",
+      "annualized": "Annualized (est.)",
+      "provenance": "Provenance"
+    },
+    "benefitRows": {
+      "downtime_avoided": "Downtime avoided",
+      "energy_savings": "Energy savings",
+      "chemical_savings": "Chemical savings",
+      "water_loss_avoided": "Water-loss avoided",
+      "maintenance_savings": "Maintenance savings",
+      "capex_deferred": "Capex deferred"
+    },
+    "totalBenefit": "Total annualized benefit",
+    "basis": "Basis of Estimates",
+    "basisBody": "Each benefit aggregates ESTIMATED outputs from an existing layer; no new physics is introduced. These are illustrative figures on synthetic pilot data, not validated savings.",
+    "basisItem": "{{value}}/yr"
+  },
+  "assistant": {
+    "title": "Operations Assistant",
+    "context": "Ask about anything the platform computes. Every answer is <1>grounded</1> in platform data + retrieved documents (never general model knowledge) and shows exactly what was used. Advisory / read-only — any recommended action requires operator approval; no control write is issued.",
+    "engineLocal": "Local fallback",
+    "engineQuad": "Quad-engine",
+    "engineLocalTitle": "S3M-Core quad-engine unreachable — grounded local fallback used.",
+    "engineQuadTitle": "Answer orchestrated by the S3M-Core quad-engine.",
+    "evidence": "Evidence",
+    "dataTimestamp": "Data timestamp",
+    "confidence": "Confidence",
+    "sourceEngine": "Source engine",
+    "assetsReviewed": "Assets reviewed",
+    "documentsReviewed": "Documents reviewed",
+    "simulationsUsed": "Simulations used",
+    "assumptions": "Assumptions",
+    "questionPlaceholder": "e.g. Why is HPP-001 degrading?",
+    "questionLabel": "Question",
+    "asking": "Asking…",
+    "ask": "Ask",
+    "error": "Could not reach the assistant. Please try again.",
+    "answer": "Answer",
+    "answerNote": "Read-only advisory answer — grounded in platform data + documents, not general model knowledge.",
+    "recommendedAction": "Recommended Action",
+    "empty": "Ask a question or pick an example prompt to get a grounded, evidence-backed answer."
+  }
+}

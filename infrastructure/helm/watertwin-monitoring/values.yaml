@@ -1,0 +1,70 @@
+# Values for the watertwin-monitoring chart (Prometheus + Grafana).
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Common labels applied to every rendered object.
+commonLabels: {}
+
+prometheus:
+  enabled: true
+  image:
+    repository: prom/prometheus
+    tag: v2.54.1
+    pullPolicy: IfNotPresent
+  # Scrape interval used for the global config and every job.
+  scrapeInterval: 15s
+  retention: 15d
+  service:
+    type: ClusterIP
+    port: 9090
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  persistence:
+    enabled: false
+    size: 10Gi
+    # storageClass: ""
+  # Targets scraped by Prometheus. Each service exposes GET /metrics via the
+  # shared watertwin_observability package. Override to match your namespace /
+  # service names (defaults assume same-namespace Kubernetes Services).
+  targets:
+    - job: watertwin-api
+      service: watertwin-api
+      port: 8000
+    - job: hydraulic-sim
+      service: hydraulic-sim
+      port: 8100
+    - job: treatment-sim
+      service: treatment-sim
+      port: 8080
+  # Optional extra raw scrape_configs appended verbatim.
+  extraScrapeConfigs: []
+
+grafana:
+  enabled: true
+  image:
+    repository: grafana/grafana
+    tag: 11.2.0
+    pullPolicy: IfNotPresent
+  # Dev credentials only; override (ideally via an existing Secret) in prod.
+  adminUser: admin
+  adminPassword: admin
+  service:
+    type: ClusterIP
+    port: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  persistence:
+    enabled: false
+    size: 2Gi
+    # storageClass: ""

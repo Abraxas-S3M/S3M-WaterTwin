@@ -22,7 +22,14 @@ from app.sources.opcua import OpcUaSource
 from app.sources.historian import HistorianSource
 from app.sources.synthetic import SyntheticSource
 
-SOURCES_DIR = os.path.dirname(os.path.abspath(sources.__file__))
+# The OT source adapters were moved to the shared, importable
+# ``ot_ingestion.sources`` package (reused by both this API and the
+# edge-gateway). The read-only boundary guard scans that MOVED package, not the
+# thin ``app.sources`` compatibility shim, so the invariant is enforced wherever
+# the real adapter logic lives.
+from ot_ingestion import sources as shared_sources
+
+SOURCES_DIR = os.path.dirname(os.path.abspath(shared_sources.__file__))
 
 
 # --- Synthetic source -------------------------------------------------------

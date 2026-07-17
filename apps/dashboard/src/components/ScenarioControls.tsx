@@ -1,4 +1,5 @@
-import { SCENARIOS, useDashboardStore } from '../state/store';
+import { Trans, useTranslation } from 'react-i18next';
+import { SCENARIO_IDS, useDashboardStore } from '../state/store';
 import { useCapabilities } from '../auth/useAuth';
 
 /**
@@ -10,40 +11,42 @@ import { useCapabilities } from '../auth/useAuth';
  * selections are gated by role (the API independently enforces the same rule).
  */
 export function ScenarioControls() {
+  const { t } = useTranslation();
   const scenario = useDashboardStore((s) => s.scenario);
   const setScenario = useDashboardStore((s) => s.setScenario);
-  const current = SCENARIOS.find((s) => s.id === scenario) ?? SCENARIOS[0];
   const { runScenario: canRunScenario } = useCapabilities();
 
   return (
     <div className="scenario-controls" data-testid="scenario-controls">
       <div className="pill-toggle">
-        {SCENARIOS.map((s) => {
-          const gated = s.id !== 'baseline' && !canRunScenario;
+        {SCENARIO_IDS.map((id) => {
+          const gated = id !== 'baseline' && !canRunScenario;
           return (
             <button
-              key={s.id}
-              className={s.id === scenario ? 'active' : ''}
-              onClick={() => setScenario(s.id)}
-              aria-pressed={s.id === scenario}
+              key={id}
+              className={id === scenario ? 'active' : ''}
+              onClick={() => setScenario(id)}
+              aria-pressed={id === scenario}
               disabled={gated}
-              title={gated ? 'Requires the engineer role to run what-if scenarios' : undefined}
-              data-testid={`scenario-${s.id}`}
+              title={gated ? t('scenarios.roleGateTitle') : undefined}
+              data-testid={`scenario-${id}`}
             >
-              {s.label}
+              {t(`scenarios.items.${id}.label`)}
             </button>
           );
         })}
       </div>
-      <div className="scenario-note">{current.description}</div>
+      <div className="scenario-note">{t(`scenarios.items.${scenario}.description`)}</div>
       {!canRunScenario ? (
         <div className="scenario-note" data-testid="scenario-role-gate">
-          Running what-if scenarios requires the <strong>engineer</strong> role.
+          <Trans i18nKey="scenarios.roleGate">
+            Running what-if scenarios requires the <strong>engineer</strong> role.
+          </Trans>
         </div>
       ) : null}
       {scenario !== 'baseline' ? (
         <div className="scenario-note" style={{ color: 'var(--warn)' }}>
-          Simulation services connect in a later phase; showing baseline live data.
+          {t('scenarios.notActive')}
         </div>
       ) : null}
     </div>

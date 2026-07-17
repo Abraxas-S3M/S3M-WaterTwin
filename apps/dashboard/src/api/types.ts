@@ -553,6 +553,106 @@ export interface MaintenanceRecommendationsResponse extends PdMEnvelope {
   cards: RecommendationCard[];
 }
 
+// --- Work orders / Maintenance Center (advisory, preliminary) ---
+
+export type WorkOrderStatus =
+  | 'proposed'
+  | 'approved'
+  | 'rejected'
+  | 'open'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled';
+
+export type WorkOrderPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export type WorkOrderSource = 'predictive_maintenance' | 'cmms' | 'manual';
+
+export type CmmsSyncStatus = 'not_synced' | 'synced' | 'failed';
+
+export interface MaintenanceWorkOrder {
+  work_order_id: string;
+  asset_id: string;
+  asset_name?: string | null;
+  title: string;
+  description: string;
+  priority: WorkOrderPriority;
+  status: WorkOrderStatus;
+  source: WorkOrderSource;
+  originating_model?: string | null;
+  source_recommendation_id?: string | null;
+  source_alert_code?: string | null;
+  predicted_failure_mode?: string | null;
+  failure_probability_30d?: number | null;
+  rul_days?: number | null;
+  recommended_window?: string | null;
+  spares_required: string[];
+  estimated_downtime_hours?: number | null;
+  estimated_cost?: number | null;
+  ranked_causes: RankedCause[];
+  evidence?: Evidence | null;
+  approval_status: ApprovalStatus;
+  approved_by?: string | null;
+  decided_at?: string | null;
+  cmms_system?: string | null;
+  cmms_external_id?: string | null;
+  cmms_sync_status: CmmsSyncStatus;
+  control_boundary: ControlBoundary;
+  provenance: DataProvenance;
+  created_at: string;
+}
+
+export interface AssetMaintenanceRecord {
+  work_order_id: string;
+  asset_id: string;
+  title: string;
+  status: WorkOrderStatus;
+  performed_at?: string | null;
+  performed_by?: string | null;
+  labor_hours?: number | null;
+  cost?: number | null;
+  notes?: string | null;
+  cmms_system?: string | null;
+  provenance: DataProvenance;
+}
+
+export interface CmmsDescription {
+  kind: string;
+  name: string;
+  write_enabled: boolean;
+  read_only: boolean;
+  write_back_is_control_path: boolean;
+  operator_approval_required: boolean;
+}
+
+export interface WorkOrdersResponse extends PdMEnvelope {
+  work_orders: MaintenanceWorkOrder[];
+}
+
+export interface WorkOrderResponse extends PdMEnvelope {
+  work_order: MaintenanceWorkOrder;
+}
+
+export interface CmmsStatusResponse extends PdMEnvelope {
+  cmms: CmmsDescription;
+}
+
+export interface CmmsWorkOrdersResponse extends PdMEnvelope {
+  cmms: CmmsDescription;
+  work_orders: MaintenanceWorkOrder[];
+}
+
+export interface CmmsAssetHistoryResponse extends PdMEnvelope {
+  cmms: CmmsDescription;
+  asset_id: string;
+  history: AssetMaintenanceRecord[];
+}
+
+export interface WorkOrderDecisionRequest {
+  status: 'approved' | 'rejected';
+  actor?: string;
+}
+
 // --- Value layer: Energy / Resilience / Executive (estimated, preliminary) ---
 
 export interface ValueEnvelope {
@@ -798,4 +898,322 @@ export interface AssistantExample {
 export interface AssistantExamplesResponse {
   examples: AssistantExample[];
   control_boundary: ControlBoundary;
+}
+
+// --- Model governance registry (D1/D2 governance) ---
+
+export type DriftStatus = 'stable' | 'watch' | 'drifting' | 'unknown';
+
+export interface ModelSpec {
+  inputs: string[];
+  outputs: string[];
+  method: string;
+  assumptions: string[];
+}
+
+export interface ModelMetric {
+  name: string;
+  value: number;
+  unit?: string | null;
+  reference?: number | null;
+  drift_pct?: number | null;
+}
+
+export interface ModelRegistryEntry {
+  model_id: string;
+  name: string;
+  version: string;
+  track: string;
+  description: string;
+  engine: string;
+  spec: ModelSpec;
+  current_metrics: ModelMetric[];
+  drift_status: DriftStatus;
+  drift_detail?: string | null;
+  validation_status: string;
+  owner: string;
+  last_evaluated: string;
+  provenance: DataProvenance;
+  control_boundary: ControlBoundary;
+}
+
+export interface ModelsResponse {
+  models: ModelRegistryEntry[];
+  count: number;
+  control_boundary: ControlBoundary;
+}
+
+// --- Regulatory compliance (A1 config store) ---
+
+export type LimitBound = 'max' | 'min';
+
+export interface ComplianceLimit {
+  parameter: string;
+  display_name: string;
+  unit: string;
+  limit: number;
+  bound: LimitBound;
+  stage: string;
+  basis: string;
+  enabled: boolean;
+}
+
+export interface ComplianceLimitsResponse {
+  limits: ComplianceLimit[];
+  count: number;
+  control_boundary: ControlBoundary;
+}
+
+export interface ComplianceCheck {
+  parameter: string;
+  display_name: string;
+  unit: string;
+  stage: string;
+  value: number;
+  limit: number;
+  bound: LimitBound;
+  within_limit: boolean;
+  exceedance_pct: number;
+  basis: string;
+}
+
+export type ComplianceExceedance = ComplianceCheck;
+
+export interface ComplianceStatusResponse {
+  facility_id: string;
+  train_id: string;
+  generated_at: string;
+  scenario_fouling?: number | null;
+  checks: ComplianceCheck[];
+  exceedances: ComplianceExceedance[];
+  compliant: boolean;
+  provenance: DataProvenance;
+  control_boundary: ControlBoundary;
+  disclaimer: string;
+// --- Cyber-Physical Security (advisory, read-only) ---
+
+export type SecurityStatus = 'ok' | 'attention' | 'alert';
+export type ConfidenceBand = 'high' | 'medium' | 'low';
+export type ConsistencyStatus = 'consistent' | 'deviation' | 'inconsistent';
+
+export interface SensorConfidenceRow {
+  asset_id: string;
+  asset_name: string;
+  confidence: number;
+  band: ConfidenceBand;
+  cross_sensor_consistency: number;
+  physical_plausibility: number;
+  calibration_days: number;
+}
+
+export interface ConsistencyCheck {
+  metric: string;
+  observed: number;
+  expected_bound: number;
+  bound: 'max' | 'min';
+  residual_pct: number;
+  consistent: boolean;
+  basis: string;
+}
+
+export interface CyberPhysicalConsistencyRow {
+  asset_id: string;
+  asset_name: string;
+  consistency_score: number;
+  status: ConsistencyStatus;
+  checks: ConsistencyCheck[];
+  inconsistent_metrics: string[];
+}
+
+export interface SourceHealth {
+  status: 'healthy' | 'degraded' | 'unknown';
+  active_source?: string | null;
+  requested_source?: string | null;
+  fallback: boolean;
+  fallback_reason?: string | null;
+  available_sources: string[];
+  detail: Record<string, unknown>;
+  reading_count?: number | null;
+}
+
+export interface AuditIntegrity {
+  ok: boolean;
+  count: number;
+  head?: string;
+  broken_at?: string;
+  index?: number;
+  reason?: string;
+}
+
+export interface SecurityOverviewResponse {
+  status: SecurityStatus;
+  sensor_confidence: SensorConfidenceRow[];
+  cyber_physical_consistency: CyberPhysicalConsistencyRow[];
+  source_health: SourceHealth;
+  audit_integrity: AuditIntegrity;
+  facility_id: string;
+  train_id: string;
+  provenance: DataProvenance;
+  control_boundary: ControlBoundary;
+}
+
+export interface SiemExportRecord {
+  seq: number;
+  id: string;
+  ts: string;
+  kind: string;
+  actor: string;
+  subject?: string | null;
+  payload: Record<string, unknown>;
+  prev_hash: string;
+  hash: string;
+}
+
+export interface SiemExportResponse {
+  export_format: 'json';
+  source: string;
+  generated_at: string;
+  append_only: boolean;
+  record_count: number;
+  chain: {
+    verified: boolean;
+    head: string;
+    verify: AuditIntegrity;
+  };
+  records: SiemExportRecord[];
+  signature: {
+    alg: string;
+    value: string;
+    signed_fields: string[];
+    detail: string;
+  };
+// --- Operator Training Simulator (SIMULATION, sandboxed, read-only) ---
+
+export type TrainingScenarioType =
+  | 'pump_degradation'
+  | 'leak'
+  | 'outage'
+  | 'storm_power_loss';
+
+export interface TrainingRubricItem {
+  key: string;
+  prompt: string;
+  guidance: string;
+  weight: number;
+}
+
+export interface TrainingScenario {
+  scenario_id: string;
+  scenario_type: TrainingScenarioType;
+  title: string;
+  category: string;
+  difficulty: string;
+  briefing: string;
+  derived_from: string;
+  learning_objectives: string[];
+  rubric: TrainingRubricItem[];
+}
+
+export interface CapturedAction {
+  action_id: string;
+  kind: string;
+  text: string;
+  rubric_key?: string | null;
+  approved?: boolean | null;
+  sandboxed: boolean;
+  emitted_command: boolean;
+  recorded_at: string;
+}
+
+export interface TrainingSession {
+  session_id: string;
+  scenario_id: string;
+  scenario: TrainingScenario;
+  operator: string;
+  status: string;
+  simulation: boolean;
+  twin_summary: {
+    headline?: string;
+    observed?: Record<string, number | boolean | null>;
+    affected_asset?: string;
+    reused_scenario?: string;
+  };
+  injected_telemetry: TelemetryReading[];
+  actions: CapturedAction[];
+  started_at: string;
+  provenance: DataProvenance;
+  control_boundary: ControlBoundary;
+  disclaimer: string;
+}
+
+export interface ScoredItem {
+  key: string;
+  prompt: string;
+  weight: number;
+  matched: boolean;
+  awarded: number;
+  feedback: string;
+}
+
+export interface TrainingScore {
+  total_score: number;
+  max_score: number;
+  percentage: number;
+  band: string;
+  passed: boolean;
+  items: ScoredItem[];
+  provenance: DataProvenance;
+}
+
+export interface TrainingRecord {
+  record_id: string;
+  session_id: string;
+  scenario_id: string;
+  scenario_title: string;
+  operator: string;
+  score: TrainingScore;
+  actions: CapturedAction[];
+  started_at: string;
+  completed_at: string;
+  simulation: boolean;
+  provenance: DataProvenance;
+  control_boundary: ControlBoundary;
+  disclaimer: string;
+}
+
+interface TrainingEnvelope {
+  facility_id: string;
+  train_id: string;
+  provenance: DataProvenance;
+  simulation: boolean;
+  disclaimer: string;
+  control_boundary: ControlBoundary;
+}
+
+export interface TrainingScenariosResponse extends TrainingEnvelope {
+  scenarios: TrainingScenario[];
+}
+
+export interface TrainingSessionResponse extends TrainingEnvelope {
+  session: TrainingSession;
+}
+
+export interface TrainingActionResponse extends TrainingEnvelope {
+  action: CapturedAction;
+  session: TrainingSession;
+}
+
+export interface TrainingRecordResponse extends TrainingEnvelope {
+  record: TrainingRecord;
+}
+
+export interface TrainingRecordsResponse extends TrainingEnvelope {
+  records: TrainingRecord[];
+}
+
+export interface TrainingActionRequest {
+  kind: string;
+  text: string;
+  rubric_key?: string | null;
+  approved?: boolean | null;
 }
