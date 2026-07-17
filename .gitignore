@@ -5,6 +5,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+.idaes/
 
 # Service runtime state (shared store JSON files)
 **/data/

@@ -1,3 +1,26 @@
+# S3M-WaterTwin service composition.
+#
+# Phase 9 adds the read-only RO process-simulation service (treatment-sim). It
+# runs in its own container with the WaterTAP/IDAES stack and the ipopt solver;
+# the solver is confined to this image (see services/treatment-sim/Dockerfile).
+services:
+  treatment-sim:
+    build:
+      context: .
+      dockerfile: services/treatment-sim/Dockerfile
+    image: s3m-watertwin/treatment-sim:0.1.0
+    container_name: treatment-sim
+    ports:
+      - "8081:8080"
+    environment:
+      TREATMENT_SIM_PORT: "8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 # S3M-WaterTwin local stack.
 # `docker compose up` starts the hydraulic-sim what-if service (healthy), the
 # watertwin-api orchestrator, and the dashboard Simulation Center.

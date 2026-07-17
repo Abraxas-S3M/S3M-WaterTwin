@@ -1,0 +1,17 @@
+# treatment-sim service dependencies (pinned).
+#
+# Open-source process-simulation engine (BSD-style / DOE licensed). See
+# docs/open-source-register.md for the license record. The WaterTAP repository
+# is NOT vendored; only these published PyPI wheels are installed.
+watertap==1.7.0
+idaes-pse==2.12.0
+pyomo==6.10.1
+
+# API / service runtime.
+fastapi==0.115.14
+uvicorn[standard]==0.34.0
+pydantic==2.11.7
+httpx==0.28.1
+
+# NOTE: The NLP solver (ipopt) is provided by the container (see Dockerfile),
+# never installed into the API image.
