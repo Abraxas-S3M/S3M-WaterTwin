@@ -48,18 +48,33 @@ export type PageId =
   | 'executive'
   | 'assistant';
 
+// Presentation mode of the whole console. `standard` is the desktop/tablet
+// operator layout; `control-room` is the large-format, high-contrast wall
+// display with minimal chrome and auto-rotating KPI views.
+export type DisplayMode = 'standard' | 'control-room';
+
+// Which paginated print report (if any) is currently open. `null` means no
+// report overlay is shown. Reports reuse existing API data and render a clean,
+// print-friendly view for a browser "Print"/"Save as PDF".
+export type ReportView = 'shift' | 'executive';
+
 interface DashboardState {
   page: PageId;
   selectedAssetId: string | null;
   selectedStage: string | null;
   scenario: ScenarioId;
   operatorName: string;
+  displayMode: DisplayMode;
+  reportView: ReportView | null;
   navigate: (page: PageId) => void;
   setSelectedAsset: (assetId: string | null) => void;
   openAssetTwin: (assetId: string) => void;
   setSelectedStage: (stage: string | null) => void;
   setScenario: (scenario: ScenarioId) => void;
   setOperatorName: (name: string) => void;
+  setDisplayMode: (mode: DisplayMode) => void;
+  openReport: (report: ReportView) => void;
+  closeReport: () => void;
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -68,10 +83,15 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   selectedStage: null,
   scenario: 'baseline',
   operatorName: 'operator',
+  displayMode: 'standard',
+  reportView: null,
   navigate: (page) => set({ page }),
   setSelectedAsset: (assetId) => set({ selectedAssetId: assetId }),
   openAssetTwin: (assetId) => set({ selectedAssetId: assetId, page: 'asset' }),
   setSelectedStage: (stage) => set({ selectedStage: stage }),
   setScenario: (scenario) => set({ scenario }),
   setOperatorName: (name) => set({ operatorName: name }),
+  setDisplayMode: (displayMode) => set({ displayMode }),
+  openReport: (reportView) => set({ reportView }),
+  closeReport: () => set({ reportView: null }),
 }));

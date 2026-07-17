@@ -15,6 +15,9 @@ import { EnergyOptimization } from './pages/EnergyOptimization';
 import { ResilienceCommand } from './pages/ResilienceCommand';
 import { ExecutiveValue } from './pages/ExecutiveValue';
 import { OperationsAssistant } from './pages/OperationsAssistant';
+import { ControlRoom } from './pages/ControlRoom';
+import { ShiftReport } from './pages/reports/ShiftReport';
+import { ExecutiveReport } from './pages/reports/ExecutiveReport';
 import { useDashboardStore, type PageId } from './state/store';
 
 interface NavEntry {
@@ -41,6 +44,8 @@ const NAV: NavEntry[] = [
 function Nav() {
   const page = useDashboardStore((s) => s.page);
   const navigate = useDashboardStore((s) => s.navigate);
+  const setDisplayMode = useDashboardStore((s) => s.setDisplayMode);
+  const openReport = useDashboardStore((s) => s.openReport);
   return (
     <nav className="app-nav" aria-label="Primary">
       <div className="brand">
@@ -58,6 +63,32 @@ function Nav() {
           {item.note ? <span className="phase-tag">{item.note}</span> : null}
         </button>
       ))}
+
+      <div className="nav-group" aria-label="Display &amp; reports">
+        <div className="nav-group-title">Display &amp; reports</div>
+        <button
+          className="nav-item"
+          onClick={() => setDisplayMode('control-room')}
+          data-testid="enter-control-room"
+        >
+          <span>Control Room display</span>
+        </button>
+        <button
+          className="nav-item"
+          onClick={() => openReport('shift')}
+          data-testid="open-shift-report"
+        >
+          <span>Print shift report</span>
+        </button>
+        <button
+          className="nav-item"
+          onClick={() => openReport('executive')}
+          data-testid="open-executive-report"
+        >
+          <span>Print executive report</span>
+        </button>
+      </div>
+
       <div style={{ flex: 1 }} />
       <UserBadge />
       <div className="brand">
@@ -65,6 +96,13 @@ function Nav() {
       </div>
     </nav>
   );
+}
+
+function ReportOverlay() {
+  const reportView = useDashboardStore((s) => s.reportView);
+  if (reportView === 'shift') return <ShiftReport />;
+  if (reportView === 'executive') return <ExecutiveReport />;
+  return null;
 }
 
 function CurrentPage() {
@@ -97,6 +135,8 @@ function CurrentPage() {
 
 export default function App() {
   const { isAuthenticated } = useAuth();
+  const displayMode = useDashboardStore((s) => s.displayMode);
+  const reportView = useDashboardStore((s) => s.reportView);
   // While OIDC is configured, wait for a possible redirect-callback exchange to
   // resolve before deciding whether to show the login gate.
   const [callbackResolved, setCallbackResolved] = useState(!isAuthConfigured());
@@ -128,6 +168,17 @@ export default function App() {
     return <LoginGate />;
   }
 
+  // Control-room display mode: large-format wall display with minimal chrome.
+  // Reports can still be opened on top of it.
+  if (displayMode === 'control-room') {
+    return (
+      <>
+        <ControlRoom />
+        {reportView ? <ReportOverlay /> : null}
+      </>
+    );
+  }
+
   return (
     <div className="app-shell">
       <SafetyBoundaryBanner />
@@ -137,6 +188,7 @@ export default function App() {
           <CurrentPage />
         </main>
       </div>
+      {reportView ? <ReportOverlay /> : null}
     </div>
   );
 }
