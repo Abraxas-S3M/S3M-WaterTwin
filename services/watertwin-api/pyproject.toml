@@ -1,5 +1,11 @@
 [project]
 name = "watertwin-api"
+version = "0.1.0"
+description = "WaterTwin API service for a reverse-osmosis desalination digital twin."
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+include = ["watertwin*"]
 version = "0.3.0"
 description = "S3M-WaterTwin API — digital twin analytics for water pumping assets"
 requires-python = ">=3.10"
@@ -17,6 +23,10 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
 target-version = "py310"
 
 [tool.ruff.lint]
