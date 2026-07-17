@@ -40,6 +40,12 @@ app = FastAPI(
 
 store = JobStore(config.JOB_STORE_PATH)
 
+# Observability: JSON logging, correlation ids, Prometheus metrics (+ /metrics)
+# and OpenTelemetry traces; publishes the queued/running job buffer depth.
+from . import observability  # noqa: E402
+
+observability.setup(app, store=store)
+
 
 def _control_boundary() -> ControlBoundary:
     return ControlBoundary(

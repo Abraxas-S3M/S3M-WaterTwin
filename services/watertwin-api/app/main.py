@@ -7,6 +7,7 @@ with the run's ``simulation_id`` attached to ``evidence.simulation_ids``.
 
 from __future__ import annotations
 
+import math
 import os
 import threading
 from contextlib import asynccontextmanager
@@ -17,15 +18,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
-from canonical_water_model import ControlBoundary, DataProvenance, WQAlert
+from canonical_water_model import ControlBoundary, DataProvenance, WQAlert, now_iso
+from canonical_water_model import ControlBoundary, DataProvenance, TelemetryReading, WQAlert
 
 from simulation_contracts import ScenarioType, SimulationResult
 
 from . import auth
 from . import config
+from . import events
 from .auth import (
     Principal,
     get_current_user,
+    require_ingest,
     require_role,
 )
 from . import assistant
@@ -33,6 +37,7 @@ from . import documents
 from . import energy
 from . import executive
 from . import membrane
+from . import models as d1_models
 from . import predictive_maintenance as pdm
 from . import resilience as resil
 from . import sources
@@ -48,7 +53,26 @@ from .store import Store
 async def _lifespan(_app: FastAPI):
     # Log whether auth is enforced or bypassed (explicit dev mode) at startup.
     auth.log_auth_mode()
+    # Bring the advisory event bus online (connects to NATS when configured,
+    # otherwise degrades to direct in-process delivery). Then publish the
+    # active telemetry configuration as a config-published event.
+    events.get_bus()
+    _publish_active_config()
     yield
+
+
+def _publish_active_config() -> None:
+    """Publish the currently active telemetry config (config-published event)."""
+    try:
+        telemetry = get_source_resolution().describe()
+        events.publish_config_published(
+            active_source=telemetry.get("active_source"),
+            requested_source=telemetry.get("requested_source"),
+            tag_map=config.OT_TAG_MAP,
+            fallback=bool(telemetry.get("fallback")),
+        )
+    except Exception:  # pragma: no cover - startup publish is best-effort
+        pass
 
 
 app = FastAPI(
@@ -64,6 +88,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Configure structured JSON logging early so even import-time startup logs (the
+# auth-mode banner below) are emitted as JSON. The full observability wiring
+# (metrics, middleware, tracing) is completed further down once the store and
+# telemetry-source dependencies exist; configure_logging is idempotent.
+from watertwin_observability import configure_logging  # noqa: E402
+
+configure_logging(config.SERVICE_NAME)
 
 # Log whether auth is enforced or bypassed (explicit dev mode) at import too, so
 # the mode is visible even when the app is mounted without the lifespan hook.
@@ -88,7 +120,9 @@ def _actor(user: Principal, fallback: str | None = None) -> str:
 
 
 reco_store = RecommendationStore(config.RECOMMENDATION_STORE_PATH)
-store = Store(config.DATABASE_URL)
+# The store fires the advisory ``audit-appended`` event after every successful
+# append. The hook resolves the bus lazily so tests can inject their own bus.
+store = Store(config.DATABASE_URL, event_sink=events.audit_event_sink)
 
 # Operator Training Simulator sessions + records (SIMULATION only). Held in
 # memory; the training sandbox has no control-write path (see app.training).
@@ -98,6 +132,15 @@ training_store = training.TrainingStore()
 # regenerated on demand. Advisory, read-only what-if data only.
 _runs: dict[str, dict[str, Any]] = {}
 _runs_lock = threading.RLock()
+
+# Latest telemetry pushed in by edge gateways, keyed by (asset_id, metric). This
+# is an observability mirror of the newest reading per signal (advisory data
+# only); it is never a control-write path. Bounded by the number of distinct
+# signals, cleared by the demo reset.
+_latest_telemetry: dict[tuple[str, str], dict[str, Any]] = {}
+_latest_telemetry_lock = threading.RLock()
+# Last-seen state per gateway (source health + counters) for observability.
+_gateway_state: dict[str, dict[str, Any]] = {}
 
 
 def _cache_run(run: dict[str, Any]) -> None:
@@ -135,6 +178,19 @@ def get_source_resolution() -> sources.SourceResolution:
     if _source_resolution is None:
         _source_resolution = sources.resolve_source(config)
     return _source_resolution
+
+
+# Observability: structured JSON logging, correlation ids, Prometheus metrics
+# (+ /metrics) and OpenTelemetry traces. Registers scrape-time callbacks for the
+# audit-chain length, recommendation buffer depth and telemetry ingest lag.
+from . import observability  # noqa: E402
+
+observability.setup(
+    app,
+    store=store,
+    reco_store=reco_store,
+    get_source_resolution=get_source_resolution,
+)
 
 
 class SimulationCenterRequest(BaseModel):
@@ -186,6 +242,7 @@ def health() -> dict:
         "telemetry_source_requested": telemetry.get("requested_source"),
         "telemetry_source_fallback": telemetry.get("fallback"),
         "telemetry": telemetry,
+        "event_bus": events.get_bus().status(),
         "control_mode": cb.control_mode,
         "operator_approval_required": cb.operator_approval_required,
         "control_write_enabled": cb.control_write_enabled,
@@ -351,6 +408,20 @@ def audit_verify() -> dict:
     return store.verify_chain()
 
 
+@app.get("/api/v1/events/status", dependencies=AUTHENTICATED)
+def events_status() -> dict:
+    """Report advisory event-bus state + metrics (degraded when NATS is down).
+
+    The bus is advisory / notification only; it never carries a control command.
+    ``degraded == true`` means events are being delivered directly in-process
+    (fallback) because NATS is not configured or unreachable.
+    """
+    return {
+        **events.get_bus().status(),
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Ingestion: telemetry source status + tag-normalization preview (read-only)
 #
@@ -378,6 +449,20 @@ class NormalizePreviewRequest(BaseModel):
     tag_map_inline: Optional[dict] = None
 
 
+class TelemetryIngestRequest(BaseModel):
+    """A batch of canonical telemetry readings forwarded by an edge gateway.
+
+    ``batch_id`` is the gateway's stable store-and-forward key; ingest is
+    idempotent on it so replaying a durable spool after a crash never
+    double-writes telemetry or the audit trail.
+    """
+
+    batch_id: str = Field(min_length=1, max_length=200)
+    readings: list[TelemetryReading] = Field(default_factory=list)
+    #: Optional producer label (e.g. gateway id / source), recorded for audit.
+    source: Optional[str] = None
+
+
 @app.get("/api/v1/ingestion/source", dependencies=AUTHENTICATED)
 def ingestion_source() -> dict:
     """Report the active telemetry source and any fallback to synthetic."""
@@ -386,6 +471,37 @@ def ingestion_source() -> dict:
         **resolution.describe(),
         "control_boundary": ControlBoundary().model_dump(),
     }
+
+
+@app.post("/api/v1/ingestion/telemetry")
+def ingest_telemetry(
+    body: TelemetryIngestRequest,
+    user: Principal = Depends(require_ingest),
+) -> dict:
+    """Ingest a batch of telemetry readings (edge store-and-forward destination).
+
+    Persists the readings and appends a single ``telemetry.ingested`` event to
+    the tamper-evident audit chain. Idempotent on ``batch_id`` (a replayed batch
+    is a no-op), so an edge gateway that resends its durable spool after a crash
+    recovers with no data loss and no duplication while the audit chain stays
+    valid. This reads telemetry *into* the platform; it is never a control write.
+    """
+    if not body.readings:
+        raise HTTPException(status_code=422, detail="a telemetry batch must contain readings")
+    readings = [r.model_dump(mode="json") for r in body.readings]
+    result = store.ingest_telemetry(
+        body.batch_id,
+        readings,
+        actor=_actor(user, "edge-gateway"),
+        source=body.source,
+    )
+    return {**result, "control_boundary": ControlBoundary().model_dump()}
+
+
+@app.get("/api/v1/ingestion/telemetry/stats", dependencies=AUTHENTICATED)
+def ingestion_telemetry_stats() -> dict:
+    """Report telemetry ingest counters (distinct batches + total readings)."""
+    return {**store.telemetry_stats(), "control_boundary": ControlBoundary().model_dump()}
 
 
 @app.post("/api/v1/ingestion/normalize/preview", dependencies=AUTHENTICATED)
@@ -414,6 +530,12 @@ def ingestion_normalize_preview(body: NormalizePreviewRequest) -> dict:
         for r in body.readings
     ]
     result = normalize(raw, tag_map)
+    events.publish_telemetry_ingested(
+        tag_map=tag_map.map_id,
+        mapped=len(result.readings),
+        rejected=len(result.rejected),
+        total=len(raw),
+    )
     return {
         "tag_map": tag_map.map_id,
         "readings": [reading.model_dump(mode="json") for reading in result.readings],
@@ -426,6 +548,114 @@ def ingestion_normalize_preview(body: NormalizePreviewRequest) -> dict:
             "mapped": len(result.readings),
             "rejected": len(result.rejected),
         },
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Telemetry ingest (inbound sink for the outbound-only edge-gateway)
+#
+# The edge-gateway is an OUTBOUND-ONLY collector: it reads real OT feeds behind
+# the plant firewall (strictly read-only), validates + normalizes them, buffers
+# them in an encrypted local store-and-forward queue, and PUSHES canonical
+# readings here. This endpoint is the API-side sink. Ingesting telemetry is an
+# advisory data write only -- it records the newest reading per signal and
+# audits the batch; it is NEVER a control-write path.
+# ---------------------------------------------------------------------------
+
+
+class TelemetryReadingInput(BaseModel):
+    asset_id: str
+    metric: str
+    value: float
+    unit: str
+    timestamp: str
+    provenance: str = "measured"
+    #: Data-quality flag assigned by the gateway (e.g. ``good`` / ``stale`` /
+    #: ``out_of_range`` / ``frozen``). Advisory only.
+    quality: Optional[str] = None
+
+
+class TelemetryIngestBatch(BaseModel):
+    #: Stable identifier of the pushing gateway (for source-health tracking).
+    gateway_id: str = Field(min_length=1, max_length=128)
+    #: The active OT source the gateway is reading (synthetic/opcua/modbus/...).
+    source: Optional[str] = None
+    #: Whether the gateway is running on its synthetic fallback source.
+    fallback: bool = False
+    #: Gateway-reported source-health snapshot (advisory, opaque).
+    source_health: Optional[dict[str, Any]] = None
+    #: The gateway's send timestamp (ISO-8601).
+    sent_at: Optional[str] = None
+    readings: list[TelemetryReadingInput] = Field(default_factory=list)
+
+
+@app.post("/api/v1/ingestion/telemetry")
+def ingest_telemetry(
+    batch: TelemetryIngestBatch,
+    user: Principal = Depends(get_current_user),
+) -> dict:
+    """Accept a pushed batch of canonical telemetry from an edge gateway.
+
+    Stores the newest reading per ``(asset_id, metric)`` for observability,
+    records the gateway's source-health snapshot, and audits the ingest. This is
+    advisory data only and never writes to any control system.
+    """
+    accepted = 0
+    rejected: list[dict[str, Any]] = []
+    now = now_iso()
+    with _latest_telemetry_lock:
+        for reading in batch.readings:
+            if not math.isfinite(reading.value):
+                rejected.append({"asset_id": reading.asset_id, "metric": reading.metric,
+                                 "reason": "non-finite value"})
+                continue
+            _latest_telemetry[(reading.asset_id, reading.metric)] = {
+                **reading.model_dump(mode="json"),
+                "gateway_id": batch.gateway_id,
+                "ingested_at": now,
+            }
+            accepted += 1
+        _gateway_state[batch.gateway_id] = {
+            "gateway_id": batch.gateway_id,
+            "source": batch.source,
+            "fallback": batch.fallback,
+            "source_health": batch.source_health,
+            "sent_at": batch.sent_at,
+            "last_ingest_at": now,
+            "last_batch_size": len(batch.readings),
+            "last_accepted": accepted,
+        }
+    store.audit(
+        "telemetry.ingested",
+        payload={
+            "gateway_id": batch.gateway_id,
+            "source": batch.source,
+            "fallback": batch.fallback,
+            "accepted": accepted,
+            "rejected": len(rejected),
+        },
+        actor=_actor(user, batch.gateway_id),
+        subject=batch.gateway_id,
+    )
+    return {
+        "status": "accepted",
+        "accepted": accepted,
+        "rejected": rejected,
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+@app.get("/api/v1/ingestion/telemetry/latest", dependencies=AUTHENTICATED)
+def latest_telemetry() -> dict:
+    """Return the newest pushed reading per signal + per-gateway source health."""
+    with _latest_telemetry_lock:
+        readings = list(_latest_telemetry.values())
+        gateways = list(_gateway_state.values())
+    return {
+        "readings": readings,
+        "gateways": gateways,
+        "count": len(readings),
         "control_boundary": ControlBoundary().model_dump(),
     }
 
@@ -485,6 +715,12 @@ def _route_wq_alerts(alerts: list[WQAlert], actor: str = "system") -> None:
             payload={"recommendation_id": card.recommendation_id, "code": alert.code},
             actor=actor,
             subject=card.recommendation_id,
+        )
+        events.publish_alert_raised(
+            code=alert.code,
+            recommendation_id=card.recommendation_id,
+            stage=(alert.stage.value if alert.stage else None),
+            cause=alert.cause,
         )
 
 
@@ -670,6 +906,9 @@ def _route_pdm_recommendations(cards: list, actor: str = "system") -> None:
             actor=actor,
             subject=card.recommendation_id,
         )
+        events.publish_workorder_created(
+            recommendation_id=card.recommendation_id, asset_id=card.asset_id
+        )
 
 
 @app.get("/api/v1/maintenance/ranking", dependencies=AUTHENTICATED)
@@ -699,6 +938,108 @@ def maintenance_recommendations(
             ],
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# D1 analytics models (advisory, read-only)
+#
+# Three D1-framework models -- HP-pump condition, membrane fouling & salt passage,
+# and cartridge-filter replacement -- each with full ModelSpec metadata, a
+# synthetic back-test dataset, preliminary (pending-calibration) alert thresholds,
+# a drift hook and a benchmark scaffold. Every model REUSES existing canonical
+# physics / service layers (nothing duplicated). Every response carries the
+# read-only control boundary + provenance; thresholds are preliminary pending
+# customer calibration; nothing here writes to any control system.
+# ---------------------------------------------------------------------------
+
+
+def _models_envelope(payload: dict, provenance: DataProvenance = DataProvenance.preliminary) -> dict:
+    """Attach the read-only control boundary + provenance to a model response."""
+    return {
+        **payload,
+        "facility_id": wq.FACILITY_ID,
+        "train_id": wq.TRAIN_ID,
+        "provenance": provenance.value,
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+def _require_model(model_id: str):
+    if model_id not in d1_models.MODELS:
+        raise HTTPException(
+            status_code=404,
+            detail=f"unknown model: {model_id}; known: {d1_models.list_model_ids()}",
+        )
+    return d1_models.get_adapter(model_id)
+
+
+class ModelAssessmentRequest(BaseModel):
+    inputs: dict[str, float] = Field(default_factory=dict)
+
+
+@app.get("/api/v1/models", dependencies=AUTHENTICATED)
+def list_models() -> dict:
+    """List the registered D1 models with their spec summaries."""
+    return _models_envelope(
+        {
+            "models": [
+                {
+                    "model_id": ad.spec.model_id,
+                    "name": ad.spec.name,
+                    "version": ad.spec.version,
+                    "tier": ad.spec.tier.value,
+                    "asset_type": ad.spec.asset_type,
+                    "target": ad.spec.target,
+                    "status": ad.spec.status,
+                }
+                for ad in d1_models.MODELS.values()
+            ]
+        }
+    )
+
+
+@app.get("/api/v1/models/{model_id}/spec", dependencies=AUTHENTICATED)
+def model_spec(model_id: str) -> dict:
+    """Full ModelSpec metadata (inputs, outputs, baseline, reused components,
+    preliminary thresholds, drift + calibration configuration)."""
+    adapter = _require_model(model_id)
+    return _models_envelope({"spec": adapter.spec.model_dump(mode="json")})
+
+
+@app.get("/api/v1/models/{model_id}/assessment", dependencies=AUTHENTICATED)
+def model_assessment(model_id: str, fouling: Optional[float] = None) -> dict:
+    """Reference advisory assessment for the model's asset (read-only).
+
+    ``fouling`` is an optional what-if severity honoured by the membrane model.
+    """
+    adapter = _require_model(model_id)
+    inputs: dict[str, float] = {} if fouling is None else {"fouling": _wq_fouling(fouling)}
+    assessment = adapter.assess(inputs)
+    return _models_envelope({"assessment": assessment.model_dump(mode="json")})
+
+
+@app.post("/api/v1/models/{model_id}/assessment", dependencies=AUTHENTICATED)
+def model_assessment_post(model_id: str, body: ModelAssessmentRequest | None = None) -> dict:
+    """Advisory assessment for arbitrary (read-only) model inputs."""
+    adapter = _require_model(model_id)
+    assessment = adapter.assess(body.inputs if body else {})
+    return _models_envelope({"assessment": assessment.model_dump(mode="json")})
+
+
+@app.get("/api/v1/models/{model_id}/backtest", dependencies=AUTHENTICATED)
+def model_backtest(model_id: str, threshold: Optional[float] = None) -> dict:
+    """Back-test metrics from the D1 harness (preliminary, synthetic dataset)."""
+    adapter = _require_model(model_id)
+    metrics = adapter.backtest(threshold)
+    return _models_envelope({"backtest": metrics.model_dump(mode="json")})
+
+
+@app.get("/api/v1/models/{model_id}/benchmark", dependencies=AUTHENTICATED)
+def model_benchmark(model_id: str) -> dict:
+    """Preliminary benchmark scaffold (back-test + Brier + drift)."""
+    adapter = _require_model(model_id)
+    result = adapter.benchmark()
+    return _models_envelope({"benchmark": result.model_dump(mode="json")})
 
 
 # ---------------------------------------------------------------------------
@@ -1151,6 +1492,9 @@ def reset(user: Principal = Depends(require_role("engineer"))) -> dict:
     """
     with _runs_lock:
         _runs.clear()
+    with _latest_telemetry_lock:
+        _latest_telemetry.clear()
+        _gateway_state.clear()
     reco_store.clear()
     training_store.reset()
     store.reset()

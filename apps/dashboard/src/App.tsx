@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SafetyBoundaryBanner } from './components/SafetyBoundaryBanner';
+import { ShellControls } from './components/ShellControls';
+import { useDirection } from './i18n/useDirection';
+import { useBranding } from './branding/useBranding';
 import { isAuthConfigured } from './auth/config';
 import { completeLoginIfCallback } from './auth/oidc';
 import { useAuth } from './auth/useAuth';
@@ -20,10 +24,8 @@ import { useDashboardStore, type PageId } from './state/store';
 
 interface NavEntry {
   id: PageId;
-  label: string;
   page: number;
-  disabled?: boolean;
-  note?: string;
+  noteKey?: string;
 }
 
 const NAV: NavEntry[] = [
@@ -38,17 +40,39 @@ const NAV: NavEntry[] = [
   { id: 'assistant', label: 'Operations Assistant', page: 11 },
   { id: 'training', label: 'Training Simulator', page: 12, note: 'SIMULATION' },
   { id: 'simulation', label: 'Simulation Center', page: 8, note: 'Phase 8–9' },
+  { id: 'command', page: 1 },
+  { id: 'process', page: 2 },
+  { id: 'asset', page: 4 },
+  { id: 'water-quality', page: 5 },
+  { id: 'predictive-maintenance', page: 6 },
+  { id: 'energy', page: 7 },
+  { id: 'resilience', page: 9 },
+  { id: 'executive', page: 10 },
+  { id: 'assistant', page: 11 },
+  { id: 'simulation', page: 8, noteKey: 'nav.notes.simulation' },
 ];
 
+function Brand() {
+  const { displayName, displaySubtitle, logoUrl } = useBranding();
+  return (
+    <div className="brand">
+      {logoUrl ? (
+        <img className="brand-logo" src={logoUrl} alt={displayName} data-testid="brand-logo" />
+      ) : (
+        <h1>{displayName}</h1>
+      )}
+      <div className="sub">{displaySubtitle}</div>
+    </div>
+  );
+}
+
 function Nav() {
+  const { t } = useTranslation();
   const page = useDashboardStore((s) => s.page);
   const navigate = useDashboardStore((s) => s.navigate);
   return (
-    <nav className="app-nav" aria-label="Primary">
-      <div className="brand">
-        <h1>S3M-WaterTwin</h1>
-        <div className="sub">Operator Console</div>
-      </div>
+    <nav className="app-nav" aria-label={t('nav.ariaLabel')}>
+      <Brand />
       {NAV.map((item) => (
         <button
           key={item.id}
@@ -56,14 +80,15 @@ function Nav() {
           onClick={() => navigate(item.id)}
           aria-current={page === item.id ? 'page' : undefined}
         >
-          <span>{item.label}</span>
-          {item.note ? <span className="phase-tag">{item.note}</span> : null}
+          <span>{t(`nav.items.${item.id}`)}</span>
+          {item.noteKey ? <span className="phase-tag">{t(item.noteKey)}</span> : null}
         </button>
       ))}
       <div style={{ flex: 1 }} />
+      <ShellControls />
       <UserBadge />
       <div className="brand">
-        <div className="sub">Pages 1, 2, 4 live · others in later phases</div>
+        <div className="sub">{t('nav.footerNote')}</div>
       </div>
     </nav>
   );
@@ -100,7 +125,11 @@ function CurrentPage() {
 }
 
 export default function App() {
+  const { t } = useTranslation();
   const { isAuthenticated } = useAuth();
+  // Apply language direction (RTL for Arabic) and customer branding at the shell root.
+  useDirection();
+  useBranding();
   // While OIDC is configured, wait for a possible redirect-callback exchange to
   // resolve before deciding whether to show the login gate.
   const [callbackResolved, setCallbackResolved] = useState(!isAuthConfigured());
@@ -123,7 +152,7 @@ export default function App() {
           <SafetyBoundaryBanner />
           <div className="login-wrap">
             <div className="login-card">
-              <div className="sub">Signing in…</div>
+              <div className="sub">{t('common.signingIn')}</div>
             </div>
           </div>
         </div>

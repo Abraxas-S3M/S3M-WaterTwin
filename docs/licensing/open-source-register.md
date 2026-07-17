@@ -53,12 +53,21 @@ components are enumerated in full inside those SBOMs.
 | fastapi | 0.115.x / 0.139.x | `MIT` | PyPI | all API services |
 | uvicorn[standard] | 0.34.x / 0.51.x | `BSD-3-Clause` | PyPI | all API services |
 | pydantic | 2.10–2.13 | `MIT` | PyPI | all services + shared packages |
-| httpx | 0.28.1 | `BSD-3-Clause` | PyPI | api clients / tests |
+| httpx | 0.28.1 | `BSD-3-Clause` | PyPI | api clients / tests / `services/edge-gateway` (outbound push) |
+| cryptography | 49.0.0 | `Apache-2.0 OR BSD-3-Clause` | PyPI | `services/edge-gateway` (Fernet encrypt-at-rest for the store-and-forward buffer) |
 | pytest | 9.x | `MIT` | PyPI | test dependency (`services/hydraulic-sim` requirements) |
 | pyjwt[crypto] | 2.13.0 | `MIT` | PyPI | `services/watertwin-api` (JWT/JWKS validation) |
 | psycopg[binary] | 3.2.3 | `LGPL-3.0-or-later` | PyPI | `services/watertwin-api` (DB driver) |
+| asyncua | 1.1.6 | `LGPL-3.0-only` | PyPI | `services/watertwin-api`, `services/edge-gateway` (read-only OPC UA **client** connector, shared `packages/ot_ingestion`) |
+| pymodbus | 3.7.4 | `BSD-3-Clause` | PyPI | `services/watertwin-api`, `services/edge-gateway` (read-only Modbus connector, shared `packages/ot_ingestion`) |
 | asyncua | 1.1.6 | `LGPL-3.0-only` | PyPI | `services/watertwin-api` (read-only OPC UA **client** connector) |
 | pymodbus | 3.7.4 | `BSD-3-Clause` | PyPI | `services/watertwin-api` (read-only Modbus connector) |
+| nats-py | 2.15.0 | `Apache-2.0` | PyPI | `services/watertwin-api` (advisory service-event bus client; notification-only, no control command) |
+| prometheus-client | 0.25.0 | `Apache-2.0` | PyPI | all API services (Prometheus `/metrics` exposition, via `packages/watertwin_observability`) |
+| opentelemetry-api | 1.44.0 | `Apache-2.0` | PyPI | all API services (OpenTelemetry trace API) |
+| opentelemetry-sdk | 1.44.0 | `Apache-2.0` | PyPI | all API services (OpenTelemetry trace SDK) |
+| opentelemetry-exporter-otlp-proto-http | 1.44.0 | `Apache-2.0` | PyPI | all API services (OTLP/HTTP span exporter) |
+| opentelemetry-instrumentation-fastapi | 0.65b0 | `Apache-2.0` | PyPI | all API services (auto request spans) |
 | numpy | 2.4.4 | `BSD-3-Clause` | PyPI | `services/hydraulic-sim`, `treatment-sim` |
 | scipy | 1.18.0 | `BSD-3-Clause` | PyPI | `services/hydraulic-sim`, `services/watertwin-api`, `packages/watertwin_engineering` |
 | pandas | 3.0.3 | `BSD-3-Clause` | PyPI | `services/hydraulic-sim` |
@@ -88,6 +97,9 @@ enumerated in full inside that SBOM.
 | react-dom | `MIT` | npm | `apps/dashboard` |
 | zustand | `MIT` | npm | `apps/dashboard` (state) |
 | @tanstack/react-query | `MIT` | npm | `apps/dashboard` (data fetching) |
+| i18next | `MIT` | npm | `apps/dashboard` (i18n core) |
+| react-i18next | `MIT` | npm | `apps/dashboard` (i18n React bindings) |
+| i18next-browser-languagedetector | `MIT` | npm | `apps/dashboard` (i18n language detection) |
 | echarts | `Apache-2.0` | npm | `apps/dashboard` (charts) |
 | echarts-for-react | `MIT` | npm | `apps/dashboard` (charts) |
 | maplibre-gl | `BSD-3-Clause` | npm | `apps/dashboard` (map) |
@@ -125,6 +137,7 @@ stored under `docs/licensing/sbom/`:
 | `sbom-watertwin-api.cdx.json` | watertwin-api Python deps | `cyclonedx-py` |
 | `sbom-hydraulic-sim.cdx.json` | hydraulic-sim Python deps | `cyclonedx-py` |
 | `sbom-treatment-sim.cdx.json` | treatment-sim Python deps | `cyclonedx-py` |
+| `sbom-edge-gateway.cdx.json` | edge-gateway Python deps | `cyclonedx-py` |
 | `sbom-dashboard.cdx.json` | dashboard (npm) deps | `cyclonedx-npm` |
 
 Regenerate them with:
@@ -143,6 +156,8 @@ python -m cyclonedx_py requirements services/hydraulic-sim/requirements.txt \
     -o docs/licensing/sbom/sbom-hydraulic-sim.cdx.json
 python -m cyclonedx_py requirements services/treatment-sim/requirements.txt \
     -o docs/licensing/sbom/sbom-treatment-sim.cdx.json
+python -m cyclonedx_py requirements services/edge-gateway/requirements.txt \
+    -o docs/licensing/sbom/sbom-edge-gateway.cdx.json
 
 # Dashboard (npm)
 cd apps/dashboard && npx @cyclonedx/cyclonedx-npm --package-lock-only \

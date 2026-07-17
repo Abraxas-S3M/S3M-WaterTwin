@@ -1,0 +1,14 @@
+# Patterns to ignore when building Helm packages.
+.DS_Store
+.git/
+.gitignore
+*.tmp
+*.bak
+*.swp
+*.orig
+.idea/
+.vscode/
+# Environment overlays are applied with -f, not packaged into the chart.
+values-dev.yaml
+values-staging.yaml
+values-prod.yaml

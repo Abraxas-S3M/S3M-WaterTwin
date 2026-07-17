@@ -1,0 +1,97 @@
+# ---------------------------------------------------------------------------
+# DEV environment overrides.
+# Single replicas, small footprint, auth bypassed for local iteration. Still
+# enforces the NetworkPolicy posture so dev behaves like prod at the net layer.
+# ---------------------------------------------------------------------------
+global:
+  imageRegistry: ""
+  networkPolicy:
+    defaultDeny: true
+
+watertwin-api:
+  enabled: true
+  replicaCount: 1
+  image:
+    tag: latest
+    pullPolicy: IfNotPresent
+  env:
+    HYDRAULIC_SIM_URL: "http://hydraulic-sim:8100"
+    TREATMENT_SIM_URL: "http://treatment-sim:8080"
+    WATERTWIN_RECO_STORE: "/data/recommendations.json"
+    WATERTWIN_CORS_ORIGINS: "*"
+    # Dev-only: bypass the OIDC login gate for fast local iteration.
+    WATERTWIN_AUTH_DISABLED: "true"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 384Mi
+  ingress:
+    enabled: false
+
+hydraulic-sim:
+  enabled: true
+  replicaCount: 1
+  image:
+    tag: latest
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 768Mi
+
+treatment-sim:
+  enabled: true
+  replicaCount: 1
+  image:
+    tag: latest
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+edge-gateway:
+  enabled: true
+  replicaCount: 1
+  image:
+    tag: latest
+  env:
+    # Dev uses the built-in synthetic plant; no real OT reachability.
+    OT_SOURCE: "synthetic"
+    WATERTWIN_API_URL: "http://watertwin-api:8000"
+
+dashboard:
+  enabled: true
+  replicaCount: 1
+  image:
+    tag: latest
+  ingress:
+    enabled: false
+
+timescaledb:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+postgis:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 2Gi
+    storageClass: ""

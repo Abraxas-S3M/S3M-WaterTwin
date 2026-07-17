@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { isAuthConfigured } from './config';
 import { logout } from './oidc';
 import { useAuth } from './useAuth';
@@ -16,6 +17,7 @@ function primaryRole(roles: string[]): string {
  * synthetic session so operators know auth is disabled.
  */
 export function UserBadge() {
+  const { t } = useTranslation();
   const { username, roles } = useAuth();
   const configured = isAuthConfigured();
 
@@ -23,7 +25,7 @@ export function UserBadge() {
     <div className="user-badge" data-testid="user-badge">
       <div className="user-line">
         <span className="user-name" data-testid="user-name">
-          {username ?? 'unknown'}
+          {username ?? t('auth.unknownUser')}
         </span>
         <span className="user-role" data-testid="user-role">
           {primaryRole(roles)}
@@ -31,11 +33,11 @@ export function UserBadge() {
       </div>
       {configured ? (
         <button className="btn ghost" onClick={() => logout()} data-testid="logout-button">
-          Sign out
+          {t('auth.signOut')}
         </button>
       ) : (
         <span className="muted" data-testid="auth-dev-mode">
-          auth disabled (dev)
+          {t('auth.devMode')}
         </span>
       )}
     </div>
