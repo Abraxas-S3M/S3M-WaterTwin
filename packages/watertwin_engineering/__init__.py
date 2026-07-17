@@ -25,6 +25,14 @@ from watertwin_engineering.calculations import (
     ro_performance,
     specific_energy,
 )
+from watertwin_engineering.energy import (
+    OperatingPoint,
+    ROEnergyOptimization,
+    avoidable_energy_loss,
+    energy_cost,
+    evaluate_operating_point,
+    ro_operating_point_optimization,
+)
 from watertwin_engineering.equipment import (
     ComponentHealthResult,
     FailureProbabilityResult,
@@ -42,6 +50,13 @@ from watertwin_engineering.equipment import (
 from watertwin_engineering.osmotic import (
     osmotic_pressure_bar,
     seawater_osmotic_pressure_bar,
+)
+from watertwin_engineering.resilience import (
+    fuel_endurance_hours,
+    generator_start_probability,
+    load_shed_priority,
+    resilience_criticality_score,
+    service_continuity_hours,
 )
 from watertwin_engineering.root_cause import RootCause, root_cause_rank
 from watertwin_engineering.ro import (
@@ -71,20 +86,28 @@ __all__ = [
     "HealthContribution",
     "MaintenancePriorityResult",
     "OperatingEnvelopeResult",
+    "OperatingPoint",
+    "ROEnergyOptimization",
     "ROReference",
     "RemainingUsefulLifeResult",
     "RootCause",
     "TrainEvaluation",
+    "avoidable_energy_loss",
     "boron_rejection",
     "calculations",
     "colloidal_fouling_index",
     "component_health",
     "concentration_factor",
+    "energy_cost",
     "equipment",
+    "evaluate_operating_point",
     "evaluate_train",
     "failure_probability",
+    "fuel_endurance_hours",
+    "generator_start_probability",
     "health_band",
     "langelier_saturation_index",
+    "load_shed_priority",
     "maintenance_priority",
     "net_driving_pressure_bar",
     "normalized_differential_pressure",
@@ -93,12 +116,15 @@ __all__ = [
     "osmotic_pressure_bar",
     "recovery_fraction",
     "remaining_useful_life_days",
+    "resilience_criticality_score",
+    "ro_operating_point_optimization",
     "ro_performance",
     "root_cause",
     "root_cause_rank",
     "salt_passage_fraction",
     "salt_rejection_fraction",
     "seawater_osmotic_pressure_bar",
+    "service_continuity_hours",
     "silica_saturation_pct",
     "specific_energy",
     "specific_energy_consumption_kwh_per_m3",
