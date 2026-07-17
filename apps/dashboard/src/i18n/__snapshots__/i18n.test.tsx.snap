@@ -1,0 +1,189 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`RTL layout > switches the document direction to RTL and mirrors the shell for Arabic 1`] = `
+<nav
+  aria-label="التنقل الأساسي"
+  class="app-nav"
+>
+  <div
+    class="brand"
+  >
+    <h1>
+      S3M-WaterTwin
+    </h1>
+    <div
+      class="sub"
+    >
+      وحدة تحكم المشغّل
+    </div>
+  </div>
+  <button
+    aria-current="page"
+    class="nav-item active"
+  >
+    <span>
+      نظرة عامة على القيادة
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
+      التوأم الرقمي للعملية
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
+      التوأم الرقمي للأصل
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
+      جودة المياه
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
+      الصيانة التنبؤية
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
+      تحسين الطاقة
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
+      قيادة المرونة
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
+      القيمة التنفيذية / العائد على الاستثمار
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
+      مساعد العمليات
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
+      مركز المحاكاة
+    </span>
+    <span
+      class="phase-tag"
+    >
+      المرحلة 8–9
+    </span>
+  </button>
+  <div
+    style="flex: 1 1 0%;"
+  />
+  <div
+    class="shell-controls"
+    data-testid="shell-controls"
+  >
+    <label
+      class="shell-control"
+    >
+      <span
+        class="shell-control-label"
+      >
+        اللغة
+      </span>
+      <select
+        aria-label="اللغة"
+        data-testid="language-select"
+      >
+        <option
+          value="en"
+        >
+          English
+        </option>
+        <option
+          value="ar"
+        >
+          العربية
+        </option>
+      </select>
+    </label>
+    <label
+      class="shell-control"
+    >
+      <span
+        class="shell-control-label"
+      >
+        الوحدات
+      </span>
+      <select
+        aria-label="الوحدات"
+        data-testid="units-select"
+      >
+        <option
+          value="metric"
+        >
+          متري
+        </option>
+        <option
+          value="imperial"
+        >
+          إمبراطوري
+        </option>
+      </select>
+    </label>
+  </div>
+  <div
+    class="user-badge"
+    data-testid="user-badge"
+  >
+    <div
+      class="user-line"
+    >
+      <span
+        class="user-name"
+        data-testid="user-name"
+      >
+        dev-admin
+      </span>
+      <span
+        class="user-role"
+        data-testid="user-role"
+      >
+        admin
+      </span>
+    </div>
+    <span
+      class="muted"
+      data-testid="auth-dev-mode"
+    >
+      المصادقة مُعطّلة (تطوير)
+    </span>
+  </div>
+  <div
+    class="brand"
+  >
+    <div
+      class="sub"
+    >
+      الصفحات 1 و2 و4 مفعّلة · والبقية في مراحل لاحقة
+    </div>
+  </div>
+</nav>
+`;

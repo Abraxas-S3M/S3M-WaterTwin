@@ -4,36 +4,17 @@
 // browser storage; it lives in memory for the session.
 
 import { create } from 'zustand';
+import { DEFAULT_UNIT_SYSTEM, type UnitSystem } from '../i18n/units';
 
 export type ScenarioId = 'baseline' | 'peak_demand' | 'fouling_event' | 'energy_saver';
 
-export interface Scenario {
-  id: ScenarioId;
-  label: string;
-  description: string;
-}
-
-export const SCENARIOS: Scenario[] = [
-  {
-    id: 'baseline',
-    label: 'Baseline',
-    description: 'Nominal operating conditions from the live twin.',
-  },
-  {
-    id: 'peak_demand',
-    label: 'Peak Demand',
-    description: 'Higher product-water demand profile (simulation, later phase).',
-  },
-  {
-    id: 'fouling_event',
-    label: 'Membrane Fouling',
-    description: 'Progressive fouling stressor (simulation, later phase).',
-  },
-  {
-    id: 'energy_saver',
-    label: 'Energy Saver',
-    description: 'Minimize specific energy within limits (simulation, later phase).',
-  },
+// Scenario UI labels/descriptions are localized via the `scenarios.items.<id>`
+// keys; the store only tracks the selectable ids in flow order.
+export const SCENARIO_IDS: ScenarioId[] = [
+  'baseline',
+  'peak_demand',
+  'fouling_event',
+  'energy_saver',
 ];
 
 export type PageId =
@@ -43,10 +24,15 @@ export type PageId =
   | 'simulation'
   | 'water-quality'
   | 'predictive-maintenance'
+  | 'maintenance-center'
   | 'energy'
   | 'resilience'
   | 'executive'
-  | 'assistant';
+  | 'assistant'
+  | 'models';
+  | 'security';
+  | 'admin-facilities';
+  | 'training';
 
 // Presentation mode of the whole console. `standard` is the desktop/tablet
 // operator layout; `control-room` is the large-format, high-contrast wall
@@ -66,6 +52,12 @@ interface DashboardState {
   operatorName: string;
   displayMode: DisplayMode;
   reportView: ReportView | null;
+  // The facility currently in focus in the shell switcher. Ephemeral UI state;
+  // it is validated against the identity's scoped facilities before use so it can
+  // never point at a facility outside the caller's tenant/entitlement.
+  activeFacilityId: string | null;
+  /** Preferred measurement system. Metric is the product default. */
+  unitSystem: UnitSystem;
   navigate: (page: PageId) => void;
   setSelectedAsset: (assetId: string | null) => void;
   openAssetTwin: (assetId: string) => void;
@@ -75,6 +67,8 @@ interface DashboardState {
   setDisplayMode: (mode: DisplayMode) => void;
   openReport: (report: ReportView) => void;
   closeReport: () => void;
+  setActiveFacility: (facilityId: string | null) => void;
+  setUnitSystem: (unitSystem: UnitSystem) => void;
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -85,6 +79,8 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   operatorName: 'operator',
   displayMode: 'standard',
   reportView: null,
+  activeFacilityId: null,
+  unitSystem: DEFAULT_UNIT_SYSTEM,
   navigate: (page) => set({ page }),
   setSelectedAsset: (assetId) => set({ selectedAssetId: assetId }),
   openAssetTwin: (assetId) => set({ selectedAssetId: assetId, page: 'asset' }),
@@ -94,4 +90,6 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   setDisplayMode: (displayMode) => set({ displayMode }),
   openReport: (reportView) => set({ reportView }),
   closeReport: () => set({ reportView: null }),
+  setActiveFacility: (facilityId) => set({ activeFacilityId: facilityId }),
+  setUnitSystem: (unitSystem) => set({ unitSystem }),
 }));
