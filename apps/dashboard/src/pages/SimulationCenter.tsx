@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { ScenarioControls } from '../components/ScenarioControls';
 
 /**
@@ -5,27 +6,20 @@ import { ScenarioControls } from '../components/ScenarioControls';
  * (scenario engine, what-if runs) connect in Phases 8–9.
  */
 export function SimulationCenter() {
+  const { t } = useTranslation();
   return (
     <div className="stack" data-testid="simulation-center">
       <div className="page-header">
         <div>
-          <h2>Simulation Center</h2>
-          <div className="context">What-if scenarios &amp; digital-twin simulation</div>
+          <h2>{t('simulation.title')}</h2>
+          <div className="context">{t('simulation.context')}</div>
         </div>
       </div>
 
       <div className="card">
-        <h3>Simulation services connect in a later phase</h3>
-        <p className="muted">
-          The Simulation Center is enabled in Phases 8–9. Scenario runs, what-if
-          comparisons, and simulated outputs will appear here once the simulation
-          services are wired in. Until then, the dashboard shows live baseline data
-          from the WaterTwin API.
-        </p>
-        <p className="muted">
-          You can preview the scenario selector below; selections are UI intent only
-          and do not yet drive a simulation.
-        </p>
+        <h3>{t('simulation.cardTitle')}</h3>
+        <p className="muted">{t('simulation.body1')}</p>
+        <p className="muted">{t('simulation.body2')}</p>
         <ScenarioControls />
       </div>
     </div>

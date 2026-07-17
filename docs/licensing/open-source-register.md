@@ -88,6 +88,9 @@ enumerated in full inside that SBOM.
 | react-dom | `MIT` | npm | `apps/dashboard` |
 | zustand | `MIT` | npm | `apps/dashboard` (state) |
 | @tanstack/react-query | `MIT` | npm | `apps/dashboard` (data fetching) |
+| i18next | `MIT` | npm | `apps/dashboard` (i18n core) |
+| react-i18next | `MIT` | npm | `apps/dashboard` (i18n React bindings) |
+| i18next-browser-languagedetector | `MIT` | npm | `apps/dashboard` (i18n language detection) |
 | echarts | `Apache-2.0` | npm | `apps/dashboard` (charts) |
 | echarts-for-react | `MIT` | npm | `apps/dashboard` (charts) |
 | maplibre-gl | `BSD-3-Clause` | npm | `apps/dashboard` (map) |
