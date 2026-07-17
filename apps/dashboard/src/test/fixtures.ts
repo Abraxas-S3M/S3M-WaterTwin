@@ -40,6 +40,7 @@ import type {
   WQScalingResponse,
   WQStatusResponse,
 } from '../api/types';
+import type { Facility, FacilitiesResponse, FleetOverview } from '../facilities/types';
 
 export const controlBoundary: ControlBoundary = {
   control_mode: 'advisory',
@@ -881,6 +882,151 @@ export const documentsList: DocumentsResponse = {
       tags: ['AST-HPP-01', 'isolation', 'pump'],
     },
   ],
+};
+
+// --- Multi-facility administration -----------------------------------------
+
+// Two tenants exist in the raw catalog. A signed-in ACME identity must only ever
+// see ACME facilities; the Globex facility is included in some fixtures purely to
+// prove the client-side scope guard drops cross-tenant rows (no leak).
+export const TENANT_ACME = 'TEN-ACME';
+export const TENANT_GLOBEX = 'TEN-GLOBEX';
+
+export const facilityAlpha: Facility = {
+  facility_id: 'FAC-ALPHA',
+  tenant_id: TENANT_ACME,
+  tenant_name: 'Acme Water Co',
+  name: 'SWRO Alpha',
+  region: 'Gulf Coast',
+  status: 'online',
+  config: {
+    train_count: 3,
+    capacity_m3_day: 12000,
+    currency: 'USD',
+    commissioned: '2021-03-15',
+    timezone: 'America/Chicago',
+  },
+  roles: [
+    { role: 'facility-operator', subject: 'ola-operator', display_name: 'Ola Operator' },
+    { role: 'engineer', subject: 'erin-engineer', display_name: 'Erin Engineer' },
+    { role: 'viewer', subject: 'val-viewer', display_name: 'Val Viewer' },
+  ],
+};
+
+export const facilityBeta: Facility = {
+  facility_id: 'FAC-BETA',
+  tenant_id: TENANT_ACME,
+  tenant_name: 'Acme Water Co',
+  name: 'SWRO Beta',
+  region: 'Adriatic',
+  status: 'maintenance',
+  config: {
+    train_count: 2,
+    capacity_m3_day: 8000,
+    currency: 'EUR',
+    commissioned: '2022-09-01',
+    timezone: 'Europe/Rome',
+  },
+  roles: [
+    { role: 'facility-operator', subject: 'bo-operator', display_name: 'Bo Operator' },
+  ],
+};
+
+export const facilityGamma: Facility = {
+  facility_id: 'FAC-GAMMA',
+  tenant_id: TENANT_ACME,
+  tenant_name: 'Acme Water Co',
+  name: 'SWRO Gamma',
+  region: 'Red Sea',
+  status: 'online',
+  config: {
+    train_count: 4,
+    capacity_m3_day: 14000,
+    currency: 'USD',
+    commissioned: '2020-01-20',
+    timezone: 'Asia/Riyadh',
+  },
+  roles: [
+    { role: 'engineer', subject: 'gia-engineer', display_name: 'Gia Engineer' },
+  ],
+};
+
+// Foreign tenant — must never surface for an ACME identity.
+export const facilityOmegaForeign: Facility = {
+  facility_id: 'FAC-OMEGA',
+  tenant_id: TENANT_GLOBEX,
+  tenant_name: 'Globex Desal',
+  name: 'SWRO Omega',
+  region: 'Pacific',
+  status: 'online',
+  config: {
+    train_count: 5,
+    capacity_m3_day: 20000,
+    currency: 'USD',
+    commissioned: '2019-06-10',
+    timezone: 'Australia/Perth',
+  },
+  roles: [
+    { role: 'facility-operator', subject: 'omar-operator', display_name: 'Omar Operator' },
+  ],
+};
+
+export const acmeFacilities: Facility[] = [facilityAlpha, facilityBeta, facilityGamma];
+
+// What the (tenant-scoped) API returns to an ACME identity.
+export const facilitiesResponse: FacilitiesResponse = {
+  tenant_id: TENANT_ACME,
+  facilities: acmeFacilities,
+  provenance: 'preliminary',
+};
+
+export const fleetOverview: FleetOverview = {
+  tenant_id: TENANT_ACME,
+  provenance: 'preliminary',
+  facilities: [
+    {
+      facility_id: 'FAC-ALPHA',
+      tenant_id: TENANT_ACME,
+      name: 'SWRO Alpha',
+      status: 'online',
+      health: { score: 79.5, band: 'Monitor' },
+      energy: { total_power_kw: 1520, specific_energy_kwh_m3: 3.05 },
+      active_alarms: 1,
+      production_m3_day: 11952,
+      provenance: 'preliminary',
+    },
+    {
+      facility_id: 'FAC-BETA',
+      tenant_id: TENANT_ACME,
+      name: 'SWRO Beta',
+      status: 'maintenance',
+      health: { score: 62.0, band: 'Degraded' },
+      energy: { total_power_kw: 980, specific_energy_kwh_m3: 3.4 },
+      active_alarms: 3,
+      production_m3_day: 8000,
+      provenance: 'preliminary',
+    },
+    {
+      facility_id: 'FAC-GAMMA',
+      tenant_id: TENANT_ACME,
+      name: 'SWRO Gamma',
+      status: 'online',
+      health: { score: 91.0, band: 'Healthy' },
+      energy: { total_power_kw: 1750, specific_energy_kwh_m3: 2.8 },
+      active_alarms: 0,
+      production_m3_day: 14000,
+      provenance: 'preliminary',
+    },
+  ],
+  totals: {
+    facility_count: 3,
+    online_count: 2,
+    avg_health: 77.5,
+    worst_band: 'Degraded',
+    total_power_kw: 4250,
+    total_production_m3_day: 33952,
+    total_active_alarms: 4,
+  },
 };
 
 export const overview: PlantOverview = {

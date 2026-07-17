@@ -20,6 +20,8 @@ import { ResilienceCommand } from './pages/ResilienceCommand';
 import { ExecutiveValue } from './pages/ExecutiveValue';
 import { OperationsAssistant } from './pages/OperationsAssistant';
 import { Security } from './pages/Security';
+import { MultiFacilityAdmin } from './pages/MultiFacilityAdmin';
+import { FacilitySwitcher } from './components/FacilitySwitcher';
 import { TrainingSimulator } from './pages/TrainingSimulator';
 import { useDashboardStore, type PageId } from './state/store';
 
@@ -57,6 +59,11 @@ const NAV: NavEntry[] = [
   { id: 'simulation', page: 8, noteKey: 'nav.notes.simulation' },
 ];
 
+// Administration section entries. Gated behind the facility-management
+// capability so facility-operators never see the fleet-wide admin surface.
+const ADMIN_NAV: NavEntry[] = [
+  { id: 'admin-facilities', label: 'Multi-Facility', page: 12 },
+];
 function Brand() {
   const { displayName, displaySubtitle, logoUrl } = useBranding();
   return (
@@ -84,6 +91,7 @@ function Nav() {
         <div className="sub">Operator Console</div>
       </div>
       {entries.map((item) => (
+      <FacilitySwitcher />
     <nav className="app-nav" aria-label={t('nav.ariaLabel')}>
       <Brand />
       {NAV.map((item) => (
@@ -97,6 +105,23 @@ function Nav() {
           {item.noteKey ? <span className="phase-tag">{t(item.noteKey)}</span> : null}
         </button>
       ))}
+      {capabilities.manageFacilities ? (
+        <div className="nav-section" data-testid="admin-nav-section">
+          <div className="nav-section-title">Administration</div>
+          {ADMIN_NAV.map((item) => (
+            <button
+              key={item.id}
+              className={`nav-item${page === item.id ? ' active' : ''}`}
+              onClick={() => navigate(item.id)}
+              aria-current={page === item.id ? 'page' : undefined}
+              data-testid={`nav-${item.id}`}
+            >
+              <span>{item.label}</span>
+              {item.note ? <span className="phase-tag">{item.note}</span> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div style={{ flex: 1 }} />
       <ShellControls />
       <UserBadge />
@@ -134,6 +159,8 @@ function CurrentPage() {
       return <TrainingSimulator />;
     case 'simulation':
       return <SimulationCenter />;
+    case 'admin-facilities':
+      return <MultiFacilityAdmin />;
     default:
       return <CommandOverview />;
   }

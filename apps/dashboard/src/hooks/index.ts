@@ -7,6 +7,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import { api } from '../api/client';
+import type { FacilitiesResponse, FleetOverview } from '../facilities/types';
 import type {
   AnomalyResult,
   Asset,
@@ -56,6 +57,8 @@ export const POLL_INTERVAL_MS = 4000;
 export const queryKeys = {
   controlBoundary: ['control-boundary'] as const,
   overview: ['overview'] as const,
+  facilities: ['facilities'] as const,
+  fleetOverview: ['fleet-overview'] as const,
   assets: ['assets'] as const,
   asset: (id: string) => ['asset', id] as const,
   streams: ['streams'] as const,
@@ -108,6 +111,24 @@ export function useOverview(): UseQueryResult<PlantOverview> {
   return useQuery({
     queryKey: queryKeys.overview,
     queryFn: api.getOverview,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+// --- Multi-facility administration hooks -----------------------------------
+
+export function useFacilities(): UseQueryResult<FacilitiesResponse> {
+  return useQuery({
+    queryKey: queryKeys.facilities,
+    queryFn: api.getFacilities,
+    staleTime: POLL_INTERVAL_MS * 15,
+  });
+}
+
+export function useFleetOverview(): UseQueryResult<FleetOverview> {
+  return useQuery({
+    queryKey: queryKeys.fleetOverview,
+    queryFn: api.getFleetOverview,
     refetchInterval: POLL_INTERVAL_MS,
   });
 }

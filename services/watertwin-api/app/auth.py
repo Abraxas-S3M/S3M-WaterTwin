@@ -45,7 +45,27 @@ logger = logging.getLogger("watertwin.auth")
 # the Cyber-Physical Security views + SIEM export (read-only; no control path).
 ROLES: frozenset[str] = frozenset(
     {"viewer", "operator", "engineer", "admin", "auditor", "security"}
+# The advisory roles seeded in the Keycloak "watertwin" realm. The multi-facility
+# roles gate the fleet administration surface: ``tenant-admin`` manages every
+# facility within its tenant, while ``facility-operator`` is scoped to the
+# specific facility (or facilities) assigned to it.
+ROLES: frozenset[str] = frozenset(
+    {
+        "viewer",
+        "operator",
+        "engineer",
+        "admin",
+        "auditor",
+        "tenant-admin",
+        "facility-operator",
+    }
 )
+
+# Roles permitted to manage / view the whole fleet within their tenant.
+FACILITY_MANAGER_ROLES: frozenset[str] = frozenset({"tenant-admin", "admin"})
+
+# Dev-bypass tenant so the multi-facility surfaces work without Keycloak.
+DEV_TENANT_ID = "TEN-ACME"
 
 _JWT_ALGORITHMS = ["RS256"]
 
@@ -138,6 +158,12 @@ class Principal:
     subject: Optional[str] = None
     email: Optional[str] = None
     auth_mode: str = "keycloak"
+    # Multi-tenant / multi-facility scope carried by the identity token.
+    tenant_id: Optional[str] = None
+    # Facilities the identity is explicitly entitled to. Empty means "all
+    # facilities within the tenant" for facility managers; for a
+    # facility-operator it is the specific facility (or facilities) assigned.
+    facility_ids: frozenset[str] = frozenset()
     #: Tenants this principal may read. ``{"*"}`` grants access to all tenants
     #: (dev bypass only).
     tenants: frozenset[str] = frozenset()
@@ -148,6 +174,9 @@ class Principal:
     def has_any(self, *required: str) -> bool:
         return bool(self.roles.intersection(required))
 
+    def can_manage_facilities(self) -> bool:
+        """True for tenant-admins / platform admins (fleet-wide within tenant)."""
+        return bool(self.roles.intersection(FACILITY_MANAGER_ROLES))
     def can_access_tenant(self, tenant_id: str) -> bool:
         return WILDCARD in self.tenants or tenant_id in self.tenants
 
@@ -174,6 +203,8 @@ SYNTHETIC_ADMIN = Principal(
     subject="dev-admin",
     email=None,
     auth_mode="dev-bypass",
+    tenant_id=DEV_TENANT_ID,
+    facility_ids=frozenset(),
     tenants=frozenset({WILDCARD}),
     facilities=frozenset({WILDCARD}),
 )
@@ -269,6 +300,18 @@ def _roles_from_claims(claims: dict) -> frozenset[str]:
     return frozenset(r for r in roles if isinstance(r, str))
 
 
+def _tenant_from_claims(claims: dict) -> Optional[str]:
+    tenant = claims.get("tenant_id") or claims.get("tenant")
+    return tenant if isinstance(tenant, str) and tenant else None
+
+
+def _facility_ids_from_claims(claims: dict) -> frozenset[str]:
+    raw = claims.get("facility_ids")
+    if raw is None:
+        raw = claims.get("facilities")
+    if not isinstance(raw, (list, tuple, set)):
+        return frozenset()
+    return frozenset(v for v in raw if isinstance(v, str) and v)
 def _string_set_from_claims(claims: dict, *names: str) -> frozenset[str]:
     """Collect a string set from any of ``names`` (list, scalar, or CSV)."""
     values: set[str] = set()
@@ -326,6 +369,8 @@ def _principal_from_claims(claims: dict) -> Principal:
         subject=claims.get("sub"),
         email=claims.get("email"),
         auth_mode="keycloak",
+        tenant_id=_tenant_from_claims(claims),
+        facility_ids=_facility_ids_from_claims(claims),
         tenants=tenants,
         facilities=facilities,
     )

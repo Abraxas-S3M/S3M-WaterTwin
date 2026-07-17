@@ -47,6 +47,8 @@ import type {
   WQStatusResponse,
 } from './types';
 
+import type { FacilitiesResponse, FleetOverview } from '../facilities/types';
+
 import { getAccessToken } from '../auth/store';
 import { refreshTokens } from '../auth/oidc';
 
@@ -118,6 +120,11 @@ async function requestText(path: string, init?: RequestInit): Promise<string> {
 export const api = {
   getControlBoundary: () => request<ControlBoundary>('/control-boundary'),
   getOverview: () => request<PlantOverview>('/overview'),
+
+  // Multi-facility administration (tenant-scoped by the API; the client also
+  // scopes defensively so cross-tenant rows never render).
+  getFacilities: () => request<FacilitiesResponse>('/facilities'),
+  getFleetOverview: () => request<FleetOverview>('/fleet/overview'),
 
   getAssets: () => request<Asset[]>('/assets'),
   getAsset: (assetId: string) => request<Asset>(`/assets/${assetId}`),

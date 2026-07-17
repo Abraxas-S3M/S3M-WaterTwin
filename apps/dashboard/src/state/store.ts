@@ -29,6 +29,7 @@ export type PageId =
   | 'executive'
   | 'assistant'
   | 'security';
+  | 'admin-facilities';
   | 'training';
 
 interface DashboardState {
@@ -37,6 +38,10 @@ interface DashboardState {
   selectedStage: string | null;
   scenario: ScenarioId;
   operatorName: string;
+  // The facility currently in focus in the shell switcher. Ephemeral UI state;
+  // it is validated against the identity's scoped facilities before use so it can
+  // never point at a facility outside the caller's tenant/entitlement.
+  activeFacilityId: string | null;
   /** Preferred measurement system. Metric is the product default. */
   unitSystem: UnitSystem;
   navigate: (page: PageId) => void;
@@ -45,6 +50,7 @@ interface DashboardState {
   setSelectedStage: (stage: string | null) => void;
   setScenario: (scenario: ScenarioId) => void;
   setOperatorName: (name: string) => void;
+  setActiveFacility: (facilityId: string | null) => void;
   setUnitSystem: (unitSystem: UnitSystem) => void;
 }
 
@@ -54,6 +60,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   selectedStage: null,
   scenario: 'baseline',
   operatorName: 'operator',
+  activeFacilityId: null,
   unitSystem: DEFAULT_UNIT_SYSTEM,
   navigate: (page) => set({ page }),
   setSelectedAsset: (assetId) => set({ selectedAssetId: assetId }),
@@ -61,5 +68,6 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   setSelectedStage: (stage) => set({ selectedStage: stage }),
   setScenario: (scenario) => set({ scenario }),
   setOperatorName: (name) => set({ operatorName: name }),
+  setActiveFacility: (facilityId) => set({ activeFacilityId: facilityId }),
   setUnitSystem: (unitSystem) => set({ unitSystem }),
 }));
