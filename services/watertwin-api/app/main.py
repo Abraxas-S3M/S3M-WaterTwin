@@ -29,7 +29,6 @@ from .auth import (
     require_role,
 )
 from . import assistant
-from . import config
 from . import documents
 from . import energy
 from . import executive
@@ -306,6 +305,18 @@ def decide_recommendation(
 def audit_log(limit: int = 100) -> dict:
     """Read the audit trail (auditor/admin role required)."""
     return {"events": store.recent_audit(limit)}
+
+
+@app.get("/api/v1/audit/verify", dependencies=[Depends(require_role("auditor"))])
+def audit_verify() -> dict:
+    """Verify the tamper-evident audit hash chain (auditor/admin role required).
+
+    Re-walks the append-only chain and returns ``{"ok": true, ...}`` when every
+    event's link and content hash are intact, or ``{"ok": false, "broken_at":
+    <event id>, ...}`` identifying the first event that fails validation (e.g. a
+    payload that was altered after the fact).
+    """
+    return store.verify_chain()
 
 
 # ---------------------------------------------------------------------------

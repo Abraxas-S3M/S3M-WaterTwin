@@ -33,20 +33,48 @@ SELECT create_hypertable('telemetry', 'time', if_not_exists => TRUE);
 CREATE INDEX IF NOT EXISTS telemetry_asset_metric_time_idx
     ON telemetry (asset_id, metric, time DESC);
 
--- 3. Audit trail -----------------------------------------------------------
+-- 3. Audit trail (tamper-evident, append-only) ----------------------------
 -- Every advisory action (scenario run, recommendation created/decided, report
--- generated, reset) is appended here. Append-only from the application's view.
+-- generated, reset) is appended here. The trail is a hash chain: each row
+-- records the hash of the previous row (prev_hash) and its own hash, computed
+-- as sha256(prev_hash + canonical(event)). Altering any stored event breaks
+-- its hash and every hash after it, so tampering is detectable by re-walking
+-- the chain (GET /api/v1/audit/verify). ``seq`` gives the deterministic append
+-- order used for verification.
 CREATE TABLE IF NOT EXISTS audit_event (
-    id      UUID        PRIMARY KEY,
-    ts      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    kind    TEXT        NOT NULL,
-    actor   TEXT        NOT NULL DEFAULT 'system',
-    subject TEXT,
-    payload JSONB       NOT NULL DEFAULT '{}'::jsonb
+    seq       BIGSERIAL,
+    id        UUID        PRIMARY KEY,
+    ts        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    kind      TEXT        NOT NULL,
+    actor     TEXT        NOT NULL DEFAULT 'system',
+    subject   TEXT,
+    payload   JSONB       NOT NULL DEFAULT '{}'::jsonb,
+    prev_hash TEXT        NOT NULL DEFAULT '',
+    hash      TEXT        NOT NULL DEFAULT ''
 );
 
+-- Backfill columns for databases created before the hash chain existed.
+ALTER TABLE audit_event ADD COLUMN IF NOT EXISTS seq BIGSERIAL;
+ALTER TABLE audit_event ADD COLUMN IF NOT EXISTS prev_hash TEXT NOT NULL DEFAULT '';
+ALTER TABLE audit_event ADD COLUMN IF NOT EXISTS hash TEXT NOT NULL DEFAULT '';
+
+CREATE INDEX IF NOT EXISTS audit_event_seq_idx ON audit_event (seq);
 CREATE INDEX IF NOT EXISTS audit_event_ts_idx ON audit_event (ts DESC);
 CREATE INDEX IF NOT EXISTS audit_event_kind_idx ON audit_event (kind);
+
+-- Append-only enforcement at the storage layer: reject any UPDATE or DELETE of
+-- an audit row. Inserts (appends) are always allowed; TRUNCATE (used only by
+-- the demo reset convenience) is intentionally not blocked by a row trigger.
+CREATE OR REPLACE FUNCTION audit_event_reject_mutation() RETURNS trigger AS $$
+BEGIN
+    RAISE EXCEPTION 'audit_event is append-only: % is not permitted', TG_OP;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS audit_event_no_mutation ON audit_event;
+CREATE TRIGGER audit_event_no_mutation
+    BEFORE UPDATE OR DELETE ON audit_event
+    FOR EACH ROW EXECUTE FUNCTION audit_event_reject_mutation();
 
 -- 4. Recommendations -------------------------------------------------------
 -- Recommendation cards produced by the Simulation Center, with their operator
