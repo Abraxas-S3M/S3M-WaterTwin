@@ -1,3 +1,6 @@
+"""S3M-WaterTwin: an advisory (read/recommend-only) water-plant digital twin."""
+
+__version__ = "0.6.0"
 """S3M-WaterTwin API service package."""
 
 __version__ = "0.5.0"

@@ -1,5 +1,19 @@
 [project]
 name = "watertwin-api"
+version = "0.6.0"
+description = "S3M-WaterTwin advisory digital-twin API service"
+requires-python = ">=3.12"
+
+[tool.setuptools.packages.find]
+include = ["watertwin*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
 version = "0.5.0"
 description = "S3M-WaterTwin API service: durable store, S3M-Core connector, and recommendation engine."
 requires-python = ">=3.11"
@@ -46,6 +60,11 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "W"]
 
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+warn_unused_ignores = false
+disallow_untyped_defs = false
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 select = ["E", "F", "I", "B", "UP"]
