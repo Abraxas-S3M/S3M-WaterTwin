@@ -184,6 +184,19 @@ Additional Phase 10 capabilities:
 - **Downloadable scenario reports**: `POST /api/v1/reports/scenario/{job_id}`
   returns a Markdown report (baseline vs scenario, impacts, recommended
   response, confidence, provenance, and a mandatory read-only boundary footer).
+- **Model governance registry** (D1/D2): `GET /api/v1/models` exposes a
+  read-only governance view of every deterministic analytical model — version,
+  spec (inputs/outputs/method/assumptions), current headline metrics, and a
+  drift status derived from a registered baseline. `GET /api/v1/models/{id}` for
+  a single model. Surfaced on the dashboard **Models & Compliance** tab.
+- **Configurable regulatory compliance** (A1 config store): per-parameter
+  regulatory limits (e.g. turbidity, conductivity, chlorine residual) live in a
+  deployment-configurable config store (`WATERTWIN_COMPLIANCE_LIMITS_PATH` /
+  `WATERTWIN_COMPLIANCE_LIMITS`). `GET /api/v1/compliance/limits` lists them,
+  `GET /api/v1/compliance/status` screens current values and flags exceedances,
+  and `POST /api/v1/reports/compliance` renders a printable compliance summary
+  (flagged exceedances with provenance/basis + the standard disclaimer and the
+  mandatory read-only boundary footer).
 - **CI safety-boundary guard**: `.github/workflows/ci.yml` fails the build if a
   control-write path (`control_write_enabled = True`) ever appears in
   `services/` or `packages/`, alongside per-service lint/type/test and a

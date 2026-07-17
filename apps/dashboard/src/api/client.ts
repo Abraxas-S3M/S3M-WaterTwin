@@ -6,6 +6,8 @@ import type {
   AssistantExamplesResponse,
   AssistantResponse,
   AuditResponse,
+  ComplianceLimitsResponse,
+  ComplianceStatusResponse,
   CmmsAssetHistoryResponse,
   CmmsStatusResponse,
   CmmsWorkOrdersResponse,
@@ -27,6 +29,7 @@ import type {
   MaintenanceRankingResponse,
   MaintenanceRecommendationsResponse,
   MembraneHealthResponse,
+  ModelsResponse,
   PlantOverview,
   ResilienceCriticalityResponse,
   ResilienceGeneratorResponse,
@@ -247,6 +250,15 @@ export const api = {
   getAssistantExamples: () => request<AssistantExamplesResponse>('/assistant/examples'),
   getDocuments: () => request<DocumentsResponse>('/documents'),
 
+  // Model governance registry (D1/D2) + regulatory compliance (A1 config store)
+  getModels: () => request<ModelsResponse>('/models'),
+  getComplianceLimits: () => request<ComplianceLimitsResponse>('/compliance/limits'),
+  getComplianceStatus: () => request<ComplianceStatusResponse>('/compliance/status'),
+  getComplianceReport: async (): Promise<string> => {
+    const res = await doFetch('/reports/compliance', { method: 'POST' });
+    if (!res.ok) throw new ApiError(res.status, res.statusText);
+    return res.text();
+  },
   // Cyber-Physical Security (advisory, read-only; security role required)
   getSecurityOverview: () => request<SecurityOverviewResponse>('/security/overview'),
   getSiemExport: () => request<SiemExportResponse>('/security/siem-export?format=json'),

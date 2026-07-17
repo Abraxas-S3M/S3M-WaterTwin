@@ -900,6 +900,96 @@ export interface AssistantExamplesResponse {
   control_boundary: ControlBoundary;
 }
 
+// --- Model governance registry (D1/D2 governance) ---
+
+export type DriftStatus = 'stable' | 'watch' | 'drifting' | 'unknown';
+
+export interface ModelSpec {
+  inputs: string[];
+  outputs: string[];
+  method: string;
+  assumptions: string[];
+}
+
+export interface ModelMetric {
+  name: string;
+  value: number;
+  unit?: string | null;
+  reference?: number | null;
+  drift_pct?: number | null;
+}
+
+export interface ModelRegistryEntry {
+  model_id: string;
+  name: string;
+  version: string;
+  track: string;
+  description: string;
+  engine: string;
+  spec: ModelSpec;
+  current_metrics: ModelMetric[];
+  drift_status: DriftStatus;
+  drift_detail?: string | null;
+  validation_status: string;
+  owner: string;
+  last_evaluated: string;
+  provenance: DataProvenance;
+  control_boundary: ControlBoundary;
+}
+
+export interface ModelsResponse {
+  models: ModelRegistryEntry[];
+  count: number;
+  control_boundary: ControlBoundary;
+}
+
+// --- Regulatory compliance (A1 config store) ---
+
+export type LimitBound = 'max' | 'min';
+
+export interface ComplianceLimit {
+  parameter: string;
+  display_name: string;
+  unit: string;
+  limit: number;
+  bound: LimitBound;
+  stage: string;
+  basis: string;
+  enabled: boolean;
+}
+
+export interface ComplianceLimitsResponse {
+  limits: ComplianceLimit[];
+  count: number;
+  control_boundary: ControlBoundary;
+}
+
+export interface ComplianceCheck {
+  parameter: string;
+  display_name: string;
+  unit: string;
+  stage: string;
+  value: number;
+  limit: number;
+  bound: LimitBound;
+  within_limit: boolean;
+  exceedance_pct: number;
+  basis: string;
+}
+
+export type ComplianceExceedance = ComplianceCheck;
+
+export interface ComplianceStatusResponse {
+  facility_id: string;
+  train_id: string;
+  generated_at: string;
+  scenario_fouling?: number | null;
+  checks: ComplianceCheck[];
+  exceedances: ComplianceExceedance[];
+  compliant: boolean;
+  provenance: DataProvenance;
+  control_boundary: ControlBoundary;
+  disclaimer: string;
 // --- Cyber-Physical Security (advisory, read-only) ---
 
 export type SecurityStatus = 'ok' | 'attention' | 'alert';

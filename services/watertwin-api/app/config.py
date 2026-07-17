@@ -51,6 +51,23 @@ CMMS_SYSTEM_NAME = os.environ.get("CMMS_SYSTEM", "synthetic-cmms")
 # CORS origins allowed to call this API (the dashboard).
 CORS_ORIGINS = os.environ.get("WATERTWIN_CORS_ORIGINS", "*").split(",")
 
+# ---------------------------------------------------------------------------
+# Compliance limits config store (A1 config store).
+#
+# Per-parameter regulatory limits (e.g. turbidity, conductivity, chlorine
+# residual) are held in the A1 config store. They ship with documented defaults
+# and are deployment-configurable: point ``WATERTWIN_COMPLIANCE_LIMITS_PATH`` at
+# a JSON file, or set ``WATERTWIN_COMPLIANCE_LIMITS`` to an inline JSON array of
+# limit objects, to override/extend the defaults. Nothing here is a control-write
+# path; the limits only drive advisory compliance screening + reports.
+# ---------------------------------------------------------------------------
+
+#: Optional path to a JSON file of compliance-limit overrides.
+COMPLIANCE_LIMITS_PATH = os.environ.get("WATERTWIN_COMPLIANCE_LIMITS_PATH") or None
+
+#: Optional inline JSON array of compliance-limit overrides.
+COMPLIANCE_LIMITS_JSON = os.environ.get("WATERTWIN_COMPLIANCE_LIMITS") or None
+
 # Durable store (TimescaleDB/Postgres). When unset the store runs purely in
 # memory and degrades gracefully; nothing here is ever a control-write path.
 DATABASE_URL = os.environ.get("WATERTWIN_DATABASE_URL") or None
