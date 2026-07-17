@@ -1,15 +1,72 @@
-# S3M-WaterTwin service composition.
+# S3M-WaterTwin - production-grade single-command stack.
 #
-# Phase 9 adds the read-only RO process-simulation service (treatment-sim). It
-# runs in its own container with the WaterTAP/IDAES stack and the ipopt solver;
-# the solver is confined to this image (see services/treatment-sim/Dockerfile).
+#   docker compose up --build
+#
+# Brings up the whole advisory digital-twin stack, persistently:
+#
+#   timescaledb    persistent store (TimescaleDB / PostgreSQL 16)
+#   hydraulic-sim  read-only EPANET/WNTR hydraulic what-if service
+#   treatment-sim  read-only WaterTAP/IDAES RO process-simulation service
+#   watertwin-api  Simulation Center orchestration, recommendations, reports;
+#                  persists audit + recommendations to TimescaleDB
+#   dashboard      operator Simulation Center UI (nginx), proxies /api -> api
+#
+# Everything is advisory / read-only with respect to plant control: every
+# response carries the control boundary (control_write_enabled=false) and all
+# simulation output is provenance-tagged (simulated / preliminary).
+#
+# Deferred to a later commercial-hardening work package (documented, not built
+# here): PostGIS spatial extensions and Keycloak authentication / SSO. See
+# docs/architecture and docs/security for the rationale.
+
 services:
+  timescaledb:
+    image: timescale/timescaledb:2.17.2-pg16
+    container_name: watertwin-timescaledb
+    environment:
+      POSTGRES_USER: watertwin
+      POSTGRES_PASSWORD: watertwin
+      POSTGRES_DB: watertwin
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ./infrastructure/database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U watertwin -d watertwin"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  hydraulic-sim:
+    build:
+      context: .
+      dockerfile: services/hydraulic-sim/Dockerfile
+    image: s3m-watertwin/hydraulic-sim:latest
+    container_name: watertwin-hydraulic-sim
+    ports:
+      - "8100:8100"
+    environment:
+      HYDRAULIC_SIM_JOB_STORE: /data/jobs.json
+      HYDRAULIC_SIM_CONTROL_MODE: advisory
+    volumes:
+      - hydraulic_sim_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8100/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
   treatment-sim:
     build:
       context: .
       dockerfile: services/treatment-sim/Dockerfile
-    image: s3m-watertwin/treatment-sim:0.1.0
-    container_name: treatment-sim
+    image: s3m-watertwin/treatment-sim:latest
+    container_name: watertwin-treatment-sim
     ports:
       - "8081:8080"
     environment:
@@ -21,93 +78,56 @@ services:
       retries: 3
       start_period: 40s
     restart: unless-stopped
-# S3M-WaterTwin local stack.
-# `docker compose up` starts the hydraulic-sim what-if service (healthy), the
-# watertwin-api orchestrator, and the dashboard Simulation Center.
-services:
-  hydraulic-sim:
-    build:
-      context: .
-      dockerfile: services/hydraulic-sim/Dockerfile
-    image: s3m-watertwin/hydraulic-sim:latest
-    ports:
-      - "8100:8100"
-    environment:
-      HYDRAULIC_SIM_JOB_STORE: /data/jobs.json
-      HYDRAULIC_SIM_CONTROL_MODE: advisory
-    volumes:
-      - hydraulic_sim_data:/data
 
-# S3M-WaterTwin — single-command stack.
-#
-#   docker compose up --build
-#
-# Builds the React operator dashboard and serves it, together with the
-# reference WaterTwin API, from one container on http://localhost:8000.
-# The API is advisory / no-write; all data is provenance-tagged synthetic or
-# preliminary. The `api` service here is the Phase-7 reference stand-in; it is
-# replaced by the real Phase 6 backend when that lands.
-services:
-  watertwin:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: s3m-watertwin:phase7
-    container_name: s3m-watertwin
-    ports:
-      - "8000:8000"
-    environment:
-      DASHBOARD_STATIC_DIR: /app/static
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/v1/health').status==200 else 1)"]
-# WaterTwin stack. TimescaleDB is added in Phase 10; for now only the API service.
-services:
   watertwin-api:
     build:
       context: .
       dockerfile: services/watertwin-api/Dockerfile
     image: s3m-watertwin/watertwin-api:latest
+    container_name: watertwin-api
     ports:
       - "8000:8000"
     environment:
       HYDRAULIC_SIM_URL: http://hydraulic-sim:8100
+      TREATMENT_SIM_URL: http://treatment-sim:8080
+      WATERTWIN_DATABASE_URL: postgresql://watertwin:watertwin@timescaledb:5432/watertwin
       WATERTWIN_RECO_STORE: /data/recommendations.json
       WATERTWIN_CORS_ORIGINS: "*"
     volumes:
       - watertwin_api_data:/data
     depends_on:
+      timescaledb:
+        condition: service_healthy
       hydraulic-sim:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
 
   dashboard:
     build:
       context: .
       dockerfile: dashboard/Dockerfile
     image: s3m-watertwin/dashboard:latest
+    container_name: watertwin-dashboard
     ports:
       - "8080:80"
     depends_on:
       watertwin-api:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
 
 volumes:
+  timescale_data:
   hydraulic_sim_data:
   watertwin_api_data:
-    image: watertwin-api:latest
-    ports:
-      - "8080:8080"
-    env_file:
-      - .env
-    environment:
-      # Reach an S3M-Core running on the docker host by default.
-      WATERTWIN_S3M_BASE_URL: ${WATERTWIN_S3M_BASE_URL:-http://host.docker.internal:8081}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health').status==200 else 1)"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
