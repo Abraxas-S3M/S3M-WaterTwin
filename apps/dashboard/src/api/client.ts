@@ -12,6 +12,12 @@ import type {
   RecommendationCard,
   TelemetryReading,
   WaterStream,
+  WQAlertsResponse,
+  WQContaminantMatrixResponse,
+  WQForecastResponse,
+  WQRemovalResponse,
+  WQScalingResponse,
+  WQStatusResponse,
 } from './types';
 
 export const API_BASE = import.meta.env.VITE_API_BASE ?? '/api/v1';
@@ -85,6 +91,15 @@ export const api = {
     request<AuditResponse>(
       assetId ? `/audit?asset_id=${encodeURIComponent(assetId)}` : '/audit',
     ),
+
+  // Water Quality Intelligence (advisory, read-only)
+  getWaterQualityStatus: () => request<WQStatusResponse>('/water-quality/status'),
+  getWaterQualityContaminantMatrix: () =>
+    request<WQContaminantMatrixResponse>('/water-quality/contaminant-matrix'),
+  getWaterQualityRemoval: () => request<WQRemovalResponse>('/water-quality/removal'),
+  getWaterQualityScaling: () => request<WQScalingResponse>('/water-quality/scaling'),
+  getWaterQualityForecast: () => request<WQForecastResponse>('/water-quality/forecast'),
+  getWaterQualityAlerts: () => request<WQAlertsResponse>('/water-quality/alerts'),
 };
 
 export type ApiClient = typeof api;

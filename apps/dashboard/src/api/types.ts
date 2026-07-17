@@ -272,3 +272,141 @@ export interface DecisionRequest {
   operator?: string;
   note?: string | null;
 }
+
+// --- Water Quality Intelligence (advisory, preliminary) ---
+
+export type SampleType = 'continuous' | 'lab';
+export type QCStatus = 'pass' | 'warn' | 'fail' | 'pending';
+
+export interface WQEnvelope {
+  facility_id: string;
+  train_id: string;
+  provenance: DataProvenance;
+  control_boundary: ControlBoundary;
+}
+
+export interface WQComplianceCheck {
+  variable: string;
+  value: number;
+  limit: number;
+  within_limit: boolean;
+}
+
+export interface WQStageStatus {
+  stage: string;
+  location: string;
+  compliance: WQComplianceCheck[];
+  provenance: DataProvenance;
+  recovery?: number;
+  salt_rejection?: number;
+  salt_passage?: number;
+}
+
+export interface WQSample {
+  sample_id: string;
+  sampling_point_id: string;
+  stage: string;
+  stream_id?: string | null;
+  timestamp: string;
+  provenance: DataProvenance;
+  measurements: Record<string, number>;
+  sample_type: SampleType;
+  method?: string | null;
+  detection_limit?: number | null;
+  limit?: number | null;
+  qc_status: QCStatus;
+}
+
+export interface WQSummary {
+  recovery: number;
+  salt_rejection: number;
+  salt_passage: number;
+  normalized_salt_passage: number;
+  normalized_dp_bar: number;
+  permeate_tds_mg_l: number;
+  permeate_boron_mg_l: number;
+}
+
+export interface WQStatusResponse extends WQEnvelope {
+  stage_status: WQStageStatus[];
+  samples: WQSample[];
+  summary: WQSummary;
+}
+
+export interface ContaminantMatrixRow {
+  contaminant: string;
+  unit: string;
+  intake?: number | null;
+  post_pretreatment?: number | null;
+  ro_feed?: number | null;
+  permeate?: number | null;
+  finished?: number | null;
+  brine?: number | null;
+  removal_pct?: number | null;
+  limit?: number | null;
+  provenance: DataProvenance;
+}
+
+export interface WQContaminantMatrixResponse extends WQEnvelope {
+  rows: ContaminantMatrixRow[];
+}
+
+export interface WQRemovalRow {
+  contaminant: string;
+  unit: string;
+  current_pct: number | null;
+  design_pct: number;
+  predicted_pct: number | null;
+  confidence: number;
+  provenance: DataProvenance;
+}
+
+export interface WQRemovalResponse extends WQEnvelope {
+  removal: WQRemovalRow[];
+}
+
+export interface ScalingRisk {
+  compound: string;
+  saturation: number;
+  probability: number;
+  ro_stage_at_risk?: string | null;
+  max_safe_recovery?: number | null;
+  recommended_antiscalant_note?: string | null;
+  provenance: DataProvenance;
+}
+
+export interface WQScalingResponse extends WQEnvelope {
+  scaling: ScalingRisk[];
+}
+
+export interface WaterQualityForecast {
+  target: string;
+  unit: string;
+  horizon: string;
+  predicted_value: number;
+  lower: number;
+  upper: number;
+  confidence: number;
+  basis?: string | null;
+  provenance: DataProvenance;
+}
+
+export interface WQForecastResponse extends WQEnvelope {
+  forecasts: WaterQualityForecast[];
+}
+
+export interface WQAlert {
+  code: string;
+  stage?: string | null;
+  cause: string;
+  horizon?: string | null;
+  confidence: number;
+  recommended_action: string;
+  approval_required: boolean;
+  provenance: DataProvenance;
+}
+
+export interface WQAlertsResponse extends WQEnvelope {
+  alerts: WQAlert[];
+  recommendations: RecommendationCard[];
+}

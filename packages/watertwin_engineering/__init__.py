@@ -40,22 +40,38 @@ from watertwin_engineering.ro import (
     water_flux_lmh,
 )
 from watertwin_engineering.train import TrainEvaluation, evaluate_train
+from watertwin_engineering.water_quality import (
+    boron_rejection,
+    colloidal_fouling_index,
+    langelier_saturation_index,
+    normalized_differential_pressure,
+    normalized_salt_passage,
+    silica_saturation_pct,
+    sulfate_scaling_ratio,
+)
 
 __all__ = [
     "ROReference",
     "TrainEvaluation",
+    "boron_rejection",
     "calculations",
+    "colloidal_fouling_index",
     "concentration_factor",
     "evaluate_train",
+    "langelier_saturation_index",
     "net_driving_pressure_bar",
+    "normalized_differential_pressure",
+    "normalized_salt_passage",
     "osmotic_pressure_bar",
     "recovery_fraction",
     "ro_performance",
     "salt_passage_fraction",
     "salt_rejection_fraction",
     "seawater_osmotic_pressure_bar",
+    "silica_saturation_pct",
     "specific_energy",
     "specific_energy_consumption_kwh_per_m3",
+    "sulfate_scaling_ratio",
     "temperature_correction_factor",
     "water_flux_lmh",
 ]

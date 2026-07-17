@@ -50,6 +50,13 @@ export function installFetchMock(overrides: Record<string, unknown> = {}): Fetch
     const path = url.replace(/^.*\/api\/v1/, '');
 
     if (path.startsWith('/control-boundary')) return json(fx.controlBoundary);
+    if (path.startsWith('/water-quality/status')) return json(overrides.wqStatus ?? fx.wqStatus);
+    if (path.startsWith('/water-quality/contaminant-matrix'))
+      return json(overrides.wqContaminantMatrix ?? fx.wqContaminantMatrix);
+    if (path.startsWith('/water-quality/removal')) return json(overrides.wqRemoval ?? fx.wqRemoval);
+    if (path.startsWith('/water-quality/scaling')) return json(overrides.wqScaling ?? fx.wqScaling);
+    if (path.startsWith('/water-quality/forecast')) return json(overrides.wqForecast ?? fx.wqForecast);
+    if (path.startsWith('/water-quality/alerts')) return json(overrides.wqAlerts ?? fx.wqAlerts);
     if (path.startsWith('/overview')) return json(overrides.overview ?? fx.overview);
     if (path.startsWith('/assets/')) return json(fx.hpAsset);
     if (path.startsWith('/assets')) return json(fx.assets);
