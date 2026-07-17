@@ -6,6 +6,9 @@ import type {
   AssistantExamplesResponse,
   AssistantResponse,
   AuditResponse,
+  CmmsAssetHistoryResponse,
+  CmmsStatusResponse,
+  CmmsWorkOrdersResponse,
   ControlBoundary,
   DecisionRequest,
   DocumentsResponse,
@@ -31,6 +34,9 @@ import type {
   RecommendationCard,
   TelemetryReading,
   WaterStream,
+  WorkOrderDecisionRequest,
+  WorkOrderResponse,
+  WorkOrdersResponse,
   WQAlertsResponse,
   WQContaminantMatrixResponse,
   WQForecastResponse,
@@ -166,6 +172,22 @@ export const api = {
   getMaintenanceRanking: () => request<MaintenanceRankingResponse>('/maintenance/ranking'),
   getMaintenanceRecommendations: () =>
     request<MaintenanceRecommendationsResponse>('/maintenance/recommendations'),
+
+  // Work orders / Maintenance Center (advisory; work orders derived from PdM alerts)
+  getWorkOrders: () => request<WorkOrdersResponse>('/maintenance/work-orders'),
+  getWorkOrder: (id: string) =>
+    request<WorkOrderResponse>(`/maintenance/work-orders/${encodeURIComponent(id)}`),
+  decideWorkOrder: (id: string, body: WorkOrderDecisionRequest) =>
+    request<WorkOrderResponse>(
+      `/maintenance/work-orders/${encodeURIComponent(id)}/decision`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  getCmmsStatus: () => request<CmmsStatusResponse>('/maintenance/cmms/status'),
+  getCmmsWorkOrders: () => request<CmmsWorkOrdersResponse>('/maintenance/cmms/work-orders'),
+  getCmmsAssetHistory: (assetId: string) =>
+    request<CmmsAssetHistoryResponse>(
+      `/maintenance/cmms/asset-history/${encodeURIComponent(assetId)}`,
+    ),
 
   // Energy Optimization (advisory, estimated)
   getEnergySummary: () => request<EnergySummaryResponse>('/energy/summary'),

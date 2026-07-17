@@ -442,6 +442,46 @@ button {
   color: #f2a3a3;
 }
 
+.status-chip.low {
+  background: #082217;
+  color: #86e0b0;
+}
+
+.status-chip.elevated {
+  background: #2b2205;
+  color: #f4d580;
+}
+
+.status-chip.high {
+  background: #2a0d0d;
+  color: #f2a3a3;
+}
+
+/* Traceability flow: alert -> work order -> approval -> audit */
+.flow-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+}
+
+.flow-steps li {
+  flex: 1 1 180px;
+  min-width: 160px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #23303f);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.flow-steps li strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
 .btn-row {
   display: flex;
   gap: 8px;

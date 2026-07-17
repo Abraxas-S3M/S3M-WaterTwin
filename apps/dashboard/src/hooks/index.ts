@@ -12,6 +12,9 @@ import type {
   Asset,
   AssistantExamplesResponse,
   AuditResponse,
+  CmmsAssetHistoryResponse,
+  CmmsStatusResponse,
+  CmmsWorkOrdersResponse,
   ControlBoundary,
   DecisionRequest,
   DocumentsResponse,
@@ -42,6 +45,9 @@ import type {
   WQRemovalResponse,
   WQScalingResponse,
   WQStatusResponse,
+  WorkOrderDecisionRequest,
+  WorkOrderResponse,
+  WorkOrdersResponse,
 } from '../api/types';
 
 export const POLL_INTERVAL_MS = 4000;
@@ -74,6 +80,10 @@ export const queryKeys = {
   membraneHealth: (id: string) => ['membrane-health', id] as const,
   maintenanceRanking: ['maintenance-ranking'] as const,
   maintenanceRecommendations: ['maintenance-recommendations'] as const,
+  workOrders: ['work-orders'] as const,
+  cmmsStatus: ['cmms-status'] as const,
+  cmmsWorkOrders: ['cmms-work-orders'] as const,
+  cmmsAssetHistory: (id: string) => ['cmms-asset-history', id] as const,
   energySummary: ['energy-summary'] as const,
   energyLosses: ['energy-losses'] as const,
   resilienceCriticality: ['resilience-criticality'] as const,
@@ -316,6 +326,55 @@ export function useMaintenanceRecommendations(): UseQueryResult<MaintenanceRecom
     queryKey: queryKeys.maintenanceRecommendations,
     queryFn: api.getMaintenanceRecommendations,
     refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+// --- Work orders / Maintenance Center (advisory, preliminary) ---
+
+export function useWorkOrders(): UseQueryResult<WorkOrdersResponse> {
+  return useQuery({
+    queryKey: queryKeys.workOrders,
+    queryFn: api.getWorkOrders,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useCmmsStatus(): UseQueryResult<CmmsStatusResponse> {
+  return useQuery({
+    queryKey: queryKeys.cmmsStatus,
+    queryFn: api.getCmmsStatus,
+    staleTime: POLL_INTERVAL_MS * 15,
+  });
+}
+
+export function useCmmsWorkOrders(): UseQueryResult<CmmsWorkOrdersResponse> {
+  return useQuery({
+    queryKey: queryKeys.cmmsWorkOrders,
+    queryFn: api.getCmmsWorkOrders,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useCmmsAssetHistory(
+  assetId: string | null,
+): UseQueryResult<CmmsAssetHistoryResponse> {
+  return useQuery({
+    queryKey: queryKeys.cmmsAssetHistory(assetId ?? ''),
+    queryFn: () => api.getCmmsAssetHistory(assetId as string),
+    enabled: !!assetId,
+    staleTime: POLL_INTERVAL_MS * 15,
+  });
+}
+
+export function useWorkOrderDecision() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: WorkOrderDecisionRequest }): Promise<WorkOrderResponse> =>
+      api.decideWorkOrder(id, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.workOrders });
+      void qc.invalidateQueries({ queryKey: ['audit'] });
+    },
   });
 }
 

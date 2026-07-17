@@ -43,6 +43,7 @@ export type PageId =
   | 'simulation'
   | 'water-quality'
   | 'predictive-maintenance'
+  | 'maintenance-center'
   | 'energy'
   | 'resilience'
   | 'executive'

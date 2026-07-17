@@ -18,10 +18,15 @@ import type {
   ExecutiveValueSummaryResponse,
   GridOutageResponse,
   HealthScore,
+  CmmsAssetHistoryResponse,
+  CmmsStatusResponse,
+  CmmsWorkOrdersResponse,
   MaintenanceRankingResponse,
   MaintenanceRecommendationsResponse,
+  MaintenanceWorkOrder,
   MembraneHealthResponse,
   PlantOverview,
+  WorkOrdersResponse,
   PumpCurve,
   RecommendationCard,
   ResilienceCriticalityResponse,
@@ -575,6 +580,145 @@ export const maintenanceRecommendations: MaintenanceRecommendationsResponse = {
   ...pdmEnvelope,
   recommendations: [pdmRecommendationHpp, pdmRecommendationMemb],
   cards: [pdmCardHpp],
+};
+
+// --- Work orders / Maintenance Center ---
+
+export const workOrderHpp: MaintenanceWorkOrder = {
+  work_order_id: 'wo-ast-hpp-01',
+  asset_id: 'AST-HPP-01',
+  asset_name: 'High-Pressure Pump A',
+  title: 'High-Pressure Pump A: Progressive hydraulic-efficiency loss / bearing wear',
+  description:
+    'Proposed maintenance derived from a predictive-maintenance alert. Advisory only — ' +
+    'operator approval required, no control write.',
+  priority: 'urgent',
+  status: 'proposed',
+  source: 'predictive_maintenance',
+  originating_model: 'predictive-maintenance',
+  source_recommendation_id: 'rec-pdm-ast-hpp-01',
+  source_alert_code: 'PDM-AST-HPP-01',
+  predicted_failure_mode: 'Progressive hydraulic-efficiency loss / bearing wear',
+  failure_probability_30d: 0.48,
+  rul_days: 96.0,
+  recommended_window: 'Next low-demand window in ~34 d (overnight 02:00-06:00, off-peak demand)',
+  spares_required: ['Drive-end bearing set', 'Mechanical seal cartridge'],
+  estimated_downtime_hours: 10.0,
+  estimated_cost: 28000.0,
+  ranked_causes: [
+    {
+      cause: 'Membrane fouling',
+      probability: 0.44,
+      evidence: 'WQ signal: normalized dP +12% and salt passage +8% vs baseline.',
+    },
+    {
+      cause: 'Pump efficiency loss',
+      probability: 0.23,
+      evidence: 'Curve deviation: operating point 3% below pump efficiency curve.',
+    },
+  ],
+  evidence: {
+    telemetry_window: 'live synthetic equipment telemetry (preliminary)',
+    assets_reviewed: ['AST-HPP-01'],
+    documents_reviewed: [],
+    simulation_ids: [],
+    assumptions: ['Work order derived from a preliminary predictive-maintenance alert.'],
+    data_timestamp: '2026-07-17T07:00:00Z',
+  },
+  approval_status: 'pending',
+  approved_by: null,
+  decided_at: null,
+  cmms_system: null,
+  cmms_external_id: null,
+  cmms_sync_status: 'not_synced',
+  control_boundary: controlBoundary,
+  provenance: 'preliminary',
+  created_at: '2026-07-17T07:00:00Z',
+};
+
+export const workOrderMemb: MaintenanceWorkOrder = {
+  ...workOrderHpp,
+  work_order_id: 'wo-ast-memb-01',
+  asset_id: 'AST-MEMB-01',
+  asset_name: 'RO Membrane Array (Train 1)',
+  title: 'RO Membrane Array (Train 1): Irreversible fouling / salt-passage breakthrough',
+  priority: 'medium',
+  source_recommendation_id: 'rec-pdm-ast-memb-01',
+  source_alert_code: 'PDM-AST-MEMB-01',
+  predicted_failure_mode: 'Irreversible fouling / salt-passage breakthrough',
+  failure_probability_30d: 0.31,
+  rul_days: 210.0,
+  spares_required: ['RO elements (tail vessels)', 'CIP chemicals'],
+  estimated_downtime_hours: 16.0,
+  estimated_cost: 42000.0,
+};
+
+export const workOrders: WorkOrdersResponse = {
+  ...pdmEnvelope,
+  work_orders: [workOrderHpp, workOrderMemb],
+};
+
+const cmmsDescription = {
+  kind: 'synthetic',
+  name: 'synthetic-cmms',
+  write_enabled: false,
+  read_only: true,
+  write_back_is_control_path: false,
+  operator_approval_required: true,
+};
+
+export const cmmsStatus: CmmsStatusResponse = {
+  ...pdmEnvelope,
+  provenance: 'synthetic',
+  cmms: cmmsDescription,
+};
+
+export const cmmsWorkOrders: CmmsWorkOrdersResponse = {
+  ...pdmEnvelope,
+  provenance: 'synthetic',
+  cmms: cmmsDescription,
+  work_orders: [
+    {
+      ...workOrderHpp,
+      work_order_id: 'CMMS-1042',
+      asset_id: 'AST-CF-01',
+      asset_name: 'Cartridge Filter Bank',
+      title: 'Replace 5 µm cartridge filter set',
+      source: 'cmms',
+      status: 'open',
+      originating_model: null,
+      source_recommendation_id: null,
+      source_alert_code: null,
+      ranked_causes: [],
+      evidence: null,
+      cmms_system: 'synthetic-cmms',
+      cmms_external_id: 'CMMS-1042',
+      cmms_sync_status: 'synced',
+      provenance: 'synthetic',
+    },
+  ],
+};
+
+export const cmmsAssetHistory: CmmsAssetHistoryResponse = {
+  ...pdmEnvelope,
+  provenance: 'synthetic',
+  cmms: cmmsDescription,
+  asset_id: 'AST-HPP-01',
+  history: [
+    {
+      work_order_id: 'CMMS-0912',
+      asset_id: 'AST-HPP-01',
+      title: 'Drive-end bearing replacement',
+      status: 'completed',
+      performed_at: '2026-01-01T00:00:00Z',
+      performed_by: 'mechanical-crew',
+      labor_hours: 9.5,
+      cost: 26000.0,
+      notes: 'Bearings replaced; vibration returned to baseline.',
+      cmms_system: 'synthetic-cmms',
+      provenance: 'synthetic',
+    },
+  ],
 };
 
 // --- Value layer: Energy / Resilience / Executive ---

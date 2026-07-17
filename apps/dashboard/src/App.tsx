@@ -11,6 +11,7 @@ import { AssetTwin } from './pages/AssetTwin';
 import { SimulationCenter } from './pages/SimulationCenter';
 import { WaterQuality } from './pages/WaterQuality';
 import { PredictiveMaintenance } from './pages/PredictiveMaintenance';
+import { MaintenanceCenter } from './pages/MaintenanceCenter';
 import { EnergyOptimization } from './pages/EnergyOptimization';
 import { ResilienceCommand } from './pages/ResilienceCommand';
 import { ExecutiveValue } from './pages/ExecutiveValue';
@@ -31,6 +32,7 @@ const NAV: NavEntry[] = [
   { id: 'asset', label: 'Asset Twin', page: 4 },
   { id: 'water-quality', label: 'Water Quality', page: 5 },
   { id: 'predictive-maintenance', label: 'Predictive Maintenance', page: 6 },
+  { id: 'maintenance-center', label: 'Maintenance Center', page: 6 },
   { id: 'energy', label: 'Energy Optimization', page: 7 },
   { id: 'resilience', label: 'Resilience Command', page: 9 },
   { id: 'executive', label: 'Executive Value / ROI', page: 10 },
@@ -80,6 +82,8 @@ function CurrentPage() {
       return <WaterQuality />;
     case 'predictive-maintenance':
       return <PredictiveMaintenance />;
+    case 'maintenance-center':
+      return <MaintenanceCenter />;
     case 'energy':
       return <EnergyOptimization />;
     case 'resilience':
