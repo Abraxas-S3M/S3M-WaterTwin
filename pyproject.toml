@@ -18,6 +18,13 @@ dependencies = [
     "pydantic==2.10.4",
     "scipy==1.18.0",
     "uvicorn[standard]==0.34.0",
+    # Observability: Prometheus metrics + OpenTelemetry traces (structured JSON
+    # logging in watertwin_observability needs no third-party dependency).
+    "prometheus-client==0.25.0",
+    "opentelemetry-api==1.44.0",
+    "opentelemetry-sdk==1.44.0",
+    "opentelemetry-exporter-otlp-proto-http==1.44.0",
+    "opentelemetry-instrumentation-fastapi==0.65b0",
 ]
 
 [project.optional-dependencies]
@@ -37,6 +44,8 @@ include = [
     "simulation_contracts*",
     "watertwin_engineering*",
     "watertwin_models*",
+    "watertwin_events*",
+    "watertwin_observability*",
 ]
 
 [tool.ruff]

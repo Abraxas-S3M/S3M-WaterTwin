@@ -1,0 +1,13 @@
+apiVersion: v2
+name: postgis
+description: >-
+  PostGIS spatial database for WaterTwin network geometry / GIS asset data.
+  Read-only with respect to plant control; stores spatial reference data used by
+  advisory hydraulic reasoning.
+type: application
+version: 0.1.0
+appVersion: "16-3.4"
+dependencies:
+  - name: watertwin-common
+    version: 0.1.0
+    repository: "file://../../../watertwin-common"

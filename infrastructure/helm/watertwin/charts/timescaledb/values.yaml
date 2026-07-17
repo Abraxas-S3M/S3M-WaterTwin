@@ -1,0 +1,120 @@
+# timescaledb dependency defaults. Overridden per-env under `timescaledb:`.
+componentTier: data
+
+replicaCount: 1
+
+image:
+  registry: ""
+  repository: timescale/timescaledb
+  tag: "2.17.2-pg16"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: timescaledb
+
+serviceAccount:
+  create: true
+  name: ""
+  automount: false
+  annotations: {}
+
+automountServiceAccountToken: false
+
+podSecurityContext:
+  fsGroup: 999
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+ports:
+  - name: postgres
+    containerPort: 5432
+    protocol: TCP
+
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+
+# Non-sensitive DB bootstrap config. The PASSWORD is NEVER set here; it is
+# injected from a pre-created Secret (see secretEnv below).
+env:
+  POSTGRES_USER: watertwin
+  POSTGRES_DB: watertwin
+  PGDATA: /var/lib/postgresql/data/pgdata
+
+# Password sourced from a Secret you create out-of-band, e.g.:
+#   kubectl create secret generic watertwin-db \
+#     --from-literal=postgres-password=<pw>
+secretEnv:
+  - name: POSTGRES_PASSWORD
+    secretName: watertwin-db
+    secretKey: postgres-password
+
+extraEnv: []
+envFrom: []
+
+persistence:
+  enabled: true
+  mountPath: /var/lib/postgresql/data
+  size: 10Gi
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+
+livenessProbe:
+  exec:
+    command:
+      - /bin/sh
+      - -c
+      - exec pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" -h 127.0.0.1
+  initialDelaySeconds: 30
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 6
+
+readinessProbe:
+  exec:
+    command:
+      - /bin/sh
+      - -c
+      - exec pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" -h 127.0.0.1
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 6
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+podLabels: {}
+
+# Only the API reaches the database; egress limited to DNS.
+networkPolicy:
+  enabled: true
+  allowDNS: true
+  ingress:
+    - from:
+        - component: watertwin-api
+      ports:
+        - port: 5432
+  egress: []
