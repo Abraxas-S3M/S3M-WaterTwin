@@ -1,0 +1,20 @@
+# Node
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Env / editors
+.env
+.env.local
+.DS_Store
+.idea/
+.vscode/
