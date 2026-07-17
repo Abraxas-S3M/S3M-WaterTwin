@@ -24,6 +24,25 @@ CORS_ORIGINS = os.environ.get("WATERTWIN_CORS_ORIGINS", "*").split(",")
 DATABASE_URL = os.environ.get("WATERTWIN_DATABASE_URL") or None
 
 # ---------------------------------------------------------------------------
+# Advisory service-event bus (NATS).
+#
+# Service events (telemetry-ingested, alert-raised, workorder-created,
+# config-published, audit-appended) are published to a NATS bus so other
+# services can react/project them. The bus is ADVISORY / NOTIFICATION ONLY: it
+# never carries a control command (enforced by the subject guard in
+# ``watertwin_events``). When ``NATS_URL`` is unset or the broker is unreachable
+# the bus degrades gracefully -- it logs, counts a metric, and falls back to
+# direct in-process delivery so the API keeps working. No event is ever a
+# control-write path.
+# ---------------------------------------------------------------------------
+
+#: NATS broker URL (e.g. ``nats://nats:4222``). Unset -> degraded (direct) mode.
+NATS_URL = os.environ.get("NATS_URL") or None
+
+#: Connect timeout (seconds) for the NATS client before degrading.
+NATS_CONNECT_TIMEOUT = float(os.environ.get("NATS_CONNECT_TIMEOUT", "2.0"))
+
+# ---------------------------------------------------------------------------
 # Telemetry source selection (read-only OT connectors).
 #
 # The platform ingests telemetry from a pluggable, strictly READ-ONLY source.
