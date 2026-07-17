@@ -3,7 +3,15 @@ import type {
   AnomalyResult,
   AuditResponse,
   ControlBoundary,
+  EquipmentEnvelopeResponse,
+  EquipmentFailureProbabilityResponse,
+  EquipmentHealthResponse,
+  EquipmentRootCauseResponse,
+  EquipmentRulResponse,
   HealthScore,
+  MaintenanceRankingResponse,
+  MaintenanceRecommendationsResponse,
+  MembraneHealthResponse,
   PlantOverview,
   PumpCurve,
   RecommendationCard,
@@ -361,6 +369,201 @@ export const wqAlerts: WQAlertsResponse = {
       approval_status: 'pending',
     },
   ],
+};
+
+// --- Equipment & Membrane Intelligence + Predictive Maintenance ---
+
+const pdmEnvelope = {
+  facility_id: 'S3M-DESAL-01',
+  train_id: 'RO-TRAIN-001',
+  provenance: 'preliminary' as const,
+  control_boundary: controlBoundary,
+};
+
+export const equipmentHealth: EquipmentHealthResponse = {
+  ...pdmEnvelope,
+  health: {
+    asset_id: 'AST-HPP-01',
+    component_type: 'pump',
+    score: 62.5,
+    band: 'Degraded',
+    provenance: 'preliminary',
+    contributions: [
+      { factor: 'Vibration', delta: -12.3, detail: '6.4 mm/s RMS vs 4.5 mm/s (ISO 10816)' },
+      { factor: 'Bearing temperature', delta: -4.9, detail: '92 C bearing vs 90 C alarm limit' },
+      { factor: 'Efficiency drift', delta: -12.0, detail: '6.0% below commissioning baseline' },
+    ],
+  },
+};
+
+export const equipmentRul: EquipmentRulResponse = {
+  ...pdmEnvelope,
+  rul: {
+    asset_id: 'AST-HPP-01',
+    rul_days: 96.0,
+    lower_days: 48.0,
+    upper_days: 144.0,
+    method: 'health-slope extrapolation modulated by duty/maintenance/fleet',
+    basis: [
+      'health slope -2.75/day projects 96 d to threshold 30',
+      'duty-cycle severity 0.82 -> x0.51',
+    ],
+    provenance: 'preliminary',
+  },
+};
+
+export const equipmentFailureProbability: EquipmentFailureProbabilityResponse = {
+  ...pdmEnvelope,
+  failure_probability: {
+    asset_id: 'AST-HPP-01',
+    horizons: { '24h': 0.02, '7d': 0.14, '30d': 0.48, '90d': 0.83 },
+    predicted_failure_mode: 'Progressive hydraulic-efficiency loss / bearing wear',
+    provenance: 'preliminary',
+  },
+};
+
+export const equipmentEnvelope: EquipmentEnvelopeResponse = {
+  ...pdmEnvelope,
+  envelope: {
+    asset_id: 'AST-HPP-01',
+    samples: 5,
+    at_bep_fraction: 0.6,
+    low_flow_fraction: 0.2,
+    high_pressure_fraction: 0.2,
+    excess_temperature_fraction: 0.2,
+    cavitation_risk_fraction: 0.0,
+    provenance: 'preliminary',
+  },
+};
+
+export const equipmentRootCause: EquipmentRootCauseResponse = {
+  ...pdmEnvelope,
+  root_cause: {
+    asset_id: 'AST-HPP-01',
+    provenance: 'preliminary',
+    ranked_causes: [
+      {
+        cause: 'Membrane fouling',
+        probability: 0.44,
+        evidence: 'WQ signal: normalized dP +12% and salt passage +8% vs baseline.',
+      },
+      {
+        cause: 'Pump efficiency loss',
+        probability: 0.23,
+        evidence: 'Curve deviation: operating point 3% below pump efficiency curve.',
+      },
+      {
+        cause: 'Feed salinity rise',
+        probability: 0.18,
+        evidence: 'Sensor value: feed salinity +2% raises osmotic demand.',
+      },
+      {
+        cause: 'Valve restriction',
+        probability: 0.1,
+        evidence: 'Sensor value: valve position error 1%; throttling adds dP.',
+      },
+      {
+        cause: 'Sensor error',
+        probability: 0.05,
+        evidence: 'Historical comparison: cross-sensor consistency 95%.',
+      },
+    ],
+  },
+};
+
+export const membraneHealth: MembraneHealthResponse = {
+  ...pdmEnvelope,
+  membrane: {
+    asset_id: 'AST-MEMB-01',
+    score: 68.4,
+    band: 'Degraded',
+    provenance: 'preliminary',
+    normalized_permeate_flow_decline_pct: 9.2,
+    normalized_salt_passage_rise_pct: 12.5,
+    normalized_dp_rise_pct: 18.1,
+    fouling: { organic: 0.52, colloidal: 0.61, biological: 0.34, scaling: 0.71 },
+    salt_passage_trend_pct_per_day: 0.42,
+    cleaning_required: true,
+    cleaning_reason: 'CIP indicated (advisory): normalized dP +18% >= 15% threshold',
+    underperforming_vessel: 'RO-1-V18 (element 6, stage-2 tail)',
+    contributions: [
+      { factor: 'Salt passage rise', delta: -15.0, detail: 'normalized salt passage +12.5%' },
+      { factor: 'Differential pressure rise', delta: -14.5, detail: 'normalized dP +18.1%' },
+    ],
+    rul: {
+      asset_id: 'AST-MEMB-01',
+      rul_days: 210.0,
+      lower_days: 120.0,
+      upper_days: 300.0,
+      method: 'membrane health-slope extrapolation',
+      basis: ['fouling-driven decline projected to CIP/replace threshold 40'],
+      provenance: 'preliminary',
+    },
+  },
+};
+
+export const pdmRecommendationHpp = {
+  asset_id: 'AST-HPP-01',
+  asset_name: 'High-Pressure Pump A',
+  predicted_failure_mode: 'Progressive hydraulic-efficiency loss / bearing wear',
+  failure_probability_30d: 0.48,
+  rul_days: 96.0,
+  rul_lower_days: 48.0,
+  rul_upper_days: 144.0,
+  time_to_intervention_days: 34.0,
+  recommended_window: 'Next low-demand window in ~34 d (overnight 02:00-06:00, off-peak demand)',
+  spares_required: ['Drive-end bearing set', 'Mechanical seal cartridge'],
+  expected_downtime_hours: 10.0,
+  maintenance_cost: 28000.0,
+  avoided_failure_cost: 185000.0,
+  rank_score: 41.2,
+  recommendation_id: 'rec-pdm-ast-hpp-01',
+  control_boundary: controlBoundary,
+  approval_status: 'pending' as const,
+  provenance: 'preliminary' as const,
+};
+
+export const pdmRecommendationMemb = {
+  asset_id: 'AST-MEMB-01',
+  asset_name: 'RO Membrane Array (Train 1)',
+  predicted_failure_mode: 'Irreversible fouling / salt-passage breakthrough',
+  failure_probability_30d: 0.31,
+  rul_days: 210.0,
+  rul_lower_days: 120.0,
+  rul_upper_days: 300.0,
+  time_to_intervention_days: 84.0,
+  recommended_window: 'Next low-demand window in ~84 d (overnight 02:00-06:00, off-peak demand)',
+  spares_required: ['RO elements (tail vessels)', 'CIP chemicals'],
+  expected_downtime_hours: 16.0,
+  maintenance_cost: 42000.0,
+  avoided_failure_cost: 160000.0,
+  rank_score: 26.8,
+  recommendation_id: 'rec-pdm-ast-memb-01',
+  control_boundary: controlBoundary,
+  approval_status: 'pending' as const,
+  provenance: 'preliminary' as const,
+};
+
+export const maintenanceRanking: MaintenanceRankingResponse = {
+  ...pdmEnvelope,
+  ranking: [pdmRecommendationHpp, pdmRecommendationMemb],
+};
+
+export const pdmCardHpp: RecommendationCard = {
+  ...recommendation,
+  recommendation_id: 'rec-pdm-ast-hpp-01',
+  asset_id: 'AST-HPP-01',
+  summary:
+    "High-Pressure Pump A: predicted failure mode 'Progressive hydraulic-efficiency loss'.",
+  recommended_action: 'Plan maintenance within ~34 d. Advisory only — operator approval required.',
+  source_engine_status: 'predictive-maintenance: preliminary',
+  approval_status: 'pending',
+};
+
+export const maintenanceRecommendations: MaintenanceRecommendationsResponse = {
+  ...pdmEnvelope,
+  recommendations: [pdmRecommendationHpp, pdmRecommendationMemb],
+  cards: [pdmCardHpp],
 };
 
 export const overview: PlantOverview = {

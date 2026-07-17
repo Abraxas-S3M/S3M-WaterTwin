@@ -6,7 +6,15 @@ import type {
   AuditResponse,
   ControlBoundary,
   DecisionRequest,
+  EquipmentEnvelopeResponse,
+  EquipmentFailureProbabilityResponse,
+  EquipmentHealthResponse,
+  EquipmentRootCauseResponse,
+  EquipmentRulResponse,
   HealthScore,
+  MaintenanceRankingResponse,
+  MaintenanceRecommendationsResponse,
+  MembraneHealthResponse,
   PlantOverview,
   PumpCurve,
   RecommendationCard,
@@ -100,6 +108,25 @@ export const api = {
   getWaterQualityScaling: () => request<WQScalingResponse>('/water-quality/scaling'),
   getWaterQualityForecast: () => request<WQForecastResponse>('/water-quality/forecast'),
   getWaterQualityAlerts: () => request<WQAlertsResponse>('/water-quality/alerts'),
+
+  // Equipment & Membrane Intelligence + Predictive Maintenance (advisory, preliminary)
+  getEquipmentHealth: (assetId: string) =>
+    request<EquipmentHealthResponse>(`/equipment/${encodeURIComponent(assetId)}/health`),
+  getEquipmentRul: (assetId: string) =>
+    request<EquipmentRulResponse>(`/equipment/${encodeURIComponent(assetId)}/rul`),
+  getEquipmentFailureProbability: (assetId: string) =>
+    request<EquipmentFailureProbabilityResponse>(
+      `/equipment/${encodeURIComponent(assetId)}/failure-probability`,
+    ),
+  getEquipmentEnvelope: (assetId: string) =>
+    request<EquipmentEnvelopeResponse>(`/equipment/${encodeURIComponent(assetId)}/envelope`),
+  getEquipmentRootCause: (assetId: string) =>
+    request<EquipmentRootCauseResponse>(`/equipment/${encodeURIComponent(assetId)}/root-cause`),
+  getMembraneHealth: (assetId: string) =>
+    request<MembraneHealthResponse>(`/membrane/${encodeURIComponent(assetId)}/health`),
+  getMaintenanceRanking: () => request<MaintenanceRankingResponse>('/maintenance/ranking'),
+  getMaintenanceRecommendations: () =>
+    request<MaintenanceRecommendationsResponse>('/maintenance/recommendations'),
 };
 
 export type ApiClient = typeof api;

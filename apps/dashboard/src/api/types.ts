@@ -410,3 +410,140 @@ export interface WQAlertsResponse extends WQEnvelope {
   alerts: WQAlert[];
   recommendations: RecommendationCard[];
 }
+
+// --- Equipment & Membrane Intelligence + Predictive Maintenance (preliminary) ---
+
+export interface PdMEnvelope {
+  facility_id: string;
+  train_id: string;
+  provenance: DataProvenance;
+  control_boundary: ControlBoundary;
+}
+
+export interface ComponentHealth {
+  asset_id: string;
+  component_type: string;
+  score: number;
+  band: HealthBand;
+  contributions: HealthContribution[];
+  provenance: DataProvenance;
+}
+
+export interface OperatingEnvelope {
+  asset_id: string;
+  samples: number;
+  at_bep_fraction: number;
+  low_flow_fraction: number;
+  high_pressure_fraction: number;
+  excess_temperature_fraction: number;
+  cavitation_risk_fraction: number;
+  provenance: DataProvenance;
+}
+
+export interface RemainingUsefulLife {
+  asset_id: string;
+  rul_days: number;
+  lower_days: number;
+  upper_days: number;
+  method: string;
+  basis: string[];
+  provenance: DataProvenance;
+}
+
+export interface FailureProbability {
+  asset_id: string;
+  horizons: Record<string, number>;
+  predicted_failure_mode?: string | null;
+  provenance: DataProvenance;
+}
+
+export interface MaintenancePriority {
+  asset_id: string;
+  rank_score: number;
+  factors: Record<string, number>;
+  provenance: DataProvenance;
+}
+
+export interface RootCauseRanking {
+  asset_id: string;
+  ranked_causes: RankedCause[];
+  provenance: DataProvenance;
+}
+
+export interface FoulingSeverity {
+  organic: number;
+  colloidal: number;
+  biological: number;
+  scaling: number;
+}
+
+export interface MembraneHealth {
+  asset_id: string;
+  score: number;
+  band: HealthBand;
+  normalized_permeate_flow_decline_pct: number;
+  normalized_salt_passage_rise_pct: number;
+  normalized_dp_rise_pct: number;
+  fouling: FoulingSeverity;
+  salt_passage_trend_pct_per_day: number;
+  cleaning_required: boolean;
+  cleaning_reason?: string | null;
+  underperforming_vessel?: string | null;
+  rul?: RemainingUsefulLife | null;
+  contributions: HealthContribution[];
+  provenance: DataProvenance;
+}
+
+export interface PdMRecommendation {
+  asset_id: string;
+  asset_name?: string | null;
+  predicted_failure_mode: string;
+  failure_probability_30d: number;
+  rul_days: number;
+  rul_lower_days: number;
+  rul_upper_days: number;
+  time_to_intervention_days: number;
+  recommended_window: string;
+  spares_required: string[];
+  expected_downtime_hours: number;
+  maintenance_cost: number;
+  avoided_failure_cost: number;
+  rank_score: number;
+  recommendation_id?: string | null;
+  control_boundary: ControlBoundary;
+  approval_status: ApprovalStatus;
+  provenance: DataProvenance;
+}
+
+export interface EquipmentHealthResponse extends PdMEnvelope {
+  health: ComponentHealth;
+}
+
+export interface EquipmentRulResponse extends PdMEnvelope {
+  rul: RemainingUsefulLife;
+}
+
+export interface EquipmentFailureProbabilityResponse extends PdMEnvelope {
+  failure_probability: FailureProbability;
+}
+
+export interface EquipmentEnvelopeResponse extends PdMEnvelope {
+  envelope: OperatingEnvelope;
+}
+
+export interface EquipmentRootCauseResponse extends PdMEnvelope {
+  root_cause: RootCauseRanking;
+}
+
+export interface MembraneHealthResponse extends PdMEnvelope {
+  membrane: MembraneHealth;
+}
+
+export interface MaintenanceRankingResponse extends PdMEnvelope {
+  ranking: PdMRecommendation[];
+}
+
+export interface MaintenanceRecommendationsResponse extends PdMEnvelope {
+  recommendations: PdMRecommendation[];
+  cards: RecommendationCard[];
+}
