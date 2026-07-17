@@ -23,6 +23,17 @@ CORS_ORIGINS = os.environ.get("WATERTWIN_CORS_ORIGINS", "*").split(",")
 # memory and degrades gracefully; nothing here is ever a control-write path.
 DATABASE_URL = os.environ.get("WATERTWIN_DATABASE_URL") or None
 
+# Directory holding the CycloneDX SBOMs bundled into support archives. Defaults
+# to the repository's ``docs/licensing/sbom`` (regenerated with ``make sbom``).
+SBOM_DIR = os.environ.get(
+    "WATERTWIN_SBOM_DIR",
+    os.path.normpath(
+        os.path.join(
+            os.path.dirname(__file__), "..", "..", "..", "docs", "licensing", "sbom"
+        )
+    ),
+)
+
 # ---------------------------------------------------------------------------
 # Telemetry source selection (read-only OT connectors).
 #

@@ -270,3 +270,44 @@ def test_boundary_still_read_only_under_auth(auth_client):
     body = auth_client.get("/health").json()
     assert body["control_write_enabled"] is False
     assert body["operator_approval_required"] is True
+
+
+# --- Administration endpoints (admin-only) ----------------------------------
+
+
+def test_admin_endpoints_require_admin_role(auth_client):
+    # A viewer cannot read entitlements/usage/update-channel; admin can.
+    for path in (
+        "/api/v1/admin/entitlements",
+        "/api/v1/admin/metering/usage",
+        "/api/v1/admin/metering/billing-export",
+        "/api/v1/admin/update-channel",
+    ):
+        assert (
+            auth_client.get(
+                path, headers=auth_client.token("val-viewer", ["viewer"])
+            ).status_code
+            == 403
+        ), path
+        assert (
+            auth_client.get(
+                path, headers=auth_client.token("ada-admin", ["admin"])
+            ).status_code
+            == 200
+        ), path
+
+
+def test_support_bundle_requires_admin_role(auth_client):
+    assert (
+        auth_client.post(
+            "/api/v1/admin/support/bundle",
+            headers=auth_client.token("erin-engineer", ["engineer"]),
+        ).status_code
+        == 403
+    )
+    ok = auth_client.post(
+        "/api/v1/admin/support/bundle",
+        headers=auth_client.token("ada-admin", ["admin"]),
+    )
+    assert ok.status_code == 200
+    assert ok.headers["content-type"] == "application/zip"
