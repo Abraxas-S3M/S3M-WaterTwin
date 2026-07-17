@@ -61,6 +61,10 @@ __all__ = [
     "ValueComponent",
     "ExecutiveValueSummary",
     "ROIEstimate",
+    "DocumentType",
+    "DocumentRef",
+    "AssistantQuery",
+    "AssistantResponse",
     "VALUE_DISCLAIMER",
     "now_iso",
 ]
@@ -778,3 +782,80 @@ class ROIEstimate(BaseModel):
     synthetic_basis: bool = True
     disclaimer: str = VALUE_DISCLAIMER
     provenance: DataProvenance = DataProvenance.estimated
+
+
+# ---------------------------------------------------------------------------
+# S3M Operations Assistant models
+#
+# Advisory, read-only artifacts for the grounded natural-language operations
+# assistant. The assistant AGGREGATES the outputs the platform already computes
+# (health / anomaly / root-cause / water-quality / equipment / membrane / PdM /
+# energy / resilience / executive) plus retrieved seeded documents; it never
+# answers operational questions from general model knowledge. Every
+# :class:`AssistantResponse` carries the read-only control boundary and a full
+# :class:`Evidence` block naming exactly what was reviewed, so an operator can
+# always see the platform data + documents behind an answer. Any recommended
+# action is a ``pending`` :class:`RecommendationCard` (operator approval
+# required, no control write).
+# ---------------------------------------------------------------------------
+
+
+class DocumentType(str, Enum):
+    """Class of a seeded operations document."""
+
+    manual = "manual"
+    procedure = "procedure"
+    maintenance_record = "maintenance_record"
+
+
+class DocumentRef(BaseModel):
+    """A reference to a retrieved operations document (not its full body).
+
+    ``score`` is the keyword-retrieval relevance score (higher = more relevant);
+    ``snippet`` is a short excerpt for display. Semantic / pgvector retrieval is
+    a later hardening upgrade -- retrieval is honest keyword matching for now.
+    """
+
+    document_id: str
+    title: str
+    document_type: DocumentType
+    path: str
+    tags: list[str] = Field(default_factory=list)
+    score: Optional[float] = None
+    snippet: Optional[str] = None
+
+
+class AssistantQuery(BaseModel):
+    """An operator question submitted to the operations assistant."""
+
+    question: str = Field(min_length=1, max_length=1000)
+    requested_by: Optional[str] = None
+
+
+class AssistantResponse(BaseModel):
+    """A grounded, evidence-backed answer from the operations assistant.
+
+    The ``answer`` is assembled from platform layer outputs + retrieved
+    documents (never from general model knowledge). ``evidence`` names the data
+    timestamp, assets reviewed, documents reviewed, simulations used and
+    assumptions behind the answer. ``recommended_action`` (when present) is a
+    ``pending`` recommendation routed through the existing approval + audit path.
+    ``source_engine_status`` records whether the S3M-Core quad-engine produced
+    the orchestration or a grounded local fallback was used
+    (``"fallback_local"``).
+    """
+
+    query: str
+    intent: str
+    target: Optional[str] = None
+    answer: str
+    evidence: Evidence
+    confidence: float = Field(ge=0, le=1)
+    recommended_action: Optional[RecommendationCard] = None
+    approval_required: bool = True
+    grounded: bool = True
+    source_engine_status: str
+    provenance: DataProvenance = DataProvenance.preliminary
+    control_boundary: ControlBoundary = Field(default_factory=ControlBoundary)
+    packet_id: Optional[str] = None
+    created_at: str = Field(default_factory=now_iso)

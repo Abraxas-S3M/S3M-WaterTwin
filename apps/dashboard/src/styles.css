@@ -666,6 +666,48 @@ table.data tr.clickable:hover td {
   padding: 12px;
 }
 
+/* --- Operations Assistant --- */
+.input {
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.chip {
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text-dim);
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.kpi-mini {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: var(--bg-elev);
+}
+
+.card.error {
+  border-color: #6b2020;
+  color: #f2a3a3;
+}
+
 .definition {
   display: grid;
   grid-template-columns: 130px 1fr;
