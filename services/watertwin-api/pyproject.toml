@@ -15,6 +15,15 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.5",
 ]
+version = "0.1.0"
+description = "WaterTwin API service for a reverse-osmosis desalination digital twin."
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+include = ["watertwin*"]
+version = "0.3.0"
+description = "S3M-WaterTwin API — digital twin analytics for water pumping assets"
+requires-python = ">=3.10"
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -23,6 +32,12 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["watertwin*"]
+[tool.setuptools]
+packages = ["watertwin"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
@@ -33,3 +48,8 @@ select = ["E", "F", "I", "UP", "B", "W"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+select = ["E", "F", "I", "B", "UP"]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
