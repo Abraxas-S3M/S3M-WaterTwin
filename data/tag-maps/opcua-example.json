@@ -1,0 +1,28 @@
+{
+  "map_id": "opcua-example-v1",
+  "description": "Sample OPC UA tag map for the reference RO train. Keys are OPC UA NodeIds (the customer tag); values map onto the canonical asset_id.metric model. Read-only client access only.",
+  "provenance": "measured",
+  "tags": {
+    "ns=2;s=HPP_A.WindingTemp": {
+      "asset_id": "AST-HPP-01",
+      "metric": "winding_temp_c",
+      "unit": "degC",
+      "scale": 1.0,
+      "offset": 0.0
+    },
+    "ns=2;s=HPP_A.Vibration": {
+      "asset_id": "AST-HPP-01",
+      "metric": "vibration_mm_s",
+      "unit": "mm/s",
+      "scale": 1.0,
+      "offset": 0.0
+    },
+    "ns=2;s=ERD_1.TransferEff": {
+      "asset_id": "AST-ERD-01",
+      "metric": "transfer_efficiency_pct",
+      "unit": "%",
+      "scale": 1.0,
+      "offset": 0.0
+    }
+  }
+}

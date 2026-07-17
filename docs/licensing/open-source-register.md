@@ -55,6 +55,8 @@ components are enumerated in full inside those SBOMs.
 | pydantic | 2.10–2.13 | `MIT` | PyPI | all services + shared packages |
 | httpx | 0.28.1 | `BSD-3-Clause` | PyPI | api clients / tests |
 | psycopg[binary] | 3.2.3 | `LGPL-3.0-or-later` | PyPI | `services/watertwin-api` (DB driver) |
+| asyncua | 1.1.6 | `LGPL-3.0-only` | PyPI | `services/watertwin-api` (read-only OPC UA **client** connector) |
+| pymodbus | 3.7.4 | `BSD-3-Clause` | PyPI | `services/watertwin-api` (read-only Modbus connector) |
 | numpy | 2.4.4 | `BSD-3-Clause` | PyPI | `services/hydraulic-sim`, `treatment-sim` |
 | scipy | 1.18.0 | `BSD-3-Clause` | PyPI | `services/hydraulic-sim`, `services/watertwin-api`, `packages/watertwin_engineering` |
 | pandas | 3.0.3 | `BSD-3-Clause` | PyPI | `services/hydraulic-sim` |
@@ -71,6 +73,18 @@ components are enumerated in full inside those SBOMs.
 > `psycopg` (v3) is LGPL-3.0-or-later. It is consumed **unmodified** as a
 > dynamically-linked library via its published wheel; we do not modify or
 > statically embed it, which is compatible with LGPL terms.
+
+> `asyncua` is LGPL-3.0. Like `psycopg`, it is consumed **unmodified** as a
+> dynamically-linked library via its published PyPI wheel (dynamic use only); we
+> do not modify or statically embed it, which is compatible with LGPL terms. It
+> is used exclusively as a read-only OPC UA **client** in `app/sources/opcua.py`
+> — no node-write / attribute-set call exists (enforced by
+> `tests/test_ot_sources.py::test_sources_package_has_no_write_path`).
+
+> `pymodbus` is BSD-3-Clause (permissive). It is used in `app/sources/modbus.py`
+> with **read function codes only** (read coils / discrete inputs / holding
+> registers / input registers); no write function code appears in the code
+> (enforced by the same read-only boundary-guard test).
 
 ## Software Bill of Materials (SBOM)
 
