@@ -140,6 +140,15 @@ def resolve_source(config, *, probe: bool = True) -> SourceResolution:
     if requested == "synthetic":
         return SourceResolution("synthetic", "synthetic", SyntheticSource())
 
+    # Fail-closed directional guard: under the one-way / data-diode deployment
+    # profile the platform must never initiate a connection toward the OT zone.
+    # A platform->OT pull source is refused outright (it is NOT downgraded to a
+    # silent synthetic fallback) so the misconfiguration is loud and the one-way
+    # guarantee cannot be broken. See app/deployment.py.
+    from .. import deployment
+
+    deployment.assert_source_allowed(requested, config)
+
     builder = _BUILDERS.get(requested)
     if builder is None:
         reason = f"unknown OT_SOURCE {requested!r}; valid: {list(SOURCE_KINDS)}"

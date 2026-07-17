@@ -23,6 +23,7 @@ from simulation_contracts import ScenarioType, SimulationResult
 
 from . import auth
 from . import config
+from . import deployment
 from .auth import (
     Principal,
     get_current_user,
@@ -47,6 +48,11 @@ from .store import Store
 async def _lifespan(_app: FastAPI):
     # Log whether auth is enforced or bypassed (explicit dev mode) at startup.
     auth.log_auth_mode()
+    # Enforce the deployment profile: under one_way_diode any platform->OT
+    # request path is disabled (fail-closed). Raises if the configured telemetry
+    # source would have the platform initiate a connection toward the OT zone,
+    # preventing the service from starting in a one-way-breaking configuration.
+    deployment.enforce_startup(config)
     yield
 
 
@@ -181,6 +187,8 @@ def health() -> dict:
         "telemetry_source_requested": telemetry.get("requested_source"),
         "telemetry_source_fallback": telemetry.get("fallback"),
         "telemetry": telemetry,
+        "deployment_profile": deployment.get_profile(config),
+        "platform_to_ot_enabled": not deployment.is_one_way_diode(config),
         "control_mode": cb.control_mode,
         "operator_approval_required": cb.operator_approval_required,
         "control_write_enabled": cb.control_write_enabled,
