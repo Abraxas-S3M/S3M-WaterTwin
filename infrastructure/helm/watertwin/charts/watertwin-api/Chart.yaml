@@ -1,0 +1,13 @@
+apiVersion: v2
+name: watertwin-api
+description: >-
+  WaterTwin Simulation Center orchestration API. Advisory / read-only: routes
+  operational packets, produces recommendations & reports, and persists the
+  tamper-evident audit trail. Never a control-write path.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+dependencies:
+  - name: watertwin-common
+    version: 0.1.0
+    repository: "file://../../../watertwin-common"

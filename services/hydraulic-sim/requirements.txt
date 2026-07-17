@@ -11,6 +11,15 @@ scipy==1.18.0
 pandas==3.0.3
 networkx==3.6.1
 
+# Observability: structured JSON logs + correlation ids, Prometheus /metrics and
+# OpenTelemetry traces (shared watertwin_observability package). See
+# docs/architecture/observability.md.
+prometheus-client==0.25.0
+opentelemetry-api==1.44.0
+opentelemetry-sdk==1.44.0
+opentelemetry-exporter-otlp-proto-http==1.44.0
+opentelemetry-instrumentation-fastapi==0.65b0
+
 # Test-only (kept here so the container image can self-test):
 httpx==0.28.1
 pytest==9.1.1
