@@ -15,6 +15,7 @@ import { EnergyOptimization } from './pages/EnergyOptimization';
 import { ResilienceCommand } from './pages/ResilienceCommand';
 import { ExecutiveValue } from './pages/ExecutiveValue';
 import { OperationsAssistant } from './pages/OperationsAssistant';
+import { Administration } from './pages/Administration';
 import { useDashboardStore, type PageId } from './state/store';
 
 interface NavEntry {
@@ -36,6 +37,7 @@ const NAV: NavEntry[] = [
   { id: 'executive', label: 'Executive Value / ROI', page: 10 },
   { id: 'assistant', label: 'Operations Assistant', page: 11 },
   { id: 'simulation', label: 'Simulation Center', page: 8, note: 'Phase 8–9' },
+  { id: 'administration', label: 'Administration', page: 12 },
 ];
 
 function Nav() {
@@ -90,6 +92,8 @@ function CurrentPage() {
       return <OperationsAssistant />;
     case 'simulation':
       return <SimulationCenter />;
+    case 'administration':
+      return <Administration />;
     default:
       return <CommandOverview />;
   }

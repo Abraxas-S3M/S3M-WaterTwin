@@ -12,6 +12,10 @@ import type {
   Asset,
   AssistantExamplesResponse,
   AuditResponse,
+  ConfigActionRequest,
+  ConfigDocument,
+  ConfigDraftPayload,
+  ConfigVersionsResponse,
   ControlBoundary,
   DecisionRequest,
   DocumentsResponse,
@@ -82,6 +86,8 @@ export const queryKeys = {
   executiveRoi: ['executive-roi'] as const,
   assistantExamples: ['assistant-examples'] as const,
   documents: ['documents'] as const,
+  config: ['config'] as const,
+  configVersions: ['config-versions'] as const,
 };
 
 // Control boundary rarely changes; poll slowly but keep it fresh.
@@ -450,6 +456,64 @@ export function useDecision() {
       decision === 'approve'
         ? api.approveRecommendation(recId, body)
         : api.rejectRecommendation(recId, body),
+    onSuccess: invalidate,
+  });
+}
+
+// --- Administration / Configuration Workbench hooks ---
+
+export function useConfig(): UseQueryResult<ConfigDocument> {
+  return useQuery({
+    queryKey: queryKeys.config,
+    queryFn: api.getConfig,
+    staleTime: POLL_INTERVAL_MS * 5,
+  });
+}
+
+export function useConfigVersions(): UseQueryResult<ConfigVersionsResponse> {
+  return useQuery({
+    queryKey: queryKeys.configVersions,
+    queryFn: api.getConfigVersions,
+    staleTime: POLL_INTERVAL_MS * 5,
+  });
+}
+
+function useInvalidateConfigViews() {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: queryKeys.config });
+    void qc.invalidateQueries({ queryKey: queryKeys.configVersions });
+  };
+}
+
+export function useSaveConfigDraft() {
+  const invalidate = useInvalidateConfigViews();
+  return useMutation({
+    mutationFn: (payload: ConfigDraftPayload) => api.saveConfigDraft(payload),
+    onSuccess: invalidate,
+  });
+}
+
+export function useSubmitConfig() {
+  const invalidate = useInvalidateConfigViews();
+  return useMutation({
+    mutationFn: (body?: ConfigActionRequest) => api.submitConfig(body),
+    onSuccess: invalidate,
+  });
+}
+
+export function useApproveConfig() {
+  const invalidate = useInvalidateConfigViews();
+  return useMutation({
+    mutationFn: (body?: ConfigActionRequest) => api.approveConfig(body),
+    onSuccess: invalidate,
+  });
+}
+
+export function useRejectConfig() {
+  const invalidate = useInvalidateConfigViews();
+  return useMutation({
+    mutationFn: (body?: ConfigActionRequest) => api.rejectConfig(body),
     onSuccess: invalidate,
   });
 }

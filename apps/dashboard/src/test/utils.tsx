@@ -95,6 +95,19 @@ export function installFetchMock(overrides: Record<string, unknown> = {}): Fetch
     if (path.startsWith('/assistant/ask') && method === 'POST')
       return json(overrides.assistantAnswer ?? fx.assistantAnswer);
     if (path.startsWith('/documents')) return json(overrides.documentsList ?? fx.documentsList);
+
+    // Administration / Configuration Workbench.
+    if (path.startsWith('/config/versions'))
+      return json(overrides.configVersions ?? fx.configVersions);
+    if (path.startsWith('/config/draft') && method === 'PUT')
+      return json({ ...(overrides.configDocument ?? fx.configDocument), status: 'draft', ...(body ?? {}) });
+    if (path.startsWith('/config/submit') && method === 'POST')
+      return json({ ...(overrides.configDocument ?? fx.configDocument), status: 'submitted' });
+    if (path.startsWith('/config/approve') && method === 'POST')
+      return json({ ...(overrides.configDocument ?? fx.configDocument), status: 'approved' });
+    if (path.startsWith('/config/reject') && method === 'POST')
+      return json({ ...(overrides.configDocument ?? fx.configDocument), status: 'rejected' });
+    if (path.startsWith('/config')) return json(overrides.configDocument ?? fx.configDocument);
     if (path.startsWith('/assets/')) return json(fx.hpAsset);
     if (path.startsWith('/assets')) return json(fx.assets);
     if (path.startsWith('/streams')) return json([]);

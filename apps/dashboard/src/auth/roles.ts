@@ -26,3 +26,13 @@ export function canReset(roles: readonly string[]): boolean {
 export function canReadAudit(roles: readonly string[]): boolean {
   return hasAny(roles, 'auditor', 'admin');
 }
+
+// Configuration Workbench: editing the config draft and approving a submitted
+// version are both administrator-only. Every other role gets a read-only view.
+export function canAdministerConfig(roles: readonly string[]): boolean {
+  return hasAny(roles, 'admin');
+}
+
+export function canApproveConfig(roles: readonly string[]): boolean {
+  return hasAny(roles, 'admin');
+}

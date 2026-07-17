@@ -4,6 +4,8 @@ import type {
   AssistantExamplesResponse,
   AssistantResponse,
   AuditResponse,
+  ConfigDocument,
+  ConfigVersionsResponse,
   ControlBoundary,
   DocumentsResponse,
   EnergyLossesResponse,
@@ -873,6 +875,170 @@ export const documentsList: DocumentsResponse = {
       document_type: 'procedure',
       path: 'data/procedures/pump_isolation_procedure.md',
       tags: ['AST-HPP-01', 'isolation', 'pump'],
+    },
+  ],
+};
+
+// --- Administration / Configuration Workbench ---
+
+export const configDocument: ConfigDocument = {
+  version: 7,
+  status: 'submitted',
+  updated_at: '2026-07-17T06:30:00Z',
+  updated_by: 'config-admin',
+  provenance: 'measured',
+  control_boundary: controlBoundary,
+  asset_hierarchy: [
+    {
+      asset_id: 'AST-HPP-01',
+      name: 'High-Pressure Pump A',
+      asset_type: 'hp_pump',
+      parent_id: null,
+      treatment_stage: 'high_pressure_pumping',
+      criticality: 'critical',
+    },
+    {
+      asset_id: 'AST-MEMB-01',
+      name: 'RO Membrane Array (Train 1)',
+      asset_type: 'membrane_array',
+      parent_id: 'AST-HPP-01',
+      treatment_stage: 'ro_stage_1',
+      criticality: 'high',
+    },
+  ],
+  tag_mappings: [
+    {
+      customer_tag: 'PLC1.HPP01.WINDING_TEMP',
+      asset_id: 'AST-HPP-01',
+      metric: 'winding_temp_c',
+      unit: 'degC',
+      scale: 1.0,
+      offset: 0.0,
+      sampling_interval_s: 5,
+      provenance: 'measured',
+    },
+    {
+      customer_tag: 'PLC1.HPP01.DISCH_PRESS',
+      asset_id: 'AST-HPP-01',
+      metric: 'discharge_pressure_bar',
+      unit: 'bar',
+      scale: 0.1,
+      offset: 0.0,
+      sampling_interval_s: 1,
+      provenance: 'measured',
+    },
+  ],
+  alarm_thresholds: [
+    {
+      id: 'THR-1',
+      asset_id: 'AST-HPP-01',
+      metric: 'winding_temp_c',
+      unit: 'degC',
+      warn_low: null,
+      warn_high: 85,
+      alarm_low: null,
+      alarm_high: 95,
+      enabled: true,
+    },
+  ],
+  rated_equipment: [
+    {
+      asset_id: 'AST-HPP-01',
+      name: 'High-Pressure Pump A',
+      equipment_type: 'pump',
+      pump_curve: [
+        { flow_m3h: 0, head_m: 850, efficiency_pct: 0 },
+        { flow_m3h: 500, head_m: 680, efficiency_pct: 100 },
+        { flow_m3h: 560, head_m: 600, efficiency_pct: 85 },
+      ],
+      membrane_model: null,
+    },
+    {
+      asset_id: 'AST-MEMB-01',
+      name: 'RO Membrane Array (Train 1)',
+      equipment_type: 'membrane',
+      pump_curve: null,
+      membrane_model: {
+        model: 'SW30HRLE-440i',
+        element_area_m2: 40.9,
+        elements_per_vessel: 7,
+        nominal_salt_rejection_pct: 99.75,
+        max_feed_pressure_bar: 83,
+      },
+    },
+  ],
+  process_stages: [
+    { stage_id: 'intake', name: 'Intake', order: 1, description: 'Seawater intake' },
+    {
+      stage_id: 'high_pressure_pumping',
+      name: 'High-Pressure Pumping',
+      order: 2,
+      description: 'HP feed pumping',
+    },
+  ],
+  sampling_points: [
+    {
+      sampling_point_id: 'SP-01',
+      stage: 'intake',
+      stream_id: 'STR-SW-FEED',
+      description: 'Raw seawater analyzer',
+      sample_type: 'continuous',
+    },
+    {
+      sampling_point_id: 'SP-02',
+      stage: 'permeate',
+      stream_id: null,
+      description: 'Permeate grab sample',
+      sample_type: 'lab',
+    },
+  ],
+  lab_methods: [
+    {
+      method_id: 'LM-BORON',
+      name: 'Boron by ICP-OES',
+      analyte: 'Boron',
+      technique: 'ICP-OES',
+      detection_limit: 0.01,
+      unit: 'mg/L',
+    },
+  ],
+  compliance_limits: [
+    {
+      id: 'CL-BORON',
+      analyte: 'Boron',
+      limit: 1.0,
+      unit: 'mg/L',
+      basis: 'WHO drinking-water guideline',
+      stage: 'finished_water',
+    },
+  ],
+  user_roles: [
+    { username: 'alice', roles: ['admin'] },
+    { username: 'bob', roles: ['operator', 'engineer'] },
+    { username: 'carol', roles: ['viewer'] },
+  ],
+};
+
+export const configVersions: ConfigVersionsResponse = {
+  control_boundary: controlBoundary,
+  versions: [
+    {
+      version: 7,
+      status: 'submitted',
+      created_at: '2026-07-17T06:30:00Z',
+      author: 'config-admin',
+      submitted_by: 'config-admin',
+      approved_by: null,
+      note: 'Add boron ICP-OES method + limit',
+    },
+    {
+      version: 6,
+      status: 'approved',
+      created_at: '2026-07-10T09:00:00Z',
+      author: 'config-admin',
+      submitted_by: 'config-admin',
+      approved_by: 'plant-manager',
+      note: 'Initial baseline configuration',
     },
   ],
 };

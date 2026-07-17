@@ -6,6 +6,10 @@ import type {
   AssistantExamplesResponse,
   AssistantResponse,
   AuditResponse,
+  ConfigActionRequest,
+  ConfigDocument,
+  ConfigDraftPayload,
+  ConfigVersionsResponse,
   ControlBoundary,
   DecisionRequest,
   DocumentsResponse,
@@ -199,6 +203,31 @@ export const api = {
     }),
   getAssistantExamples: () => request<AssistantExamplesResponse>('/assistant/examples'),
   getDocuments: () => request<DocumentsResponse>('/documents'),
+
+  // Administration / Configuration Workbench (A1). Draft -> submit -> approve
+  // lifecycle; writes are RBAC-enforced server-side (admin only).
+  getConfig: () => request<ConfigDocument>('/config'),
+  getConfigVersions: () => request<ConfigVersionsResponse>('/config/versions'),
+  saveConfigDraft: (payload: ConfigDraftPayload) =>
+    request<ConfigDocument>('/config/draft', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  submitConfig: (body: ConfigActionRequest = {}) =>
+    request<ConfigDocument>('/config/submit', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  approveConfig: (body: ConfigActionRequest = {}) =>
+    request<ConfigDocument>('/config/approve', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  rejectConfig: (body: ConfigActionRequest = {}) =>
+    request<ConfigDocument>('/config/reject', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 };
 
 export type ApiClient = typeof api;
