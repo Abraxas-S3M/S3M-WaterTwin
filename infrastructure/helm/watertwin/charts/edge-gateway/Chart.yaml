@@ -1,0 +1,14 @@
+apiVersion: v2
+name: edge-gateway
+description: >-
+  OT edge gateway. Runs the strictly read-only OT connectors (OPC UA / Modbus /
+  historian), normalizes tags onto the canonical model, and pushes telemetry
+  outbound to the WaterTwin API. It never actuates and never accepts inbound
+  connections from the OT network (outbound-only egress).
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+dependencies:
+  - name: watertwin-common
+    version: 0.1.0
+    repository: "file://../../../watertwin-common"

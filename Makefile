@@ -5,7 +5,11 @@ PYTHON ?= python3
 SBOM_DIR := docs/licensing/sbom
 SERVICES := watertwin-api hydraulic-sim treatment-sim
 
-.PHONY: up down logs ps test lint sbom reconcile backup scenario-degrade reset demo help
+HELM_CHART := infrastructure/helm/watertwin
+HELM_ENV ?= dev
+
+.PHONY: up down logs ps test lint sbom reconcile backup scenario-degrade reset demo help \
+	helm-deps helm-lint helm-template
 
 help:
 	@echo "S3M-WaterTwin — make targets"
@@ -20,6 +24,9 @@ help:
 	@echo "  scenario-degrade Inject an HPP/pump-outage degradation what-if (end-to-end)"
 	@echo "  reset            Clear cached runs, recommendations, and audit trail"
 	@echo "  demo             scenario-degrade then reset (smoke test the demo path)"
+	@echo "  helm-deps        Vendor Helm chart dependencies (watertwin-common)"
+	@echo "  helm-lint        helm lint the umbrella chart (HELM_ENV=dev|staging|prod)"
+	@echo "  helm-template    Render the umbrella chart for HELM_ENV"
 
 up:
 	docker compose up --build -d
@@ -87,3 +94,17 @@ reset:
 
 demo: scenario-degrade reset
 	@echo "Demo smoke path complete."
+
+# --- Kubernetes / Helm ------------------------------------------------------
+# Vendor the watertwin-common library into every component subchart.
+helm-deps:
+	@bash infrastructure/helm/build-deps.sh
+
+# Lint the umbrella chart for a given environment (HELM_ENV=dev|staging|prod).
+helm-lint: helm-deps
+	@helm lint $(HELM_CHART) -f $(HELM_CHART)/values-$(HELM_ENV).yaml
+
+# Render the umbrella chart for a given environment.
+helm-template: helm-deps
+	@helm template watertwin $(HELM_CHART) -n watertwin \
+		-f $(HELM_CHART)/values-$(HELM_ENV).yaml

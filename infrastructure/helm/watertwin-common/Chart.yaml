@@ -1,0 +1,16 @@
+apiVersion: v2
+name: watertwin-common
+description: >-
+  Shared library chart for the S3M-WaterTwin platform. Provides reusable
+  templates (Deployment, StatefulSet, Service, ServiceAccount, Ingress and the
+  OT-aware NetworkPolicy) so every component chart stays small, consistent and
+  enforces the same advisory / read-only, outbound-only-to-OT security posture.
+type: library
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - watertwin
+  - library
+  - kubernetes
+maintainers:
+  - name: S3M-WaterTwin
