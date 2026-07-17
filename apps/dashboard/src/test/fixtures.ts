@@ -18,9 +18,11 @@ import type {
   ExecutiveValueSummaryResponse,
   GridOutageResponse,
   HealthScore,
+  LeakLocalizationResponse,
   MaintenanceRankingResponse,
   MaintenanceRecommendationsResponse,
   MembraneHealthResponse,
+  NetworkResponse,
   PlantOverview,
   PumpCurve,
   RecommendationCard,
@@ -873,6 +875,143 @@ export const documentsList: DocumentsResponse = {
       document_type: 'procedure',
       path: 'data/procedures/pump_isolation_procedure.md',
       tags: ['AST-HPP-01', 'isolation', 'pump'],
+    },
+  ],
+};
+
+// --- Network Twin (GeoJSON topology + C1 leak-localization overlay) ---
+
+export const network: NetworkResponse = {
+  network_id: 'ro-handoff',
+  facility_id: 'S3M-DESAL-01',
+  train_id: 'RO-TRAIN-001',
+  engine: 'EPANET (via WNTR)',
+  provenance: 'synthetic',
+  features: [
+    {
+      type: 'Feature',
+      id: 'R-PERM',
+      geometry: { type: 'Point', coordinates: [0, 0] },
+      properties: {
+        element_id: 'R-PERM',
+        element_type: 'reservoir',
+        label: 'Remineralized Permeate Buffer',
+        asset_id: null,
+        treatment_stage: 'permeate',
+      },
+    },
+    {
+      type: 'Feature',
+      id: 'PU-PROD-1',
+      geometry: { type: 'Point', coordinates: [0.001, 0] },
+      properties: {
+        element_id: 'PU-PROD-1',
+        element_type: 'pump',
+        label: 'Product Transfer Pump 1',
+        asset_id: 'AST-HPP-01',
+        treatment_stage: 'distribution_handoff',
+      },
+    },
+    {
+      type: 'Feature',
+      id: 'CV-HANDOFF',
+      geometry: { type: 'Point', coordinates: [0.002, 0] },
+      properties: {
+        element_id: 'CV-HANDOFF',
+        element_type: 'valve',
+        label: 'Metered Handoff Valve',
+        asset_id: null,
+        treatment_stage: 'distribution_handoff',
+      },
+    },
+    {
+      type: 'Feature',
+      id: 'J-D1',
+      geometry: { type: 'Point', coordinates: [0.003, 0] },
+      properties: {
+        element_id: 'J-D1',
+        element_type: 'junction',
+        label: 'Distribution Demand 1',
+        asset_id: null,
+        treatment_stage: 'distribution_handoff',
+      },
+    },
+    {
+      type: 'Feature',
+      id: 'P-MAIN',
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [0.002, 0],
+          [0.003, 0],
+        ],
+      },
+      properties: {
+        element_id: 'P-MAIN',
+        element_type: 'pipe',
+        label: 'Main Distribution Header',
+        asset_id: 'AST-HPP-01',
+        treatment_stage: 'distribution_handoff',
+      },
+    },
+  ],
+};
+
+export const leakLocalization: LeakLocalizationResponse = {
+  network_id: 'ro-handoff',
+  method: 'pressure-residual ranking (C1, preliminary)',
+  preliminary: true,
+  provenance: 'preliminary',
+  candidate_zones: [
+    {
+      type: 'Feature',
+      id: 'LEAK-Z1',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [0.0028, -0.0004],
+            [0.0032, -0.0004],
+            [0.0032, 0.0004],
+            [0.0028, 0.0004],
+            [0.0028, -0.0004],
+          ],
+        ],
+      },
+      properties: {
+        zone_id: 'LEAK-Z1',
+        rank: 1,
+        suspected_node_id: 'J-D1',
+        likelihood: 0.62,
+        residual_pressure_m: 3.42,
+        synthetic: true,
+        provenance: 'preliminary',
+      },
+    },
+    {
+      type: 'Feature',
+      id: 'LEAK-Z2',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [0.0008, -0.0004],
+            [0.0012, -0.0004],
+            [0.0012, 0.0004],
+            [0.0008, 0.0004],
+            [0.0008, -0.0004],
+          ],
+        ],
+      },
+      properties: {
+        zone_id: 'LEAK-Z2',
+        rank: 2,
+        suspected_node_id: 'PU-PROD-1',
+        likelihood: 0.24,
+        residual_pressure_m: 1.15,
+        synthetic: true,
+        provenance: 'preliminary',
+      },
     },
   ],
 };
