@@ -8,6 +8,8 @@ snapshot via WNTR, and returns a canonical :class:`SimulationResult`.
 from __future__ import annotations
 
 import math
+import os
+import tempfile
 from typing import Any, Optional
 
 import wntr
@@ -39,8 +41,14 @@ class ScenarioError(ValueError):
 
 
 def _snapshot(wn) -> dict[str, Any]:
-    """Run a single-period EPANET simulation and extract the first timestep."""
-    results = wntr.sim.EpanetSimulator(wn).run_sim()
+    """Run a single-period EPANET simulation and extract the first timestep.
+
+    EPANET writes intermediate ``.inp``/``.rpt``/``.bin`` files using ``file_prefix``;
+    we run inside a throwaway temp directory so nothing is left in the working dir.
+    """
+    with tempfile.TemporaryDirectory(prefix="epanet-") as tmp:
+        prefix = os.path.join(tmp, "sim")
+        results = wntr.sim.EpanetSimulator(wn).run_sim(file_prefix=prefix)
     pressure = results.node["pressure"].iloc[0]
     head = results.node["head"].iloc[0]
     demand = results.node["demand"].iloc[0]

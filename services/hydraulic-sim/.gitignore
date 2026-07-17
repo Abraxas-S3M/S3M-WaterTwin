@@ -1,3 +1,11 @@
 data/
 *.pyc
 __pycache__/
+
+# EPANET run artifacts (WNTR EpanetSimulator file_prefix)
+temp.inp
+temp.rpt
+temp.bin
+sim.inp
+sim.rpt
+sim.bin
