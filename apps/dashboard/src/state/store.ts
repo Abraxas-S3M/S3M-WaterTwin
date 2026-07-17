@@ -39,6 +39,7 @@ export const SCENARIOS: Scenario[] = [
 export type PageId =
   | 'command'
   | 'process'
+  | 'network'
   | 'asset'
   | 'simulation'
   | 'water-quality'
