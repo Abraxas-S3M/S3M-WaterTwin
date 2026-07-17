@@ -99,6 +99,9 @@ jobs:
         working-directory: services/${{ matrix.service }}
         env:
           PYTHONPATH: ${{ github.workspace }}/packages
+          # edge-gateway creates its store-and-forward spool at import; point it
+          # at a writable path so the import check does not need /data.
+          EDGE_SPOOL_DIR: ${{ runner.temp }}/edge-spool
         run: python -c "import app.main"
 
   # ---------------------------------------------------------------------------

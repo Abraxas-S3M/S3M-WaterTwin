@@ -14,6 +14,10 @@ so ``SyntheticSource()`` yields exactly the same telemetry as before the move.
 
 from __future__ import annotations
 
+import logging
+from dataclasses import dataclass
+from typing import Optional
+
 from ot_ingestion.sources import (  # noqa: F401
     SOURCE_KINDS,
     BUILTIN_SYNTHETIC_ASSETS,
@@ -54,7 +58,14 @@ __all__ = [
     "unit_for",
 ]
 
+logger = logging.getLogger("watertwin.sources")
 
+
+# The API overrides the shared resolver with its own ``SourceResolution`` and a
+# ``resolve_source`` that enforces the deployment directional guard (the one-way
+# / data-diode profile, see app/deployment.py). The private source builders are
+# not exported by ``ot_ingestion.sources``, so the guarded resolver keeps its
+# own copy here.
 @dataclass
 class SourceResolution:
     """The resolved active telemetry source + fallback state."""
