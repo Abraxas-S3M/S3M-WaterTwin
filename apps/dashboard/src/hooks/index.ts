@@ -12,6 +12,8 @@ import type {
   Asset,
   AssistantExamplesResponse,
   AuditResponse,
+  ComplianceLimitsResponse,
+  ComplianceStatusResponse,
   ControlBoundary,
   DecisionRequest,
   DocumentsResponse,
@@ -29,6 +31,7 @@ import type {
   MaintenanceRankingResponse,
   MaintenanceRecommendationsResponse,
   MembraneHealthResponse,
+  ModelsResponse,
   PlantOverview,
   PumpCurve,
   RecommendationCard,
@@ -82,6 +85,9 @@ export const queryKeys = {
   executiveRoi: ['executive-roi'] as const,
   assistantExamples: ['assistant-examples'] as const,
   documents: ['documents'] as const,
+  models: ['models'] as const,
+  complianceLimits: ['compliance-limits'] as const,
+  complianceStatus: ['compliance-status'] as const,
 };
 
 // Control boundary rarely changes; poll slowly but keep it fresh.
@@ -425,6 +431,36 @@ function useInvalidateRecommendationViews() {
     void qc.invalidateQueries({ queryKey: ['audit'] });
     void qc.invalidateQueries({ queryKey: queryKeys.overview });
   };
+}
+
+// --- Model governance registry (D1/D2) + compliance (A1 config store) ---
+
+export function useModels(): UseQueryResult<ModelsResponse> {
+  return useQuery({
+    queryKey: queryKeys.models,
+    queryFn: api.getModels,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useComplianceLimits(): UseQueryResult<ComplianceLimitsResponse> {
+  return useQuery({
+    queryKey: queryKeys.complianceLimits,
+    queryFn: api.getComplianceLimits,
+    staleTime: POLL_INTERVAL_MS * 15,
+  });
+}
+
+export function useComplianceStatus(): UseQueryResult<ComplianceStatusResponse> {
+  return useQuery({
+    queryKey: queryKeys.complianceStatus,
+    queryFn: api.getComplianceStatus,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useComplianceReport() {
+  return useMutation({ mutationFn: () => api.getComplianceReport() });
 }
 
 export function useAskS3M() {

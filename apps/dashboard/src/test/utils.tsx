@@ -95,6 +95,20 @@ export function installFetchMock(overrides: Record<string, unknown> = {}): Fetch
     if (path.startsWith('/assistant/ask') && method === 'POST')
       return json(overrides.assistantAnswer ?? fx.assistantAnswer);
     if (path.startsWith('/documents')) return json(overrides.documentsList ?? fx.documentsList);
+
+    // Model governance registry (D1/D2) + compliance (A1 config store).
+    if (path.startsWith('/models')) return json(overrides.models ?? fx.models);
+    if (path.startsWith('/compliance/limits'))
+      return json(overrides.complianceLimits ?? fx.complianceLimits);
+    if (path.startsWith('/compliance/status'))
+      return json(overrides.complianceStatus ?? fx.complianceStatus);
+    if (path.startsWith('/reports/compliance') && method === 'POST')
+      return Promise.resolve(
+        new Response('# Regulatory Compliance Summary\n', {
+          status: 200,
+          headers: { 'Content-Type': 'text/markdown' },
+        }),
+      );
     if (path.startsWith('/assets/')) return json(fx.hpAsset);
     if (path.startsWith('/assets')) return json(fx.assets);
     if (path.startsWith('/streams')) return json([]);

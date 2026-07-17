@@ -851,3 +851,19 @@ input[type='text'] {
   color: var(--text);
   border-color: var(--accent);
 }
+
+.report-preview {
+  margin-top: 12px;
+  max-height: 360px;
+  overflow: auto;
+  padding: 12px 14px;
+  background: var(--panel, #0e1424);
+  border: 1px solid var(--border, #24314d);
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
