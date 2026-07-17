@@ -38,9 +38,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 logger = logging.getLogger("watertwin.auth")
 
-# The five advisory roles seeded in the Keycloak "watertwin" realm.
+# The advisory roles seeded in the Keycloak "watertwin" realm. ``security`` gates
+# the Cyber-Physical Security views + SIEM export (read-only; no control path).
 ROLES: frozenset[str] = frozenset(
-    {"viewer", "operator", "engineer", "admin", "auditor"}
+    {"viewer", "operator", "engineer", "admin", "auditor", "security"}
 )
 
 _JWT_ALGORITHMS = ["RS256"]
