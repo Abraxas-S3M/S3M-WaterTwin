@@ -75,6 +75,48 @@ Every advisory output is attributable:
   details. WaterTwin will persist this durably in Postgres (Phase 5), closing the
   gap that the upstream S3M-Core audit log is in-memory only.
 
+## No control path and no inbound dependency (edge / one-way posture)
+
+Beyond being advisory-only, WaterTwin's edge deployment posture guarantees a
+**directional** property: the **gateway has no control path into the platform,
+and the platform has no inbound dependency on — or connection into — the OT
+zone.** This is what makes the platform safe to run next to a live plant and is
+the basis for the XiiD-ready / data-diode topology in
+[`docs/deployment/edge-xiid-reference.md`](../deployment/edge-xiid-reference.md).
+
+The following are asserted as normative invariants:
+
+- **The edge gateway has no control path.** The gateway only *reads* OT
+  telemetry and *pushes* it toward the platform. It exposes no command, no
+  actuation, and no write path into either the OT process or the platform's
+  decision-making. It cannot cause the platform to take an action, and it cannot
+  be used as a channel to actuate OT.
+- **The platform never initiates a connection toward OT.** Under the
+  `one_way_diode` deployment profile the platform is structurally incapable of
+  opening a connection into the OT zone. Every platform→OT request code path
+  (OPC UA / Modbus / historian REST or SQL pulls) is **disabled at startup,
+  fail-closed** (see `services/watertwin-api/app/deployment.py`); the service
+  refuses to start rather than silently degrade, and an unknown profile value
+  fails closed to the most restrictive posture.
+- **No inbound dependency.** The OT side exposes **no public IP and no inbound
+  listening ports** to the platform. The platform's correct operation does not
+  depend on reaching back into the OT zone: telemetry arrives only via the edge
+  gateway's **outbound** mTLS push (SealedTunnel / XOTC style). If the gateway is
+  offline the platform simply has no new telemetry — it never tries to "call
+  home" into OT.
+- **Single, authenticated, one-way conduit.** Exactly one
+  [IEC 62443](https://www.isa.org/standards-and-publications/isa-standards/isa-iec-62443-series-of-standards)
+  conduit crosses the OT zone boundary: the gateway's outbound tunnel. It is
+  mutually authenticated (mTLS) and grants process-to-process reachability only,
+  never subnet-to-subnet routing.
+
+These application-layer invariants are reinforced at the network layer by the
+manifests in [`infrastructure/network-policy/`](../../infrastructure/network-policy/)
+(default-deny + egress allowlists that exclude OT CIDRs/protocols) and
+[`infrastructure/gateway/`](../../infrastructure/gateway/) (outbound-only + mTLS).
+The fail-closed guarantee is proven by
+[`services/watertwin-api/tests/test_deployment_profile.py`](../../services/watertwin-api/tests/test_deployment_profile.py).
+
 ## Reversibility
 
 Because WaterTwin never takes physical action, its outputs are inherently

@@ -350,6 +350,18 @@ boundary fields, and what the platform may and may not do, are specified in
 [`docs/security/control-boundaries.md`](docs/security/control-boundaries.md) and
 the [`LICENSE`](LICENSE).
 
+For edge deployments next to a live plant, WaterTwin is **XiiD-ready**: the edge
+gateway connects to the platform **strictly outbound** (SealedTunnel / XOTC
+style, no public IP or inbound ports on the OT side, mTLS, process-to-process),
+and a `DEPLOYMENT_PROFILE=one_way_diode` flag disables every platform→OT request
+path at startup (fail-closed). The reference topology (with an IEC 62443
+zone/conduit sketch and where the Xiid mesh connector / XOTC terminates) is in
+[`docs/deployment/edge-xiid-reference.md`](docs/deployment/edge-xiid-reference.md);
+network-layer enforcement is under
+[`infrastructure/network-policy/`](infrastructure/network-policy/) and
+[`infrastructure/gateway/`](infrastructure/gateway/). WaterTwin does **not**
+reimplement Xiid ZKN crypto — it consumes the Xiid connector as a black box.
+
 ## Work-package scope
 
 This repository is the **runnable, tested foundation** for WaterTwin — not the
