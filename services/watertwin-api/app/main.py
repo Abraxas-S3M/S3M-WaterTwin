@@ -1772,7 +1772,7 @@ def _condition_envelope(
     }
 
 
-def _require_model(model_id: str) -> None:
+def _require_condition_model(model_id: str) -> None:
     if model_id not in condition.MODELS:
         raise HTTPException(
             status_code=404,
@@ -1800,21 +1800,21 @@ def condition_models() -> dict:
 @app.get("/api/v1/condition/models/{model_id}/spec", dependencies=AUTHENTICATED)
 def condition_model_spec(model_id: str) -> dict:
     """Return one model's published contract (equation source, valid range, ...)."""
-    _require_model(model_id)
+    _require_condition_model(model_id)
     return _condition_envelope({"spec": condition.model_spec_dict(model_id)})
 
 
 @app.get("/api/v1/condition/models/{model_id}/backtest", dependencies=AUTHENTICATED)
 def condition_backtest(model_id: str) -> dict:
     """Back-test the model: precision / recall / false-alarm rate / lead time."""
-    _require_model(model_id)
+    _require_condition_model(model_id)
     return _condition_envelope({"backtest": condition.backtest_dict(model_id)})
 
 
 @app.get("/api/v1/condition/models/{model_id}/calibration", dependencies=AUTHENTICATED)
 def condition_calibration(model_id: str, bins: int = 10) -> dict:
     """Confidence-calibration reliability report (ECE / MCE / Brier)."""
-    _require_model(model_id)
+    _require_condition_model(model_id)
     return _condition_envelope(
         {"calibration": condition.calibration_dict(model_id, n_bins=max(1, bins))}
     )
@@ -1823,7 +1823,7 @@ def condition_calibration(model_id: str, bins: int = 10) -> dict:
 @app.get("/api/v1/condition/models/{model_id}/drift", dependencies=AUTHENTICATED)
 def condition_drift(model_id: str, shifted: bool = True) -> dict:
     """Drift check comparing a live window to the frozen baseline (drift flag)."""
-    _require_model(model_id)
+    _require_condition_model(model_id)
     return _condition_envelope({"drift": condition.drift_dict(model_id, shifted=shifted)})
 
 

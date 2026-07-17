@@ -180,7 +180,6 @@ CREATE TABLE IF NOT EXISTS operator_feedback (
 
 #: The operator decisions the feedback store accepts on an alert.
 FEEDBACK_DECISIONS: frozenset[str] = frozenset({"confirm", "dismiss"})
-
 # Versioned, approval-gated customer configuration. Each row is one immutable
 # *version* of a logical configuration (``entity_type`` + ``config_id``). The
 # lifecycle (draft -> submitted -> approved -> active -> superseded) is enforced
@@ -297,10 +296,9 @@ class Store:
         # In-memory mirrors used whenever the database is unavailable.
         self._audit_mem: list[dict[str, Any]] = []
         self._rec_mem: dict[str, dict[str, Any]] = {}
+        self._feedback_mem: list[dict[str, Any]] = []
         # Config versions, keyed by version_id, in insertion order.
         self._config_mem: dict[str, dict[str, Any]] = {}
-        # Operator-feedback decisions, appended in record order (oldest first).
-        self._feedback_mem: list[dict[str, Any]] = []
         self._telemetry_mem: list[dict[str, Any]] = []
         # Idempotency ledger: batch_id -> {"count", "digest", "source"}.
         self._batch_mem: dict[str, dict[str, Any]] = {}
@@ -325,8 +323,8 @@ class Store:
                     cur.execute(stmt, scope_params)
                 cur.execute(_APPEND_ONLY_GUARD)
                 cur.execute(_CREATE_RECOMMENDATION)
-                cur.execute(_CREATE_CONFIG_VERSION)
                 cur.execute(_CREATE_FEEDBACK)
+                cur.execute(_CREATE_CONFIG_VERSION)
                 for stmt in _MIGRATE_RECOMMENDATION:
                     cur.execute(stmt, scope_params)
                 cur.execute(_CREATE_TELEMETRY)
@@ -495,21 +493,6 @@ class Store:
         returns the unscoped view (used by global/admin callers and internal
         verification).
         """
-    def audit_length(self) -> int:
-        """Return the number of events in the audit chain (cheap COUNT/len)."""
-        with self._lock:
-            if self.db_connected:
-                try:  # pragma: no cover - real DB only
-                    with self._conn.cursor() as cur:
-                        cur.execute("SELECT count(*) FROM audit_event")
-                        row = cur.fetchone()
-                    return int(row[0]) if row else 0
-                except Exception as exc:  # pragma: no cover - real DB only
-                    logger.warning("audit count failed; using memory", extra={"error": str(exc)})
-            return len(self._audit_mem)
-
-    def recent_audit(self, n: int = 100) -> list[dict[str, Any]]:
-        """Return up to ``n`` most-recent audit events, newest first."""
         with self._lock:
             if self.db_connected:
                 try:
@@ -531,6 +514,19 @@ class Store:
                 if _matches_scope(ev, tenant_id, facility_id)
             ]
             return scoped[:n]
+
+    def audit_length(self) -> int:
+        """Return the number of events in the audit chain (cheap COUNT/len)."""
+        with self._lock:
+            if self.db_connected:
+                try:  # pragma: no cover - real DB only
+                    with self._conn.cursor() as cur:
+                        cur.execute("SELECT count(*) FROM audit_event")
+                        row = cur.fetchone()
+                    return int(row[0]) if row else 0
+                except Exception as exc:  # pragma: no cover - real DB only
+                    logger.warning("audit count failed; using memory", extra={"error": str(exc)})
+            return len(self._audit_mem)
 
     # -- telemetry ingest (store-and-forward destination) ---------------------
 
@@ -1168,8 +1164,8 @@ class Store:
         with self._lock:
             self._audit_mem.clear()
             self._rec_mem.clear()
-            self._config_mem.clear()
             self._feedback_mem.clear()
+            self._config_mem.clear()
             self._telemetry_mem.clear()
             self._batch_mem.clear()
             self._chain_head = audit_chain.GENESIS_HASH
@@ -1178,8 +1174,8 @@ class Store:
                     with self._conn.cursor() as cur:
                         cur.execute("TRUNCATE audit_event")
                         cur.execute("TRUNCATE recommendation")
-                        cur.execute("TRUNCATE config_version")
                         cur.execute("TRUNCATE operator_feedback")
+                        cur.execute("TRUNCATE config_version")
                         cur.execute("TRUNCATE telemetry")
                         cur.execute("TRUNCATE telemetry_batch")
                 except Exception as exc:  # pragma: no cover - real DB only
