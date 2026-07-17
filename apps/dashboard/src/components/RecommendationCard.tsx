@@ -1,5 +1,6 @@
 import type { RecommendationCard as RecCard } from '../api/types';
 import { fmtNumber, fmtTime } from '../lib/format';
+import { useCapabilities } from '../auth/useAuth';
 import { ProvenanceBadge } from './ProvenanceBadge';
 
 interface Props {
@@ -11,6 +12,8 @@ interface Props {
 
 export function RecommendationCard({ rec, onApprove, onReject, busy }: Props) {
   const decided = rec.approval_status !== 'pending';
+  const { approve: canDecide } = useCapabilities();
+  const hasHandlers = Boolean(onApprove || onReject);
   return (
     <div className="rec-card" data-testid="recommendation-card">
       <div className="rec-top">
@@ -67,7 +70,7 @@ export function RecommendationCard({ rec, onApprove, onReject, busy }: Props) {
         </details>
       ) : null}
 
-      {(onApprove || onReject) && (
+      {hasHandlers && canDecide && (
         <div className="btn-row">
           <button
             className="btn approve"
@@ -90,6 +93,14 @@ export function RecommendationCard({ rec, onApprove, onReject, busy }: Props) {
               Advisory only — no control write is issued.
             </span>
           ) : null}
+        </div>
+      )}
+
+      {hasHandlers && !canDecide && (
+        <div className="btn-row" data-testid="approve-role-gate">
+          <span className="muted">
+            Approving or rejecting requires the <strong>operator</strong> role.
+          </span>
         </div>
       )}
     </div>

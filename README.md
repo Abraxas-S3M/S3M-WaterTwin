@@ -158,9 +158,16 @@ Additional Phase 10 capabilities:
 - **SBOMs**: `docs/licensing/sbom/*.cdx.json` (regenerate with `make sbom`).
 - **Guided demo**: `docs/demonstrations/demo-script.md` (`make scenario-degrade`,
   `make reset`).
+- **Identity + RBAC** (commercial hardening #1): Keycloak-backed OIDC login and
+  role-based access control (roles `viewer`/`operator`/`engineer`/`admin`/
+  `auditor`) across `watertwin-api` and the dashboard. Auth is **enforced by
+  default** and bypassable only via the explicit `WATERTWIN_AUTH_DISABLED=true`
+  dev-mode env; the identity flows into the audit trail. This does **not** relax
+  the advisory/read-only boundary. See
+  [`docs/security/identity.md`](docs/security/identity.md).
 
 > Deferred to a later commercial-hardening work package (documented, not built):
-> PostGIS spatial features and Keycloak authentication / SSO / multi-tenancy.
+> PostGIS spatial features and multi-tenancy.
 
 ## Run the stack
 Operator-facing digital twin for seawater reverse-osmosis (SWRO) water

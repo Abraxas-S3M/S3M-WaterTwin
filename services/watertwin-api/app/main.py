@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import os
 import threading
+from contextlib import asynccontextmanager
 from typing import Any, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
@@ -20,6 +21,13 @@ from canonical_water_model import ControlBoundary, DataProvenance, WQAlert
 
 from simulation_contracts import ScenarioType, SimulationResult
 
+from . import auth
+from . import config
+from .auth import (
+    Principal,
+    get_current_user,
+    require_role,
+)
 from . import assistant
 from . import config
 from . import documents
@@ -34,10 +42,18 @@ from .recommendations import RecommendationStore, build_recommendation
 from .reports import build_scenario_report
 from .store import Store
 
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    # Log whether auth is enforced or bypassed (explicit dev mode) at startup.
+    auth.log_auth_mode()
+    yield
+
+
 app = FastAPI(
     title="S3M-WaterTwin API",
     version=config.SERVICE_VERSION,
     description="Orchestration API for the S3M-WaterTwin Simulation Center.",
+    lifespan=_lifespan,
 )
 
 app.add_middleware(
@@ -46,6 +62,28 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Log whether auth is enforced or bypassed (explicit dev mode) at import too, so
+# the mode is visible even when the app is mounted without the lifespan hook.
+auth.log_auth_mode()
+
+
+# Reusable dependency: any authenticated role may read advisory views. Under the
+# ``WATERTWIN_AUTH_DISABLED=true`` dev bypass this resolves to a synthetic admin.
+AUTHENTICATED = [Depends(get_current_user)]
+
+
+def _actor(user: Principal, fallback: str | None = None) -> str:
+    """Audit actor for an action.
+
+    When auth is enforced the authenticated identity is authoritative (a
+    client-supplied actor is never trusted). Under the dev bypass we preserve
+    the legacy behaviour of honouring an explicit fallback actor when provided.
+    """
+    if auth.auth_disabled() and fallback:
+        return fallback
+    return user.actor
+
 
 reco_store = RecommendationStore(config.RECOMMENDATION_STORE_PATH)
 store = Store(config.DATABASE_URL)
@@ -124,7 +162,7 @@ def health() -> dict:
     }
 
 
-@app.get("/api/v1/simulation-center/network")
+@app.get("/api/v1/simulation-center/network", dependencies=AUTHENTICATED)
 def network() -> dict:
     try:
         return get_hydraulic_client().network_info()
@@ -133,8 +171,14 @@ def network() -> dict:
 
 
 @app.post("/api/v1/simulation-center/run")
-def run_scenario(request: SimulationCenterRequest) -> dict:
-    """Run baseline + scenario and (optionally) create a recommendation."""
+def run_scenario(
+    request: SimulationCenterRequest,
+    user: Principal = Depends(require_role("engineer")),
+) -> dict:
+    """Run baseline + scenario and (optionally) create a recommendation.
+
+    Running a what-if scenario is an engineer/admin action (RBAC matrix).
+    """
     client = get_hydraulic_client()
     try:
         baseline = client.run(
@@ -173,6 +217,7 @@ def run_scenario(request: SimulationCenterRequest) -> dict:
                 "scenario": request.scenario.value,
                 "simulation_ids": card.evidence.simulation_ids,
             },
+            actor=_actor(user),
             subject=card.recommendation_id,
         )
 
@@ -195,17 +240,18 @@ def run_scenario(request: SimulationCenterRequest) -> dict:
             "scenario": request.scenario.value,
             "simulation_ids": run["simulation_ids"],
         },
+        actor=_actor(user),
         subject=scenario.simulation_id,
     )
     return run
 
 
-@app.get("/api/v1/recommendations")
+@app.get("/api/v1/recommendations", dependencies=AUTHENTICATED)
 def list_recommendations() -> list[dict]:
     return [c.model_dump(mode="json") for c in reco_store.list()]
 
 
-@app.get("/api/v1/recommendations/{recommendation_id}")
+@app.get("/api/v1/recommendations/{recommendation_id}", dependencies=AUTHENTICATED)
 def get_recommendation(recommendation_id: str) -> dict:
     card = reco_store.get(recommendation_id)
     if card is None:
@@ -222,10 +268,16 @@ _VALID_DECISIONS = {"approved", "rejected"}
 
 
 @app.post("/api/v1/recommendations/{recommendation_id}/decision")
-def decide_recommendation(recommendation_id: str, body: DecisionRequest) -> dict:
+def decide_recommendation(
+    recommendation_id: str,
+    body: DecisionRequest,
+    user: Principal = Depends(require_role("operator")),
+) -> dict:
     """Record an operator approval decision.
 
     This is an *operator approval* action only; it never writes to equipment.
+    Approving/rejecting a recommendation is an operator/admin action (RBAC
+    matrix) and the authenticated identity is recorded as the audit actor.
     """
     decision = body.status.lower().strip()
     if decision not in _VALID_DECISIONS:
@@ -237,20 +289,22 @@ def decide_recommendation(recommendation_id: str, body: DecisionRequest) -> dict
         raise HTTPException(status_code=404, detail="unknown recommendation")
     from canonical_water_model import ApprovalStatus
 
+    actor = _actor(user, body.actor)
     card.approval_status = ApprovalStatus(decision)
     reco_store.put(card)
     store.set_status(recommendation_id, decision)
     store.audit(
         "recommendation.decision",
         payload={"recommendation_id": recommendation_id, "status": decision},
-        actor=body.actor,
+        actor=actor,
         subject=recommendation_id,
     )
     return card.model_dump(mode="json")
 
 
-@app.get("/api/v1/audit")
+@app.get("/api/v1/audit", dependencies=[Depends(require_role("auditor"))])
 def audit_log(limit: int = 100) -> dict:
+    """Read the audit trail (auditor/admin role required)."""
     return {"events": store.recent_audit(limit)}
 
 
@@ -285,7 +339,7 @@ def _wq_envelope(payload: dict, provenance: DataProvenance) -> dict:
     }
 
 
-def _route_wq_alerts(alerts: list[WQAlert]) -> None:
+def _route_wq_alerts(alerts: list[WQAlert], actor: str = "system") -> None:
     """Route WQ alerts through the existing recommendation + audit path.
 
     Each alert becomes a ``pending`` recommendation card (operator approval
@@ -307,11 +361,12 @@ def _route_wq_alerts(alerts: list[WQAlert]) -> None:
         store.audit(
             "wq.alert.created",
             payload={"recommendation_id": card.recommendation_id, "code": alert.code},
+            actor=actor,
             subject=card.recommendation_id,
         )
 
 
-@app.get("/api/v1/water-quality/status")
+@app.get("/api/v1/water-quality/status", dependencies=AUTHENTICATED)
 def water_quality_status(fouling: Optional[float] = None) -> dict:
     """Live water quality by stage with compliance flags + train summary."""
     snap = wq.compute_snapshot(_wq_fouling(fouling))
@@ -333,7 +388,7 @@ def water_quality_status(fouling: Optional[float] = None) -> dict:
     )
 
 
-@app.get("/api/v1/water-quality/contaminant-matrix")
+@app.get("/api/v1/water-quality/contaminant-matrix", dependencies=AUTHENTICATED)
 def water_quality_contaminant_matrix(fouling: Optional[float] = None) -> dict:
     """Contaminant concentration across the treatment path (intake -> brine)."""
     snap = wq.compute_snapshot(_wq_fouling(fouling))
@@ -343,14 +398,14 @@ def water_quality_contaminant_matrix(fouling: Optional[float] = None) -> dict:
     )
 
 
-@app.get("/api/v1/water-quality/removal")
+@app.get("/api/v1/water-quality/removal", dependencies=AUTHENTICATED)
 def water_quality_removal(fouling: Optional[float] = None) -> dict:
     """Treatment removal: current vs design vs predicted (with confidence)."""
     snap = wq.compute_snapshot(_wq_fouling(fouling))
     return _wq_envelope({"removal": snap.removal}, DataProvenance.preliminary)
 
 
-@app.get("/api/v1/water-quality/scaling")
+@app.get("/api/v1/water-quality/scaling", dependencies=AUTHENTICATED)
 def water_quality_scaling(fouling: Optional[float] = None) -> dict:
     """Per-compound scaling risk (preliminary)."""
     snap = wq.compute_snapshot(_wq_fouling(fouling))
@@ -360,7 +415,7 @@ def water_quality_scaling(fouling: Optional[float] = None) -> dict:
     )
 
 
-@app.get("/api/v1/water-quality/forecast")
+@app.get("/api/v1/water-quality/forecast", dependencies=AUTHENTICATED)
 def water_quality_forecast(fouling: Optional[float] = None) -> dict:
     """Preliminary forecasts: salinity, boron, scaling, fouling (bounded)."""
     snap = wq.compute_snapshot(_wq_fouling(fouling))
@@ -371,10 +426,13 @@ def water_quality_forecast(fouling: Optional[float] = None) -> dict:
 
 
 @app.get("/api/v1/water-quality/alerts")
-def water_quality_alerts(fouling: Optional[float] = None) -> dict:
+def water_quality_alerts(
+    fouling: Optional[float] = None,
+    user: Principal = Depends(get_current_user),
+) -> dict:
     """WQ alerts; each is routed to the recommendation + audit path (pending)."""
     snap = wq.compute_snapshot(_wq_fouling(fouling))
-    _route_wq_alerts(snap.alerts)
+    _route_wq_alerts(snap.alerts, actor=_actor(user))
     return _wq_envelope(
         {
             "alerts": [a.model_dump(mode="json") for a in snap.alerts],
@@ -420,7 +478,7 @@ def _require_asset(asset_id: str) -> None:
         )
 
 
-@app.get("/api/v1/equipment/{asset_id}/health")
+@app.get("/api/v1/equipment/{asset_id}/health", dependencies=AUTHENTICATED)
 def equipment_health(asset_id: str, fouling: Optional[float] = None) -> dict:
     """Transparent component health with a contribution breakdown."""
     _require_asset(asset_id)
@@ -428,7 +486,7 @@ def equipment_health(asset_id: str, fouling: Optional[float] = None) -> dict:
     return _pdm_envelope({"health": health.model_dump(mode="json")})
 
 
-@app.get("/api/v1/equipment/{asset_id}/rul")
+@app.get("/api/v1/equipment/{asset_id}/rul", dependencies=AUTHENTICATED)
 def equipment_rul(asset_id: str, fouling: Optional[float] = None) -> dict:
     """Preliminary remaining-useful-life with an uncertainty band."""
     _require_asset(asset_id)
@@ -436,7 +494,7 @@ def equipment_rul(asset_id: str, fouling: Optional[float] = None) -> dict:
     return _pdm_envelope({"rul": rul.model_dump(mode="json")})
 
 
-@app.get("/api/v1/equipment/{asset_id}/failure-probability")
+@app.get("/api/v1/equipment/{asset_id}/failure-probability", dependencies=AUTHENTICATED)
 def equipment_failure_probability(asset_id: str, fouling: Optional[float] = None) -> dict:
     """Preliminary failure probability over {24h, 7d, 30d, 90d} horizons."""
     _require_asset(asset_id)
@@ -444,7 +502,7 @@ def equipment_failure_probability(asset_id: str, fouling: Optional[float] = None
     return _pdm_envelope({"failure_probability": fp.model_dump(mode="json")})
 
 
-@app.get("/api/v1/equipment/{asset_id}/envelope")
+@app.get("/api/v1/equipment/{asset_id}/envelope", dependencies=AUTHENTICATED)
 def equipment_envelope(asset_id: str) -> dict:
     """Operating-envelope regime fractions (BEP / low-flow / high-pressure / ...)."""
     _require_asset(asset_id)
@@ -452,7 +510,7 @@ def equipment_envelope(asset_id: str) -> dict:
     return _pdm_envelope({"envelope": env.model_dump(mode="json")})
 
 
-@app.get("/api/v1/equipment/{asset_id}/root-cause")
+@app.get("/api/v1/equipment/{asset_id}/root-cause", dependencies=AUTHENTICATED)
 def equipment_root_cause(asset_id: str) -> dict:
     """Causal root-cause ranking (probabilities sum to ~1.0)."""
     _require_asset(asset_id)
@@ -460,7 +518,7 @@ def equipment_root_cause(asset_id: str) -> dict:
     return _pdm_envelope({"root_cause": rc.model_dump(mode="json")})
 
 
-@app.get("/api/v1/membrane/{asset_id}/health")
+@app.get("/api/v1/membrane/{asset_id}/health", dependencies=AUTHENTICATED)
 def membrane_health(asset_id: str, fouling: Optional[float] = None) -> dict:
     """Membrane fouling / scaling / health (reuses the Water Quality layer)."""
     _require_asset(asset_id)
@@ -468,7 +526,7 @@ def membrane_health(asset_id: str, fouling: Optional[float] = None) -> dict:
     return _pdm_envelope({"membrane": mh.model_dump(mode="json")})
 
 
-def _route_pdm_recommendations(cards: list) -> None:
+def _route_pdm_recommendations(cards: list, actor: str = "system") -> None:
     """Route PdM recommendation cards through the existing recommendation + audit
     path. Each card is created ``pending`` (operator approval required, no
     control write) and is idempotent by its asset-derived id so repeated polling
@@ -487,11 +545,12 @@ def _route_pdm_recommendations(cards: list) -> None:
         store.audit(
             "pdm.recommendation.created",
             payload={"recommendation_id": card.recommendation_id, "asset_id": card.asset_id},
+            actor=actor,
             subject=card.recommendation_id,
         )
 
 
-@app.get("/api/v1/maintenance/ranking")
+@app.get("/api/v1/maintenance/ranking", dependencies=AUTHENTICATED)
 def maintenance_ranking(fouling: Optional[float] = None) -> dict:
     """Risk-ranked predictive-maintenance view across all critical assets."""
     ranking = pdm.compute_ranking(_wq_fouling(fouling))
@@ -499,11 +558,14 @@ def maintenance_ranking(fouling: Optional[float] = None) -> dict:
 
 
 @app.get("/api/v1/maintenance/recommendations")
-def maintenance_recommendations(fouling: Optional[float] = None) -> dict:
+def maintenance_recommendations(
+    fouling: Optional[float] = None,
+    user: Principal = Depends(get_current_user),
+) -> dict:
     """PdM recommendations; each routes to the recommendation + audit path (pending)."""
     recs = pdm.compute_recommendations(_wq_fouling(fouling))
     cards = [pdm.build_pdm_card(rec) for rec in recs]
-    _route_pdm_recommendations(cards)
+    _route_pdm_recommendations(cards, actor=_actor(user))
     return _pdm_envelope(
         {
             "recommendations": [p.model_dump(mode="json") for p in recs],
@@ -553,7 +615,7 @@ class GridOutageRequest(BaseModel):
     battery_bridge_minutes: Optional[float] = None
 
 
-@app.get("/api/v1/energy/summary")
+@app.get("/api/v1/energy/summary", dependencies=AUTHENTICATED)
 def energy_summary(fouling: Optional[float] = None) -> dict:
     """Energy-by-asset + current-vs-optimal specific-energy summary (estimated)."""
     return _value_envelope(
@@ -561,7 +623,7 @@ def energy_summary(fouling: Optional[float] = None) -> dict:
     )
 
 
-@app.post("/api/v1/energy/optimize")
+@app.post("/api/v1/energy/optimize", dependencies=AUTHENTICATED)
 def energy_optimize(body: EnergyOptimizeRequest | None = None) -> dict:
     """Optimal HP-pump setpoint + ESTIMATED savings (constrained RO optimisation)."""
     fouling = _wq_fouling(body.fouling if body else None)
@@ -571,7 +633,7 @@ def energy_optimize(body: EnergyOptimizeRequest | None = None) -> dict:
     )
 
 
-@app.get("/api/v1/energy/losses")
+@app.get("/api/v1/energy/losses", dependencies=AUTHENTICATED)
 def energy_losses(fouling: Optional[float] = None) -> dict:
     """Avoidable specific-energy losses (estimated, synthetic basis)."""
     losses = energy.losses(_wq_fouling(fouling))
@@ -581,7 +643,7 @@ def energy_losses(fouling: Optional[float] = None) -> dict:
     )
 
 
-@app.get("/api/v1/resilience/criticality")
+@app.get("/api/v1/resilience/criticality", dependencies=AUTHENTICATED)
 def resilience_criticality() -> dict:
     """Resilience-criticality ranking of assets (highest impact/risk first)."""
     ranking = resil.criticality_ranking()
@@ -591,7 +653,7 @@ def resilience_criticality() -> dict:
     )
 
 
-@app.get("/api/v1/resilience/generator")
+@app.get("/api/v1/resilience/generator", dependencies=AUTHENTICATED)
 def resilience_generator() -> dict:
     """Preliminary standby-generator start probability + fuel endurance."""
     gen = resil.generator_status()
@@ -600,7 +662,7 @@ def resilience_generator() -> dict:
     )
 
 
-def _route_resilience_recommendation(card) -> None:
+def _route_resilience_recommendation(card, actor: str = "system") -> None:
     """Route the grid-outage recommendation through the existing recommendation +
     audit path (pending, operator approval required, no control write). Idempotent
     by its deterministic id so repeated assessments do not duplicate the card or
@@ -618,12 +680,16 @@ def _route_resilience_recommendation(card) -> None:
     store.audit(
         "resilience.recommendation.created",
         payload={"recommendation_id": card.recommendation_id, "asset_id": card.asset_id},
+        actor=actor,
         subject=card.recommendation_id,
     )
 
 
 @app.post("/api/v1/resilience/grid-outage")
-def resilience_grid_outage(body: GridOutageRequest | None = None) -> dict:
+def resilience_grid_outage(
+    body: GridOutageRequest | None = None,
+    user: Principal = Depends(get_current_user),
+) -> dict:
     """Assess the grid-outage scenario: generator, shed plan, continuity, ranking.
 
     Routes the resulting generator-priority recommendation through the existing
@@ -636,7 +702,7 @@ def resilience_grid_outage(body: GridOutageRequest | None = None) -> dict:
         fuel_level_fraction=fuel, battery_bridge_minutes=bridge
     )
     card = assessment["recommendation"]
-    _route_resilience_recommendation(card)
+    _route_resilience_recommendation(card, actor=_actor(user))
     stored = reco_store.get(card.recommendation_id)
     return _value_envelope(
         {
@@ -651,7 +717,7 @@ def resilience_grid_outage(body: GridOutageRequest | None = None) -> dict:
     )
 
 
-@app.get("/api/v1/executive/value-summary")
+@app.get("/api/v1/executive/value-summary", dependencies=AUTHENTICATED)
 def executive_value_summary(fouling: Optional[float] = None) -> dict:
     """Aggregated ESTIMATED value summary (illustrative, synthetic basis)."""
     summary = executive.value_summary(_wq_fouling(fouling))
@@ -661,7 +727,7 @@ def executive_value_summary(fouling: Optional[float] = None) -> dict:
     )
 
 
-@app.get("/api/v1/executive/roi")
+@app.get("/api/v1/executive/roi", dependencies=AUTHENTICATED)
 def executive_roi(fouling: Optional[float] = None) -> dict:
     """Illustrative pilot ROI, annualized benefit + payback (ESTIMATED)."""
     estimate = executive.roi(_wq_fouling(fouling))
@@ -781,18 +847,24 @@ def get_document(document_id: str) -> dict:
 
 
 @app.post("/api/v1/reset")
-def reset() -> dict:
-    """Clear cached runs, recommendations, and audit trail (demo convenience)."""
+def reset(user: Principal = Depends(require_role("engineer"))) -> dict:
+    """Clear cached runs, recommendations, and audit trail (demo convenience).
+
+    Resetting demo state is an engineer/admin action (RBAC matrix).
+    """
     with _runs_lock:
         _runs.clear()
     reco_store.clear()
     store.reset()
-    store.audit("system.reset", subject="watertwin-api")
+    store.audit("system.reset", actor=_actor(user), subject="watertwin-api")
     return {"status": "reset", "control_boundary": ControlBoundary().model_dump()}
 
 
 @app.post("/api/v1/reports/scenario/{job_id}")
-def scenario_report(job_id: str) -> PlainTextResponse:
+def scenario_report(
+    job_id: str,
+    user: Principal = Depends(get_current_user),
+) -> PlainTextResponse:
     """Generate a downloadable Markdown scenario report for a completed run.
 
     The document carries baseline-vs-scenario impacts, the recommended response,
@@ -806,6 +878,7 @@ def scenario_report(job_id: str) -> PlainTextResponse:
     store.audit(
         "report.generated",
         payload={"job_id": job_id, "scenario": run.get("scenario")},
+        actor=_actor(user),
         subject=job_id,
     )
     filename = f"scenario-report-{job_id}.md"

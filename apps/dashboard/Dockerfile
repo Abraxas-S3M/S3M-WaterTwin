@@ -15,6 +15,17 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 
 COPY . .
+
+# OIDC login config is baked into the static bundle at build time (Vite inlines
+# VITE_* env). When these are empty the dashboard runs without a login gate,
+# matching the API's WATERTWIN_AUTH_DISABLED dev bypass.
+ARG VITE_KEYCLOAK_URL=""
+ARG VITE_KEYCLOAK_REALM=""
+ARG VITE_KEYCLOAK_CLIENT_ID=""
+ENV VITE_KEYCLOAK_URL=$VITE_KEYCLOAK_URL \
+    VITE_KEYCLOAK_REALM=$VITE_KEYCLOAK_REALM \
+    VITE_KEYCLOAK_CLIENT_ID=$VITE_KEYCLOAK_CLIENT_ID
+
 RUN npm run build
 
 # --- Stage 2: serve the built SPA with nginx ------------------------------

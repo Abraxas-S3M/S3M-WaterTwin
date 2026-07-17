@@ -9,3 +9,5 @@ httpx==0.28.1
 psycopg[binary]==3.2.3
 # Bounded RO energy-optimization solver (watertwin_engineering.energy).
 scipy==1.18.0
+# Identity / RBAC: JWT bearer validation against Keycloak (JWKS, RS256).
+pyjwt[crypto]==2.10.1

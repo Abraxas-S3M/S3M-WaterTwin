@@ -15,11 +15,34 @@
 # response carries the control boundary (control_write_enabled=false) and all
 # simulation output is provenance-tagged (simulated / preliminary).
 #
+# Commercial-hardening #1 adds identity + RBAC: a Keycloak instance seeds the
+# "watertwin" dev realm (roles viewer/operator/engineer/admin/auditor and one
+# dev user per role). The API enforces Keycloak-issued JWTs by default and the
+# dashboard logs in via OIDC. See docs/security/identity.md.
+#
 # Deferred to a later commercial-hardening work package (documented, not built
-# here): PostGIS spatial extensions and Keycloak authentication / SSO. See
-# docs/architecture and docs/security for the rationale.
+# here): PostGIS spatial extensions. See docs/architecture for the rationale.
 
 services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: watertwin-keycloak
+    command: ["start-dev", "--import-realm"]
+    environment:
+      # Dev master-realm admin (Keycloak console at http://localhost:8180).
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      # Stable issuer so JWT `iss` matches what browser + API expect.
+      KC_HOSTNAME: http://localhost:8180
+    ports:
+      - "8180:8080"
+    volumes:
+      - ./infrastructure/keycloak/watertwin-realm.json:/opt/keycloak/data/import/watertwin-realm.json:ro
+    restart: unless-stopped
+
   timescaledb:
     image: timescale/timescaledb:2.17.2-pg16
     container_name: watertwin-timescaledb
@@ -93,6 +116,12 @@ services:
       WATERTWIN_DATABASE_URL: postgresql://watertwin:watertwin@timescaledb:5432/watertwin
       WATERTWIN_RECO_STORE: /data/recommendations.json
       WATERTWIN_CORS_ORIGINS: "*"
+      # Identity + RBAC: enforce Keycloak-issued JWTs by default. The issuer is
+      # the browser-facing URL (token `iss`); JWKS is fetched over the internal
+      # docker network. Flip WATERTWIN_AUTH_DISABLED=true only for local dev.
+      WATERTWIN_AUTH_DISABLED: "false"
+      WATERTWIN_OIDC_ISSUER: http://localhost:8180/realms/watertwin
+      WATERTWIN_OIDC_JWKS_URI: http://keycloak:8080/realms/watertwin/protocol/openid-connect/certs
     volumes:
       - watertwin_api_data:/data
     depends_on:
@@ -100,6 +129,8 @@ services:
         condition: service_healthy
       hydraulic-sim:
         condition: service_healthy
+      keycloak:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 15s
@@ -112,6 +143,12 @@ services:
     build:
       context: apps/dashboard
       dockerfile: Dockerfile
+      args:
+        # OIDC login config baked into the SPA build. Points the browser at the
+        # host-exposed Keycloak and the seeded public dashboard client.
+        VITE_KEYCLOAK_URL: http://localhost:8180
+        VITE_KEYCLOAK_REALM: watertwin
+        VITE_KEYCLOAK_CLIENT_ID: watertwin-dashboard
     image: s3m-watertwin/dashboard:latest
     container_name: watertwin-dashboard
     ports:
@@ -119,6 +156,8 @@ services:
     depends_on:
       watertwin-api:
         condition: service_healthy
+      keycloak:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1"]
       interval: 15s

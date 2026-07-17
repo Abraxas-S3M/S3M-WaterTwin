@@ -1,0 +1,127 @@
+{
+  "realm": "watertwin",
+  "enabled": true,
+  "displayName": "S3M-WaterTwin",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      { "name": "viewer", "description": "Read-only access to all advisory views." },
+      { "name": "operator", "description": "May approve/reject advisory recommendations (no control write)." },
+      { "name": "engineer", "description": "May run what-if scenarios and reset demo state." },
+      { "name": "admin", "description": "Full advisory administration (superset of all roles)." },
+      { "name": "auditor", "description": "May read the audit trail." }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "watertwin-dashboard",
+      "name": "S3M-WaterTwin Dashboard",
+      "description": "Public OIDC client for the operator dashboard (authorization-code + PKCE).",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "rootUrl": "http://localhost:8080",
+      "baseUrl": "http://localhost:8080",
+      "redirectUris": [
+        "http://localhost:8080/*",
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8080",
+        "http://localhost:5173",
+        "+"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:8080/*##http://localhost:5173/*"
+      },
+      "fullScopeAllowed": true
+    },
+    {
+      "clientId": "watertwin-api",
+      "name": "S3M-WaterTwin API",
+      "description": "Bearer-only resource server (validates access tokens; issues none).",
+      "enabled": true,
+      "bearerOnly": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect"
+    }
+  ],
+  "users": [
+    {
+      "username": "viewer",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "viewer@watertwin.local",
+      "firstName": "Val",
+      "lastName": "Viewer",
+      "credentials": [
+        { "type": "password", "value": "viewer", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "operator",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "operator@watertwin.local",
+      "firstName": "Ola",
+      "lastName": "Operator",
+      "credentials": [
+        { "type": "password", "value": "operator", "temporary": false }
+      ],
+      "realmRoles": ["viewer", "operator"]
+    },
+    {
+      "username": "engineer",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "engineer@watertwin.local",
+      "firstName": "Ed",
+      "lastName": "Engineer",
+      "credentials": [
+        { "type": "password", "value": "engineer", "temporary": false }
+      ],
+      "realmRoles": ["viewer", "engineer"]
+    },
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "admin@watertwin.local",
+      "firstName": "Ada",
+      "lastName": "Admin",
+      "credentials": [
+        { "type": "password", "value": "admin", "temporary": false }
+      ],
+      "realmRoles": ["viewer", "operator", "engineer", "auditor", "admin"]
+    },
+    {
+      "username": "auditor",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "auditor@watertwin.local",
+      "firstName": "Aud",
+      "lastName": "Auditor",
+      "credentials": [
+        { "type": "password", "value": "auditor", "temporary": false }
+      ],
+      "realmRoles": ["viewer", "auditor"]
+    }
+  ]
+}

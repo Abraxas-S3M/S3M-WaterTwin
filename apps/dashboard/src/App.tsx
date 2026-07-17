@@ -1,4 +1,10 @@
+import { useEffect, useState } from 'react';
 import { SafetyBoundaryBanner } from './components/SafetyBoundaryBanner';
+import { isAuthConfigured } from './auth/config';
+import { completeLoginIfCallback } from './auth/oidc';
+import { useAuth } from './auth/useAuth';
+import { LoginGate } from './auth/LoginGate';
+import { UserBadge } from './auth/UserBadge';
 import { CommandOverview } from './pages/CommandOverview';
 import { ProcessTwin } from './pages/ProcessTwin';
 import { AssetTwin } from './pages/AssetTwin';
@@ -53,6 +59,7 @@ function Nav() {
         </button>
       ))}
       <div style={{ flex: 1 }} />
+      <UserBadge />
       <div className="brand">
         <div className="sub">Pages 1, 2, 4 live · others in later phases</div>
       </div>
@@ -89,6 +96,38 @@ function CurrentPage() {
 }
 
 export default function App() {
+  const { isAuthenticated } = useAuth();
+  // While OIDC is configured, wait for a possible redirect-callback exchange to
+  // resolve before deciding whether to show the login gate.
+  const [callbackResolved, setCallbackResolved] = useState(!isAuthConfigured());
+
+  useEffect(() => {
+    if (!isAuthConfigured()) return;
+    let active = true;
+    void completeLoginIfCallback().finally(() => {
+      if (active) setCallbackResolved(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (isAuthConfigured() && !isAuthenticated) {
+    if (!callbackResolved) {
+      return (
+        <div className="app-shell" data-testid="auth-loading">
+          <SafetyBoundaryBanner />
+          <div className="login-wrap">
+            <div className="login-card">
+              <div className="sub">Signing in…</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return <LoginGate />;
+  }
+
   return (
     <div className="app-shell">
       <SafetyBoundaryBanner />
