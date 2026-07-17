@@ -553,6 +553,106 @@ export interface MaintenanceRecommendationsResponse extends PdMEnvelope {
   cards: RecommendationCard[];
 }
 
+// --- Work orders / Maintenance Center (advisory, preliminary) ---
+
+export type WorkOrderStatus =
+  | 'proposed'
+  | 'approved'
+  | 'rejected'
+  | 'open'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled';
+
+export type WorkOrderPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export type WorkOrderSource = 'predictive_maintenance' | 'cmms' | 'manual';
+
+export type CmmsSyncStatus = 'not_synced' | 'synced' | 'failed';
+
+export interface MaintenanceWorkOrder {
+  work_order_id: string;
+  asset_id: string;
+  asset_name?: string | null;
+  title: string;
+  description: string;
+  priority: WorkOrderPriority;
+  status: WorkOrderStatus;
+  source: WorkOrderSource;
+  originating_model?: string | null;
+  source_recommendation_id?: string | null;
+  source_alert_code?: string | null;
+  predicted_failure_mode?: string | null;
+  failure_probability_30d?: number | null;
+  rul_days?: number | null;
+  recommended_window?: string | null;
+  spares_required: string[];
+  estimated_downtime_hours?: number | null;
+  estimated_cost?: number | null;
+  ranked_causes: RankedCause[];
+  evidence?: Evidence | null;
+  approval_status: ApprovalStatus;
+  approved_by?: string | null;
+  decided_at?: string | null;
+  cmms_system?: string | null;
+  cmms_external_id?: string | null;
+  cmms_sync_status: CmmsSyncStatus;
+  control_boundary: ControlBoundary;
+  provenance: DataProvenance;
+  created_at: string;
+}
+
+export interface AssetMaintenanceRecord {
+  work_order_id: string;
+  asset_id: string;
+  title: string;
+  status: WorkOrderStatus;
+  performed_at?: string | null;
+  performed_by?: string | null;
+  labor_hours?: number | null;
+  cost?: number | null;
+  notes?: string | null;
+  cmms_system?: string | null;
+  provenance: DataProvenance;
+}
+
+export interface CmmsDescription {
+  kind: string;
+  name: string;
+  write_enabled: boolean;
+  read_only: boolean;
+  write_back_is_control_path: boolean;
+  operator_approval_required: boolean;
+}
+
+export interface WorkOrdersResponse extends PdMEnvelope {
+  work_orders: MaintenanceWorkOrder[];
+}
+
+export interface WorkOrderResponse extends PdMEnvelope {
+  work_order: MaintenanceWorkOrder;
+}
+
+export interface CmmsStatusResponse extends PdMEnvelope {
+  cmms: CmmsDescription;
+}
+
+export interface CmmsWorkOrdersResponse extends PdMEnvelope {
+  cmms: CmmsDescription;
+  work_orders: MaintenanceWorkOrder[];
+}
+
+export interface CmmsAssetHistoryResponse extends PdMEnvelope {
+  cmms: CmmsDescription;
+  asset_id: string;
+  history: AssetMaintenanceRecord[];
+}
+
+export interface WorkOrderDecisionRequest {
+  status: 'approved' | 'rejected';
+  actor?: string;
+}
+
 // --- Value layer: Energy / Resilience / Executive (estimated, preliminary) ---
 
 export interface ValueEnvelope {

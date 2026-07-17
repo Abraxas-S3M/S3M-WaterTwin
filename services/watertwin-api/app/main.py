@@ -19,6 +19,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
+from canonical_water_model import (
+    ApprovalStatus,
+    ControlBoundary,
+    DataProvenance,
+    WorkOrderStatus,
+    WQAlert,
+)
 from canonical_water_model import ControlBoundary, DataProvenance, WQAlert, now_iso
 from canonical_water_model import ControlBoundary, DataProvenance, TelemetryReading, WQAlert
 
@@ -35,9 +42,11 @@ from .auth import (
     require_role,
 )
 from . import assistant
+from . import cmms as cmms_pkg
 from . import documents
 from . import energy
 from . import executive
+from . import maintenance
 from . import facilities as facilities_mod
 from . import membrane
 from . import models as d1_models
@@ -211,6 +220,8 @@ def _apply_scope(card: Any, scope: Optional[Scope]) -> Any:
 
 
 reco_store = RecommendationStore(config.RECOMMENDATION_STORE_PATH)
+work_order_store = maintenance.WorkOrderStore(config.WORK_ORDER_STORE_PATH)
+store = Store(config.DATABASE_URL)
 # The store fires the advisory ``audit-appended`` event after every successful
 # append. The hook resolves the bus lazily so tests can inject their own bus.
 store = Store(config.DATABASE_URL, event_sink=events.audit_event_sink)
@@ -218,6 +229,15 @@ store = Store(config.DATABASE_URL, event_sink=events.audit_event_sink)
 # Operator Training Simulator sessions + records (SIMULATION only). Held in
 # memory; the training sandbox has no control-write path (see app.training).
 training_store = training.TrainingStore()
+
+
+def get_cmms_adapter() -> cmms_pkg.CmmsAdapter:
+    """Return the injected CMMS adapter (tests) or the config-resolved default."""
+    adapter = getattr(app.state, "cmms_adapter", None)
+    if adapter is None:
+        adapter = cmms_pkg.resolve_cmms_adapter(config)
+        app.state.cmms_adapter = adapter
+    return adapter
 
 # Completed runs cached by simulation job id so a downloadable report can be
 # regenerated on demand. Advisory, read-only what-if data only.
@@ -1272,6 +1292,195 @@ def model_benchmark(model_id: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Work orders / Maintenance Center (advisory, read-only)
+#
+# Work orders are DERIVED from predictive-maintenance alerts and are fully
+# traceable to the originating model + evidence (originating_model +
+# source_recommendation_id + ranked_causes + evidence). Each proposed work order
+# is created ``pending`` (operator approval required) and its creation is
+# audited. Approval is a separate, audited operator action.
+#
+# A CMMS adapter provides a strictly READ-ONLY default (pull work orders + asset
+# history). A write-back adapter -- which creates a CMMS *ticket* for an
+# operator-approved work order -- is enabled only behind CMMS_WRITE_BACK_ENABLED.
+# CRITICAL: a CMMS write-back is a business-system ticket, NEVER an OT/control
+# path, and only ever happens after operator approval. The control boundary
+# stays advisory / read-only on every work order.
+# ---------------------------------------------------------------------------
+
+
+def _persist_work_order(wo, *, audited: bool, actor: str = "system") -> None:
+    """Persist a proposed work order (idempotent) and audit its creation once.
+
+    Idempotent by the deterministic work-order id so repeated derivation does
+    not duplicate a work order or reset an operator's decision.
+    """
+    if work_order_store.get(wo.work_order_id) is not None:
+        return
+    work_order_store.put(wo)
+    if audited:
+        store.audit(
+            "workorder.created",
+            payload={
+                "work_order_id": wo.work_order_id,
+                "asset_id": wo.asset_id,
+                "originating_model": wo.originating_model,
+                "source_recommendation_id": wo.source_recommendation_id,
+                "source_alert_code": wo.source_alert_code,
+            },
+            actor=actor,
+            subject=wo.work_order_id,
+        )
+
+
+def _route_pdm_recommendation_cards(fouling: float, actor: str = "system") -> None:
+    """Ensure the PdM recommendation cards backing the work orders exist.
+
+    A work order links back to its PdM recommendation card via
+    ``source_recommendation_id``; routing the cards keeps that link resolvable.
+    """
+    cards = [pdm.build_pdm_card(rec) for rec in pdm.compute_recommendations(fouling)]
+    _route_pdm_recommendations(cards, actor=actor)
+
+
+@app.get("/api/v1/maintenance/work-orders")
+def maintenance_work_orders(
+    fouling: Optional[float] = None,
+    user: Principal = Depends(get_current_user),
+) -> dict:
+    """Proposed work orders derived from predictive-maintenance alerts.
+
+    Each work order is traceable to its originating model + evidence, created
+    ``pending`` operator approval (audited on creation), and links back to its
+    PdM recommendation card via ``source_recommendation_id``.
+    """
+    f = _wq_fouling(fouling)
+    actor = _actor(user)
+    _route_pdm_recommendation_cards(f, actor=actor)
+    for wo in maintenance.propose_work_orders(f):
+        _persist_work_order(wo, audited=True, actor=actor)
+    return _pdm_envelope(
+        {"work_orders": [w.model_dump(mode="json") for w in work_order_store.list()]}
+    )
+
+
+@app.get("/api/v1/maintenance/work-orders/{work_order_id}", dependencies=AUTHENTICATED)
+def maintenance_work_order(work_order_id: str) -> dict:
+    """Return a single work order (with full traceability + evidence)."""
+    wo = work_order_store.get(work_order_id)
+    if wo is None:
+        raise HTTPException(status_code=404, detail=f"unknown work order: {work_order_id}")
+    return _pdm_envelope({"work_order": wo.model_dump(mode="json")})
+
+
+class WorkOrderDecisionRequest(BaseModel):
+    status: str = Field(description="approved or rejected")
+    actor: str = "operator"
+
+
+@app.post("/api/v1/maintenance/work-orders/{work_order_id}/decision")
+def decide_work_order(
+    work_order_id: str,
+    body: WorkOrderDecisionRequest,
+    user: Principal = Depends(require_role("operator")),
+) -> dict:
+    """Record an operator approval decision on a work order (audited).
+
+    This is an *operator approval* action only; it never writes to equipment.
+    On approval, when CMMS write-back is enabled, an approved work order is
+    written back as a CMMS *ticket* (a business-system record, never a control
+    path). The decision and any ticket creation are audited.
+    """
+    decision = body.status.lower().strip()
+    if decision not in _VALID_DECISIONS:
+        raise HTTPException(
+            status_code=422, detail=f"status must be one of {sorted(_VALID_DECISIONS)}"
+        )
+    wo = work_order_store.get(work_order_id)
+    if wo is None:
+        raise HTTPException(status_code=404, detail=f"unknown work order: {work_order_id}")
+
+    actor = _actor(user, body.actor)
+    wo.approval_status = ApprovalStatus(decision)
+    wo.status = (
+        WorkOrderStatus.approved if decision == "approved" else WorkOrderStatus.rejected
+    )
+    wo.approved_by = actor
+    from canonical_water_model import now_iso as _now_iso
+
+    wo.decided_at = _now_iso()
+    store.audit(
+        "workorder.decision",
+        payload={"work_order_id": work_order_id, "status": decision},
+        actor=actor,
+        subject=work_order_id,
+    )
+
+    # Approved + write-back enabled -> create a CMMS ticket (never a control path).
+    if decision == "approved":
+        adapter = get_cmms_adapter()
+        if adapter.write_enabled:
+            try:
+                ticket = adapter.create_work_order(wo, approved=True)
+                wo = ticket
+                store.audit(
+                    "workorder.cmms.ticket_created",
+                    payload={
+                        "work_order_id": work_order_id,
+                        "cmms_system": ticket.cmms_system,
+                        "cmms_external_id": ticket.cmms_external_id,
+                        "is_control_path": False,
+                    },
+                    actor=actor,
+                    subject=work_order_id,
+                )
+            except cmms_pkg.CmmsWriteNotEnabled as exc:  # pragma: no cover - defensive
+                raise HTTPException(status_code=409, detail=str(exc))
+
+    work_order_store.put(wo)
+    return _pdm_envelope({"work_order": wo.model_dump(mode="json")})
+
+
+@app.get("/api/v1/maintenance/cmms/status", dependencies=AUTHENTICATED)
+def maintenance_cmms_status() -> dict:
+    """Describe the active CMMS adapter (read-only vs write-back)."""
+    return _pdm_envelope(
+        {"cmms": get_cmms_adapter().describe()}, DataProvenance.synthetic
+    )
+
+
+@app.get("/api/v1/maintenance/cmms/work-orders", dependencies=AUTHENTICATED)
+def maintenance_cmms_work_orders() -> dict:
+    """Pull the current work orders from the CMMS of record (read-only)."""
+    adapter = get_cmms_adapter()
+    orders = adapter.pull_work_orders()
+    return _pdm_envelope(
+        {
+            "cmms": adapter.describe(),
+            "work_orders": [w.model_dump(mode="json") for w in orders],
+        },
+        DataProvenance.synthetic,
+    )
+
+
+@app.get(
+    "/api/v1/maintenance/cmms/asset-history/{asset_id}", dependencies=AUTHENTICATED
+)
+def maintenance_cmms_asset_history(asset_id: str) -> dict:
+    """Pull an asset's historical maintenance records from the CMMS (read-only)."""
+    adapter = get_cmms_adapter()
+    history = adapter.pull_asset_history(asset_id)
+    return _pdm_envelope(
+        {
+            "cmms": adapter.describe(),
+            "asset_id": asset_id,
+            "history": [h.model_dump(mode="json") for h in history],
+        },
+        DataProvenance.synthetic,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Value layer: Energy Optimization, Resilience & Generator Command, Executive
 # ROI (advisory, read-only).
 #
@@ -1753,6 +1962,7 @@ def reset(user: Principal = Depends(require_role("engineer"))) -> dict:
         _latest_telemetry.clear()
         _gateway_state.clear()
     reco_store.clear()
+    work_order_store.clear()
     training_store.reset()
     store.reset()
     store.audit("system.reset", actor=_actor(user), subject="watertwin-api")
