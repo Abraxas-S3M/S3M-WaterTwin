@@ -1,18 +1,18 @@
-"""Store-and-forward engine: produce -> durable spool -> forward -> ack.
+"""Outbound-only push clients to the watertwin-api ingest endpoint.
 
-Two cooperating loops run in background threads:
+The forwarders are the gateway's ONLY network path and they are strictly
+outbound: they dial the watertwin-api ingest URL as an HTTP client and never
+listen for inbound connections. On any failure they return ``ok=False`` so the
+caller leaves the readings buffered/spooled for a later retry (store-and-forward);
+they never raise into the collection loop.
 
-* the **producer** synthesizes a telemetry batch every ``BATCH_INTERVAL_S`` and
-  appends it to the durable :class:`~app.spool.Spool` (never blocked by upstream
-  availability); and
-* the **forwarder** drains the spool oldest-first, POSTing each batch to the
-  central API and only ``ack``-ing (deleting) it once upstream durably accepts
-  it, retrying with exponential backoff while the API is unreachable.
+Two cooperating mechanisms share this module:
 
-Because the spool is durable and the upstream ingest is idempotent on the batch
-id, a gateway that is killed mid-stream loses nothing: on restart the producer
-resumes numbering above the last batch and the forwarder replays every
-un-acked batch, which upstream de-duplicates rather than double-counts.
+* :class:`HttpForwarder` -- a stateless push client used by the collector loop
+  (:mod:`app.collector`) alongside the encrypted buffer; and
+* :class:`Gateway` -- a durable, spool-backed store-and-forward engine that runs
+  its own producer + forwarder loops (:mod:`app.spool`), replaying every un-acked
+  batch after a restart (upstream de-duplicates on the idempotent batch id).
 """
 
 from __future__ import annotations
@@ -22,21 +22,96 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
+from canonical_water_model import now_iso
+
 from . import config
 from .generator import build_readings
 from .spool import Spool, SpooledBatch
 
-logger = logging.getLogger("edge.forwarder")
+logger = logging.getLogger("edge_gateway.forwarder")
 
 
 @dataclass
 class ForwardResult:
-    """Outcome of a single forward attempt."""
+    """Outcome of a single forward attempt (union of both forwarders)."""
 
     ok: bool
+    accepted: int = 0
     duplicate: bool = False
     status: Optional[int] = None
     error: Optional[str] = None
+
+
+class HttpForwarder:
+    """Pushes canonical readings to the API ingest endpoint (outbound only)."""
+
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        ingest_path: str,
+        gateway_id: str,
+        token: Optional[str] = None,
+        timeout: float = 10.0,
+        client: Any = None,
+    ) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.ingest_path = ingest_path if ingest_path.startswith("/") else f"/{ingest_path}"
+        self.gateway_id = gateway_id
+        self.token = token
+        self.timeout = timeout
+        self._client = client
+
+    @property
+    def url(self) -> str:
+        return f"{self.base_url}{self.ingest_path}"
+
+    def _build_client(self) -> Any:
+        if self._client is not None:
+            return self._client
+        import httpx  # lazy: outbound HTTP client only
+
+        headers = {"Authorization": f"Bearer {self.token}"} if self.token else None
+        self._client = httpx.Client(timeout=self.timeout, headers=headers)
+        return self._client
+
+    def send(
+        self,
+        records: list[dict[str, Any]],
+        *,
+        source: Optional[str] = None,
+        fallback: bool = False,
+        source_health: Optional[dict[str, Any]] = None,
+    ) -> ForwardResult:
+        """POST a batch of readings to the API ingest endpoint (outbound)."""
+        if not records:
+            return ForwardResult(ok=True, accepted=0)
+        payload = {
+            "gateway_id": self.gateway_id,
+            "source": source,
+            "fallback": fallback,
+            "source_health": source_health,
+            "sent_at": now_iso(),
+            "readings": records,
+        }
+        try:
+            client = self._build_client()
+            response = client.post(self.url, json=payload)
+            response.raise_for_status()
+            body = response.json() if response.content else {}
+            accepted = int(body.get("accepted", len(records)))
+            return ForwardResult(ok=True, accepted=accepted)
+        except Exception as exc:  # never propagate into the collection loop
+            logger.warning("outbound push to %s failed: %s", self.url, exc)
+            return ForwardResult(ok=False, error=f"{type(exc).__name__}: {exc}")
+
+    def close(self) -> None:
+        client = self._client
+        if client is not None and hasattr(client, "close"):
+            try:
+                client.close()
+            except Exception:  # pragma: no cover - defensive
+                pass
 
 
 @dataclass
