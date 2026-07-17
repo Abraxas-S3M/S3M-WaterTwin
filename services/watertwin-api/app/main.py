@@ -29,18 +29,21 @@ from .auth import (
     require_role,
 )
 from . import assistant
+from . import compliance
 from . import documents
 from . import energy
 from . import executive
 from . import membrane
+from . import model_registry
 from . import predictive_maintenance as pdm
 from . import resilience as resil
 from . import sources
 from . import water_quality as wq
+from .config_store import ConfigStore
 from .tag_normalization import RawReading, TagMap, TagMapError, load_tag_map, normalize
 from .hydraulic_client import HydraulicSimClient, HydraulicSimError
 from .recommendations import RecommendationStore, build_recommendation
-from .reports import build_scenario_report
+from .reports import build_compliance_report, build_scenario_report
 from .store import Store
 
 @asynccontextmanager
@@ -88,6 +91,11 @@ def _actor(user: Principal, fallback: str | None = None) -> str:
 
 reco_store = RecommendationStore(config.RECOMMENDATION_STORE_PATH)
 store = Store(config.DATABASE_URL)
+
+# A1 config store: configurable per-parameter regulatory compliance limits.
+# Deployment-configurable (env file / inline JSON); advisory-only, never a
+# control-write path.
+config_store = ConfigStore()
 
 # Completed runs cached by simulation job id so a downloadable report can be
 # regenerated on demand. Advisory, read-only what-if data only.
@@ -999,6 +1007,99 @@ def scenario_report(
         subject=job_id,
     )
     filename = f"scenario-report-{job_id}.md"
+    return PlainTextResponse(
+        content=document,
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Model governance registry (D1/D2 governance) + regulatory compliance
+# (advisory, read-only).
+#
+# ``GET .../models`` exposes the governance view of every deterministic
+# analytical model (version, spec, current metrics, drift status vs a registered
+# baseline). ``GET .../compliance/limits`` returns the operator-configured
+# per-parameter regulatory limits from the A1 config store; ``.../compliance/
+# status`` screens the current synthetic values against them (flagging
+# exceedances); and ``POST .../reports/compliance`` renders a printable
+# compliance summary. Everything here is advisory: the models are preliminary/
+# synthetic (never validated) and nothing writes to any control system.
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/v1/models", dependencies=AUTHENTICATED)
+def models_registry(fouling: Optional[float] = None) -> dict:
+    """Model governance registry: versions, specs, current metrics, drift status."""
+    registry = model_registry.build_registry(_wq_fouling(fouling))
+    return {
+        "models": [entry.model_dump(mode="json") for entry in registry],
+        "count": len(registry),
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+@app.get("/api/v1/models/{model_id}", dependencies=AUTHENTICATED)
+def model_detail(model_id: str, fouling: Optional[float] = None) -> dict:
+    """Governance detail for a single registered model."""
+    entry = model_registry.get_model(model_id, _wq_fouling(fouling))
+    if entry is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"unknown model: {model_id}; known: {model_registry.list_model_ids()}",
+        )
+    return {
+        **entry.model_dump(mode="json"),
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+@app.get("/api/v1/compliance/limits", dependencies=AUTHENTICATED)
+def compliance_limits() -> dict:
+    """Return the configured per-parameter regulatory limits (A1 config store)."""
+    limits = config_store.limits()
+    return {
+        "limits": [limit.model_dump(mode="json") for limit in limits],
+        "count": len(limits),
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+@app.get("/api/v1/compliance/status", dependencies=AUTHENTICATED)
+def compliance_status(fouling: Optional[float] = None) -> dict:
+    """Screen current values against the configured limits (flag exceedances)."""
+    evaluation = compliance.evaluate(config_store.limits(), _wq_fouling(fouling))
+    return {
+        **evaluation.model_dump(mode="json"),
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+@app.post("/api/v1/reports/compliance")
+def compliance_report(
+    fouling: Optional[float] = None,
+    user: Principal = Depends(get_current_user),
+) -> PlainTextResponse:
+    """Generate a downloadable Markdown regulatory-compliance summary.
+
+    Screens current synthetic values against the configured regulatory limits,
+    flags every exceedance with its regulatory basis (provenance), and ends with
+    the mandatory read-only control-boundary footer + standard disclaimer.
+    """
+    limits = config_store.limits()
+    evaluation = compliance.evaluate(limits, _wq_fouling(fouling))
+    document = build_compliance_report(evaluation, limits)
+    store.audit(
+        "report.compliance.generated",
+        payload={
+            "exceedances": len(evaluation.exceedances),
+            "compliant": evaluation.compliant,
+        },
+        actor=_actor(user),
+        subject=evaluation.facility_id,
+    )
+    filename = f"compliance-report-{evaluation.facility_id}.md"
     return PlainTextResponse(
         content=document,
         media_type="text/markdown",
