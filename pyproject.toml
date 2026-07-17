@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "s3m-watertwin"
+version = "0.1.0"
+description = "Read-only, advisory digital twin for a single seawater reverse-osmosis (RO) treatment train."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Abraxas-S3M" }]
+keywords = ["reverse-osmosis", "digital-twin", "advisory", "seawater", "desalination"]
+
+# Pinned runtime dependencies. See THIRD_PARTY_LICENSES.md for license records.
+dependencies = [
+    "fastapi==0.115.6",
+    "pydantic==2.10.4",
+    "uvicorn[standard]==0.34.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx==0.28.1",
+    "pytest==8.3.4",
+    "ruff==0.8.4",
+]
+
+[project.urls]
+Repository = "https://github.com/Abraxas-S3M/S3M-WaterTwin"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+watertwin = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "N",   # pep8-naming
+    "SIM", # flake8-simplify
+    "C4",  # flake8-comprehensions
+    "RUF", # ruff-specific
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+pythonpath = ["src"]

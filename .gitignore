@@ -2,6 +2,11 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
+*.egg
+build/
+dist/
+.eggs/
+
 .pytest_cache/
 .venv/
 venv/
@@ -86,6 +91,18 @@ MANIFEST
 .venv/
 venv/
 env/
+
+# Test / coverage / tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
 ENV/
 .python-version
 
