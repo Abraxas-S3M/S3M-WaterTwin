@@ -34,12 +34,24 @@ export type PageId =
   | 'admin-facilities';
   | 'training';
 
+// Presentation mode of the whole console. `standard` is the desktop/tablet
+// operator layout; `control-room` is the large-format, high-contrast wall
+// display with minimal chrome and auto-rotating KPI views.
+export type DisplayMode = 'standard' | 'control-room';
+
+// Which paginated print report (if any) is currently open. `null` means no
+// report overlay is shown. Reports reuse existing API data and render a clean,
+// print-friendly view for a browser "Print"/"Save as PDF".
+export type ReportView = 'shift' | 'executive';
+
 interface DashboardState {
   page: PageId;
   selectedAssetId: string | null;
   selectedStage: string | null;
   scenario: ScenarioId;
   operatorName: string;
+  displayMode: DisplayMode;
+  reportView: ReportView | null;
   // The facility currently in focus in the shell switcher. Ephemeral UI state;
   // it is validated against the identity's scoped facilities before use so it can
   // never point at a facility outside the caller's tenant/entitlement.
@@ -52,6 +64,9 @@ interface DashboardState {
   setSelectedStage: (stage: string | null) => void;
   setScenario: (scenario: ScenarioId) => void;
   setOperatorName: (name: string) => void;
+  setDisplayMode: (mode: DisplayMode) => void;
+  openReport: (report: ReportView) => void;
+  closeReport: () => void;
   setActiveFacility: (facilityId: string | null) => void;
   setUnitSystem: (unitSystem: UnitSystem) => void;
 }
@@ -62,6 +77,8 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   selectedStage: null,
   scenario: 'baseline',
   operatorName: 'operator',
+  displayMode: 'standard',
+  reportView: null,
   activeFacilityId: null,
   unitSystem: DEFAULT_UNIT_SYSTEM,
   navigate: (page) => set({ page }),
@@ -70,6 +87,9 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   setSelectedStage: (stage) => set({ selectedStage: stage }),
   setScenario: (scenario) => set({ scenario }),
   setOperatorName: (name) => set({ operatorName: name }),
+  setDisplayMode: (displayMode) => set({ displayMode }),
+  openReport: (reportView) => set({ reportView }),
+  closeReport: () => set({ reportView: null }),
   setActiveFacility: (facilityId) => set({ activeFacilityId: facilityId }),
   setUnitSystem: (unitSystem) => set({ unitSystem }),
 }));

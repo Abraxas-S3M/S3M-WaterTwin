@@ -1,0 +1,354 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ExecutiveReport print view > matches the paginated executive-report snapshot 1`] = `
+<div
+  class="report-view"
+  data-testid="executive-report"
+>
+  <div
+    aria-label="Report actions"
+    class="report-toolbar"
+    role="toolbar"
+  >
+    <div
+      class="report-toolbar-title"
+    >
+      Executive Report
+    </div>
+    <div
+      class="report-toolbar-actions"
+    >
+      <button
+        class="btn primary"
+        data-testid="report-print"
+      >
+        Print / Save as PDF
+      </button>
+      <button
+        class="btn ghost"
+        data-testid="report-close"
+      >
+        Close
+      </button>
+    </div>
+  </div>
+  <div
+    class="report-sheet"
+  >
+    <section
+      class="report-page"
+    >
+      <header
+        class="report-header"
+      >
+        <div>
+          <h1
+            class="report-title"
+          >
+            Executive Value / ROI Report
+          </h1>
+          <div
+            class="report-subtitle"
+          >
+            Aggregated platform value (advisory, estimated)
+          </div>
+        </div>
+        <dl
+          class="report-meta"
+        >
+          <div>
+            <dt>
+              Facility / Train
+            </dt>
+            <dd>
+              S3M-DESAL-01
+               · RO-TRAIN-001
+            </dd>
+          </div>
+          <div>
+            <dt>
+              Generated
+            </dt>
+            <dd>
+              7/17/2026, 7:00:00 AM
+            </dd>
+          </div>
+          <div>
+            <dt>
+              Prepared by
+            </dt>
+            <dd>
+              operator
+            </dd>
+          </div>
+        </dl>
+      </header>
+      <div
+        class="report-callout"
+        data-testid="executive-report-disclaimer"
+      >
+        <span
+          class="report-callout-badge"
+        >
+          ESTIMATED · SYNTHETIC
+        </span>
+        <span>
+          Illustrative estimates on synthetic pilot data — not validated savings or guaranteed outcomes. Every figure is preliminary and advisory only.
+        </span>
+      </div>
+      <h2
+        class="report-h2"
+      >
+        ROI headline (estimated)
+      </h2>
+      <div
+        class="report-kpis"
+        data-testid="executive-report-roi"
+      >
+        <div
+          class="report-kpi"
+        >
+          <div
+            class="report-kpi-label"
+          >
+            Pilot ROI
+          </div>
+          <div
+            class="report-kpi-value"
+          >
+            12
+            %
+          </div>
+        </div>
+        <div
+          class="report-kpi"
+        >
+          <div
+            class="report-kpi-label"
+          >
+            Annualized benefit
+          </div>
+          <div
+            class="report-kpi-value"
+          >
+            $560,466
+          </div>
+        </div>
+        <div
+          class="report-kpi"
+        >
+          <div
+            class="report-kpi-label"
+          >
+            Payback period
+          </div>
+          <div
+            class="report-kpi-value"
+          >
+            5.4
+             mo
+          </div>
+        </div>
+        <div
+          class="report-kpi"
+        >
+          <div
+            class="report-kpi-label"
+          >
+            Pilot investment
+          </div>
+          <div
+            class="report-kpi-value"
+          >
+            $250,000
+          </div>
+        </div>
+      </div>
+      <h2
+        class="report-h2"
+      >
+        Estimated annualized benefits
+      </h2>
+      <table
+        class="report-table"
+        data-testid="executive-report-benefits"
+      >
+        <thead>
+          <tr>
+            <th>
+              Benefit category
+            </th>
+            <th
+              class="num"
+            >
+              Annualized (est.)
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              Downtime avoided
+            </td>
+            <td
+              class="num"
+            >
+              $210,000
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Energy savings
+            </td>
+            <td
+              class="num"
+            >
+              $80,289
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Chemical savings
+            </td>
+            <td
+              class="num"
+            >
+              $12,600
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Water-loss avoided
+            </td>
+            <td
+              class="num"
+            >
+              $3,577
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Maintenance savings
+            </td>
+            <td
+              class="num"
+            >
+              $140,000
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Capex deferred
+            </td>
+            <td
+              class="num"
+            >
+              $114,000
+            </td>
+          </tr>
+          <tr
+            class="report-total"
+          >
+            <td>
+              Total annualized benefit
+            </td>
+            <td
+              class="num"
+            >
+              $560,466
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <h2
+        class="report-h2"
+      >
+        Basis of estimates
+      </h2>
+      <ul
+        class="report-list"
+      >
+        <li>
+          <strong>
+            downtime avoided
+          </strong>
+          : 
+          PdM avoided-failure cost (downtime share)
+           —
+           
+          $210,000
+          /yr
+        </li>
+        <li>
+          <strong>
+            energy savings
+          </strong>
+          : 
+          RO SEC optimization daily saving × 365
+           —
+           
+          $80,289
+          /yr
+        </li>
+        <li>
+          <strong>
+            chemical savings
+          </strong>
+          : 
+          antiscalant dosing headroom (best-effort)
+           —
+           
+          $12,600
+          /yr
+        </li>
+        <li>
+          <strong>
+            water loss avoided
+          </strong>
+          : 
+          reduced leakage losses (best-effort)
+           —
+           
+          $3,577
+          /yr
+        </li>
+        <li>
+          <strong>
+            maintenance savings
+          </strong>
+          : 
+          PdM avoided-failure cost (repair share)
+           —
+           
+          $140,000
+          /yr
+        </li>
+        <li>
+          <strong>
+            capex deferred
+          </strong>
+          : 
+          replacement value deferred by life extension
+           —
+           
+          $114,000
+          /yr
+        </li>
+      </ul>
+      <footer
+        class="report-boundary"
+        data-testid="report-boundary"
+      >
+        <div
+          class="report-boundary-badge"
+        >
+          ADVISORY · READ-ONLY · NO CONTROL WRITE
+        </div>
+        <p>
+          This executive report presents ESTIMATED, illustrative value on synthetic pilot data — not validated savings or guaranteed outcomes. It is advisory only and must not be used as an autonomous control action.
+        </p>
+      </footer>
+    </section>
+  </div>
+</div>
+`;
