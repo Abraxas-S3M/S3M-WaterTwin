@@ -3,9 +3,12 @@
 import type {
   AnomalyResult,
   Asset,
+  AssistantExamplesResponse,
+  AssistantResponse,
   AuditResponse,
   ControlBoundary,
   DecisionRequest,
+  DocumentsResponse,
   EquipmentEnvelopeResponse,
   EquipmentFailureProbabilityResponse,
   EquipmentHealthResponse,
@@ -159,6 +162,15 @@ export const api = {
   getExecutiveValueSummary: () =>
     request<ExecutiveValueSummaryResponse>('/executive/value-summary'),
   getExecutiveRoi: () => request<ExecutiveROIResponse>('/executive/roi'),
+
+  // S3M Operations Assistant (advisory, grounded)
+  askAssistant: (question: string, requestedBy?: string) =>
+    request<AssistantResponse>('/assistant/ask', {
+      method: 'POST',
+      body: JSON.stringify({ question, requested_by: requestedBy ?? null }),
+    }),
+  getAssistantExamples: () => request<AssistantExamplesResponse>('/assistant/examples'),
+  getDocuments: () => request<DocumentsResponse>('/documents'),
 };
 
 export type ApiClient = typeof api;

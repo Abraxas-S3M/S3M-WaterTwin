@@ -753,3 +753,49 @@ export interface ExecutiveROIResponse extends ValueEnvelope {
   roi: ROIEstimate;
   disclaimer: string;
 }
+
+// --- S3M Operations Assistant (advisory, grounded) ---
+
+export type DocumentType = 'manual' | 'procedure' | 'maintenance_record';
+
+export interface DocumentRef {
+  document_id: string;
+  title: string;
+  document_type: DocumentType;
+  path: string;
+  tags: string[];
+  score?: number | null;
+  snippet?: string | null;
+}
+
+export interface DocumentsResponse {
+  documents: DocumentRef[];
+  control_boundary: ControlBoundary;
+}
+
+export interface AssistantResponse {
+  query: string;
+  intent: string;
+  target?: string | null;
+  answer: string;
+  evidence: Evidence;
+  confidence: number;
+  recommended_action?: RecommendationCard | null;
+  approval_required: boolean;
+  grounded: boolean;
+  source_engine_status: string;
+  provenance: DataProvenance;
+  control_boundary: ControlBoundary;
+  packet_id?: string | null;
+  created_at: string;
+}
+
+export interface AssistantExample {
+  intent: string;
+  question: string;
+}
+
+export interface AssistantExamplesResponse {
+  examples: AssistantExample[];
+  control_boundary: ControlBoundary;
+}

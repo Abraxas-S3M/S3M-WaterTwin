@@ -88,6 +88,13 @@ export function installFetchMock(overrides: Record<string, unknown> = {}): Fetch
     if (path.startsWith('/executive/value-summary'))
       return json(overrides.executiveValueSummary ?? fx.executiveValueSummary);
     if (path.startsWith('/executive/roi')) return json(overrides.executiveRoi ?? fx.executiveRoi);
+
+    // S3M Operations Assistant.
+    if (path.startsWith('/assistant/examples'))
+      return json(overrides.assistantExamples ?? fx.assistantExamples);
+    if (path.startsWith('/assistant/ask') && method === 'POST')
+      return json(overrides.assistantAnswer ?? fx.assistantAnswer);
+    if (path.startsWith('/documents')) return json(overrides.documentsList ?? fx.documentsList);
     if (path.startsWith('/assets/')) return json(fx.hpAsset);
     if (path.startsWith('/assets')) return json(fx.assets);
     if (path.startsWith('/streams')) return json([]);

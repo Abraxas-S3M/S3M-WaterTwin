@@ -20,7 +20,9 @@ from canonical_water_model import ControlBoundary, DataProvenance, WQAlert
 
 from simulation_contracts import ScenarioType, SimulationResult
 
+from . import assistant
 from . import config
+from . import documents
 from . import energy
 from . import executive
 from . import membrane
@@ -667,6 +669,115 @@ def executive_roi(fouling: Optional[float] = None) -> dict:
         {"roi": estimate.model_dump(mode="json"), "disclaimer": estimate.disclaimer},
         DataProvenance.estimated,
     )
+
+
+# ---------------------------------------------------------------------------
+# S3M Operations Assistant (advisory, read-only)
+#
+# A grounded natural-language interface over everything the platform computes.
+# The assistant AGGREGATES existing layer outputs (health / anomaly / root-cause
+# / water-quality / equipment / membrane / PdM / energy / resilience) plus
+# retrieved seeded documents, assembles a WaterTwinPacket and routes it through
+# the EXISTING s3m_connector (local grounded fallback preserved). It NEVER
+# answers operational questions from general model knowledge. Every response
+# carries the control boundary + a full evidence block; any recommended action
+# routes through the existing recommendation + audit path (pending, no control
+# write) and every question is audited.
+# ---------------------------------------------------------------------------
+
+
+def get_s3m_connector():
+    """Return the injected connector (tests) or the process-wide default."""
+    conn = getattr(app.state, "s3m_connector", None)
+    if conn is None:
+        from .s3m_connector import get_connector
+
+        conn = get_connector()
+    return conn
+
+
+class AssistantAskRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=1000)
+    requested_by: Optional[str] = None
+
+
+def _route_assistant_recommendation(card) -> None:
+    """Route an assistant recommendation through the existing recommendation +
+    audit path (pending, operator approval required, no control write). Idempotent
+    by the deterministic assistant id so repeated asks do not duplicate a card or
+    reset an operator's decision."""
+    if card is None or reco_store.get(card.recommendation_id) is not None:
+        return
+    reco_store.put(card)
+    store.save_recommendation(
+        card.recommendation_id,
+        card.model_dump(mode="json"),
+        facility_id=card.facility_id,
+        train_id=card.train_id,
+        status=card.approval_status.value,
+    )
+    store.audit(
+        "assistant.recommendation.created",
+        payload={"recommendation_id": card.recommendation_id, "asset_id": card.asset_id},
+        subject=card.recommendation_id,
+    )
+
+
+@app.post("/api/v1/assistant/ask")
+def assistant_ask(body: AssistantAskRequest) -> dict:
+    """Answer an operator question with a grounded, evidence-backed response.
+
+    The answer is assembled from platform layer outputs + retrieved documents and
+    routed through the S3M-Core connector (grounded local fallback preserved).
+    Any recommended action is persisted ``pending`` through the existing
+    recommendation + audit path; the question itself is always audited.
+    """
+    response = assistant.answer(
+        body.question,
+        requested_by=body.requested_by,
+        connector=get_s3m_connector(),
+    )
+    _route_assistant_recommendation(response.recommended_action)
+    store.audit(
+        "assistant.ask",
+        payload={
+            "intent": response.intent,
+            "target": response.target,
+            "source_engine_status": response.source_engine_status,
+            "documents_reviewed": response.evidence.documents_reviewed,
+            "assets_reviewed": response.evidence.assets_reviewed,
+        },
+        actor=body.requested_by or "operator",
+        subject=response.packet_id or response.intent,
+    )
+    return response.model_dump(mode="json")
+
+
+@app.get("/api/v1/assistant/examples")
+def assistant_examples() -> dict:
+    """Return the canonical example questions (one per supported intent)."""
+    return {
+        "examples": assistant.EXAMPLE_QUESTIONS,
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+@app.get("/api/v1/documents")
+def list_documents() -> dict:
+    """List the seeded operations documents available for retrieval."""
+    return {
+        "documents": [d.model_dump(mode="json") for d in documents.list_documents()],
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+@app.get("/api/v1/documents/{document_id}")
+def get_document(document_id: str) -> dict:
+    """Return a single seeded document (metadata + full body)."""
+    doc = documents.get_document(document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail=f"unknown document: {document_id}")
+    return {**doc, "control_boundary": ControlBoundary().model_dump()}
 
 
 @app.post("/api/v1/reset")
