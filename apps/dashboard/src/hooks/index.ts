@@ -7,6 +7,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import { api } from '../api/client';
+import type { FacilitiesResponse, FleetOverview } from '../facilities/types';
 import type {
   AnomalyResult,
   Asset,
@@ -38,6 +39,12 @@ import type {
   ResilienceCriticalityResponse,
   ResilienceGeneratorResponse,
   TelemetryReading,
+  TrainingActionRequest,
+  TrainingActionResponse,
+  TrainingRecordResponse,
+  TrainingRecordsResponse,
+  TrainingScenariosResponse,
+  TrainingSessionResponse,
   WaterStream,
   WQAlertsResponse,
   WQContaminantMatrixResponse,
@@ -55,6 +62,8 @@ export const POLL_INTERVAL_MS = 4000;
 export const queryKeys = {
   controlBoundary: ['control-boundary'] as const,
   overview: ['overview'] as const,
+  facilities: ['facilities'] as const,
+  fleetOverview: ['fleet-overview'] as const,
   assets: ['assets'] as const,
   asset: (id: string) => ['asset', id] as const,
   streams: ['streams'] as const,
@@ -92,6 +101,8 @@ export const queryKeys = {
   executiveRoi: ['executive-roi'] as const,
   assistantExamples: ['assistant-examples'] as const,
   documents: ['documents'] as const,
+  trainingScenarios: ['training-scenarios'] as const,
+  trainingRecords: ['training-records'] as const,
 };
 
 // Control boundary rarely changes; poll slowly but keep it fresh.
@@ -108,6 +119,24 @@ export function useOverview(): UseQueryResult<PlantOverview> {
   return useQuery({
     queryKey: queryKeys.overview,
     queryFn: api.getOverview,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+// --- Multi-facility administration hooks -----------------------------------
+
+export function useFacilities(): UseQueryResult<FacilitiesResponse> {
+  return useQuery({
+    queryKey: queryKeys.facilities,
+    queryFn: api.getFacilities,
+    staleTime: POLL_INTERVAL_MS * 15,
+  });
+}
+
+export function useFleetOverview(): UseQueryResult<FleetOverview> {
+  return useQuery({
+    queryKey: queryKeys.fleetOverview,
+    queryFn: api.getFleetOverview,
     refetchInterval: POLL_INTERVAL_MS,
   });
 }
@@ -510,5 +539,54 @@ export function useDecision() {
         ? api.approveRecommendation(recId, body)
         : api.rejectRecommendation(recId, body),
     onSuccess: invalidate,
+  });
+}
+
+// --- Operator Training Simulator hooks (SIMULATION, sandboxed) ---
+
+export function useTrainingScenarios(): UseQueryResult<TrainingScenariosResponse> {
+  return useQuery({
+    queryKey: queryKeys.trainingScenarios,
+    queryFn: api.getTrainingScenarios,
+    staleTime: POLL_INTERVAL_MS * 60,
+  });
+}
+
+export function useTrainingRecords(): UseQueryResult<TrainingRecordsResponse> {
+  return useQuery({
+    queryKey: queryKeys.trainingRecords,
+    queryFn: api.getTrainingRecords,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useStartTrainingSession() {
+  return useMutation({
+    mutationFn: ({ scenarioId, operator }: { scenarioId: string; operator?: string }): Promise<TrainingSessionResponse> =>
+      api.startTrainingSession(scenarioId, operator),
+  });
+}
+
+export function useCaptureTrainingAction() {
+  return useMutation({
+    mutationFn: ({
+      sessionId,
+      body,
+    }: {
+      sessionId: string;
+      body: TrainingActionRequest;
+    }): Promise<TrainingActionResponse> => api.captureTrainingAction(sessionId, body),
+  });
+}
+
+export function useSubmitTrainingSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string): Promise<TrainingRecordResponse> =>
+      api.submitTrainingSession(sessionId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.trainingRecords });
+      void qc.invalidateQueries({ queryKey: ['audit'] });
+    },
   });
 }

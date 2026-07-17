@@ -51,6 +51,11 @@ interface DecodedToken {
   exp?: number;
   realm_access?: { roles?: string[] };
   resource_access?: Record<string, { roles?: string[] }>;
+  // Multi-tenant / multi-facility scope claims (mapped in Keycloak).
+  tenant_id?: string;
+  tenant?: string;
+  facility_ids?: string[];
+  facilities?: string[];
 }
 
 export function decodeJwt(token: string): DecodedToken {
@@ -73,6 +78,17 @@ export function rolesFromToken(token: string): string[] {
   return [...roles];
 }
 
+export function tenantFromToken(token: string): string | null {
+  const decoded = decodeJwt(token);
+  return decoded.tenant_id ?? decoded.tenant ?? null;
+}
+
+export function facilityIdsFromToken(token: string): string[] {
+  const decoded = decodeJwt(token);
+  const ids = decoded.facility_ids ?? decoded.facilities ?? [];
+  return Array.isArray(ids) ? ids.filter((v): v is string => typeof v === 'string') : [];
+}
+
 function applyTokens(access: string, refresh: string | null): void {
   const decoded = decodeJwt(access);
   useAuthStore.getState().setSession({
@@ -82,6 +98,8 @@ function applyTokens(access: string, refresh: string | null): void {
     expiresAt: decoded.exp ? decoded.exp * 1000 : null,
     username: decoded.preferred_username ?? decoded.email ?? decoded.sub ?? 'user',
     roles: rolesFromToken(access),
+    tenantId: tenantFromToken(access),
+    facilityIds: facilityIdsFromToken(access),
     error: null,
   });
 }

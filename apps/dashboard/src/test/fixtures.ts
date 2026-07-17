@@ -32,6 +32,10 @@ import type {
   ResilienceCriticalityResponse,
   ResilienceGeneratorResponse,
   TelemetryReading,
+  TrainingRecordResponse,
+  TrainingRecordsResponse,
+  TrainingScenariosResponse,
+  TrainingSessionResponse,
   WQAlertsResponse,
   WQContaminantMatrixResponse,
   WQForecastResponse,
@@ -39,6 +43,7 @@ import type {
   WQScalingResponse,
   WQStatusResponse,
 } from '../api/types';
+import type { Facility, FacilitiesResponse, FleetOverview } from '../facilities/types';
 
 export const controlBoundary: ControlBoundary = {
   control_mode: 'advisory',
@@ -1021,6 +1026,151 @@ export const documentsList: DocumentsResponse = {
   ],
 };
 
+// --- Multi-facility administration -----------------------------------------
+
+// Two tenants exist in the raw catalog. A signed-in ACME identity must only ever
+// see ACME facilities; the Globex facility is included in some fixtures purely to
+// prove the client-side scope guard drops cross-tenant rows (no leak).
+export const TENANT_ACME = 'TEN-ACME';
+export const TENANT_GLOBEX = 'TEN-GLOBEX';
+
+export const facilityAlpha: Facility = {
+  facility_id: 'FAC-ALPHA',
+  tenant_id: TENANT_ACME,
+  tenant_name: 'Acme Water Co',
+  name: 'SWRO Alpha',
+  region: 'Gulf Coast',
+  status: 'online',
+  config: {
+    train_count: 3,
+    capacity_m3_day: 12000,
+    currency: 'USD',
+    commissioned: '2021-03-15',
+    timezone: 'America/Chicago',
+  },
+  roles: [
+    { role: 'facility-operator', subject: 'ola-operator', display_name: 'Ola Operator' },
+    { role: 'engineer', subject: 'erin-engineer', display_name: 'Erin Engineer' },
+    { role: 'viewer', subject: 'val-viewer', display_name: 'Val Viewer' },
+  ],
+};
+
+export const facilityBeta: Facility = {
+  facility_id: 'FAC-BETA',
+  tenant_id: TENANT_ACME,
+  tenant_name: 'Acme Water Co',
+  name: 'SWRO Beta',
+  region: 'Adriatic',
+  status: 'maintenance',
+  config: {
+    train_count: 2,
+    capacity_m3_day: 8000,
+    currency: 'EUR',
+    commissioned: '2022-09-01',
+    timezone: 'Europe/Rome',
+  },
+  roles: [
+    { role: 'facility-operator', subject: 'bo-operator', display_name: 'Bo Operator' },
+  ],
+};
+
+export const facilityGamma: Facility = {
+  facility_id: 'FAC-GAMMA',
+  tenant_id: TENANT_ACME,
+  tenant_name: 'Acme Water Co',
+  name: 'SWRO Gamma',
+  region: 'Red Sea',
+  status: 'online',
+  config: {
+    train_count: 4,
+    capacity_m3_day: 14000,
+    currency: 'USD',
+    commissioned: '2020-01-20',
+    timezone: 'Asia/Riyadh',
+  },
+  roles: [
+    { role: 'engineer', subject: 'gia-engineer', display_name: 'Gia Engineer' },
+  ],
+};
+
+// Foreign tenant — must never surface for an ACME identity.
+export const facilityOmegaForeign: Facility = {
+  facility_id: 'FAC-OMEGA',
+  tenant_id: TENANT_GLOBEX,
+  tenant_name: 'Globex Desal',
+  name: 'SWRO Omega',
+  region: 'Pacific',
+  status: 'online',
+  config: {
+    train_count: 5,
+    capacity_m3_day: 20000,
+    currency: 'USD',
+    commissioned: '2019-06-10',
+    timezone: 'Australia/Perth',
+  },
+  roles: [
+    { role: 'facility-operator', subject: 'omar-operator', display_name: 'Omar Operator' },
+  ],
+};
+
+export const acmeFacilities: Facility[] = [facilityAlpha, facilityBeta, facilityGamma];
+
+// What the (tenant-scoped) API returns to an ACME identity.
+export const facilitiesResponse: FacilitiesResponse = {
+  tenant_id: TENANT_ACME,
+  facilities: acmeFacilities,
+  provenance: 'preliminary',
+};
+
+export const fleetOverview: FleetOverview = {
+  tenant_id: TENANT_ACME,
+  provenance: 'preliminary',
+  facilities: [
+    {
+      facility_id: 'FAC-ALPHA',
+      tenant_id: TENANT_ACME,
+      name: 'SWRO Alpha',
+      status: 'online',
+      health: { score: 79.5, band: 'Monitor' },
+      energy: { total_power_kw: 1520, specific_energy_kwh_m3: 3.05 },
+      active_alarms: 1,
+      production_m3_day: 11952,
+      provenance: 'preliminary',
+    },
+    {
+      facility_id: 'FAC-BETA',
+      tenant_id: TENANT_ACME,
+      name: 'SWRO Beta',
+      status: 'maintenance',
+      health: { score: 62.0, band: 'Degraded' },
+      energy: { total_power_kw: 980, specific_energy_kwh_m3: 3.4 },
+      active_alarms: 3,
+      production_m3_day: 8000,
+      provenance: 'preliminary',
+    },
+    {
+      facility_id: 'FAC-GAMMA',
+      tenant_id: TENANT_ACME,
+      name: 'SWRO Gamma',
+      status: 'online',
+      health: { score: 91.0, band: 'Healthy' },
+      energy: { total_power_kw: 1750, specific_energy_kwh_m3: 2.8 },
+      active_alarms: 0,
+      production_m3_day: 14000,
+      provenance: 'preliminary',
+    },
+  ],
+  totals: {
+    facility_count: 3,
+    online_count: 2,
+    avg_health: 77.5,
+    worst_band: 'Degraded',
+    total_power_kw: 4250,
+    total_production_m3_day: 33952,
+    total_active_alarms: 4,
+  },
+};
+
 export const overview: PlantOverview = {
   facility_id: 'SWRO-ALPHA',
   train_id: 'TRAIN-01',
@@ -1060,4 +1210,138 @@ export const overview: PlantOverview = {
   ],
   active_recommendations: [recommendation],
   service_continuity_risk: { score: 34, band: 'elevated', provenance: 'preliminary' },
+};
+
+// --- Operator Training Simulator (SIMULATION, sandboxed) ---
+
+const trainingEnvelope = {
+  facility_id: 'S3M-DESAL-01',
+  train_id: 'RO-TRAIN-001',
+  provenance: 'simulated' as const,
+  simulation: true,
+  disclaimer:
+    'SIMULATION — operator training drill on synthetic data. This is a sandboxed rehearsal only: no real control action is taken, no command is emitted.',
+  control_boundary: controlBoundary,
+};
+
+const pumpDegradationScenario: TrainingScenariosResponse['scenarios'][number] = {
+  scenario_id: 'pump-degradation',
+  scenario_type: 'pump_degradation',
+  title: 'High-Pressure Pump Degradation',
+  category: 'Rotating equipment',
+  difficulty: 'foundational',
+  briefing: 'The high-pressure feed pump shows a rising vibration trend and falling efficiency.',
+  derived_from: 'synthetic PdM telemetry (AST-HPP-01) + hydraulic pump_outage what-if',
+  learning_objectives: ['Recognise degradation from telemetry.'],
+  rubric: [
+    {
+      key: 'diagnose_vibration',
+      prompt: 'Identify the rising vibration / bearing-wear signature.',
+      guidance: 'Call out the vibration trend against the ISO alarm limit.',
+      weight: 2.0,
+    },
+    {
+      key: 'plan_maintenance',
+      prompt: 'Schedule a diagnostic / maintenance in a low-demand window.',
+      guidance: 'Plan an inspection rather than tripping the pump immediately.',
+      weight: 2.0,
+    },
+  ],
+};
+
+export const trainingScenarios: TrainingScenariosResponse = {
+  ...trainingEnvelope,
+  scenarios: [
+    pumpDegradationScenario,
+    {
+      ...pumpDegradationScenario,
+      scenario_id: 'leak',
+      scenario_type: 'leak',
+      title: 'Product-Water Leak',
+      category: 'Hydraulics',
+      difficulty: 'intermediate',
+    },
+  ],
+};
+
+export const trainingSession: TrainingSessionResponse = {
+  ...trainingEnvelope,
+  session: {
+    session_id: 'train-abc123',
+    scenario_id: 'pump-degradation',
+    scenario: pumpDegradationScenario,
+    operator: 'operator',
+    status: 'in_progress',
+    simulation: true,
+    twin_summary: {
+      headline: 'High-Pressure Pump A: rising vibration and bearing temperature.',
+      observed: { vibration_mm_s: 6.4, vibration_limit_mm_s: 4.5, efficiency_drift_pct: 6.0 },
+      affected_asset: 'AST-HPP-01',
+      reused_scenario: 'pump_outage',
+    },
+    injected_telemetry: [
+      {
+        asset_id: 'AST-HPP-01',
+        metric: 'vibration_mm_s',
+        value: 6.4,
+        unit: 'mm/s',
+        timestamp: '2026-07-17T07:00:00Z',
+        provenance: 'simulated',
+      },
+    ],
+    actions: [],
+    started_at: '2026-07-17T07:00:00Z',
+    provenance: 'simulated',
+    control_boundary: controlBoundary,
+    disclaimer: trainingEnvelope.disclaimer,
+  },
+};
+
+export const trainingRecord: TrainingRecordResponse = {
+  ...trainingEnvelope,
+  record: {
+    record_id: 'trec-abc123',
+    session_id: 'train-abc123',
+    scenario_id: 'pump-degradation',
+    scenario_title: 'High-Pressure Pump Degradation',
+    operator: 'operator',
+    score: {
+      total_score: 4.0,
+      max_score: 4.0,
+      percentage: 100.0,
+      band: 'Exemplary',
+      passed: true,
+      provenance: 'simulated',
+      items: [
+        {
+          key: 'diagnose_vibration',
+          prompt: 'Identify the rising vibration / bearing-wear signature.',
+          weight: 2.0,
+          matched: true,
+          awarded: 2.0,
+          feedback: 'Addressed.',
+        },
+        {
+          key: 'plan_maintenance',
+          prompt: 'Schedule a diagnostic / maintenance in a low-demand window.',
+          weight: 2.0,
+          matched: true,
+          awarded: 2.0,
+          feedback: 'Addressed.',
+        },
+      ],
+    },
+    actions: [],
+    started_at: '2026-07-17T07:00:00Z',
+    completed_at: '2026-07-17T07:05:00Z',
+    simulation: true,
+    provenance: 'simulated',
+    control_boundary: controlBoundary,
+    disclaimer: trainingEnvelope.disclaimer,
+  },
+};
+
+export const trainingRecords: TrainingRecordsResponse = {
+  ...trainingEnvelope,
+  records: [trainingRecord.record],
 };

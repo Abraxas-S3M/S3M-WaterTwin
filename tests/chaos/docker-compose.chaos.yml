@@ -1,0 +1,29 @@
+# Chaos-drill overrides for the edge-gateway store-and-forward test.
+#
+#   docker compose -f docker-compose.yml -f tests/chaos/docker-compose.chaos.yml up -d
+#
+# Disables auth so the drill can read the audit/ingest stats without a token,
+# and drives the edge-gateway hard with a finite, capped production run so the
+# post-recovery counts are deterministic. Nothing here changes the read-only
+# control posture.
+services:
+  watertwin-api:
+    environment:
+      # Open the read + ingest paths for the drill (no token / OIDC needed).
+      WATERTWIN_AUTH_DISABLED: "true"
+      WATERTWIN_INGEST_TOKEN: ""
+    # Slim the dependency graph for the drill: only the database is required
+    # (auth is disabled so keycloak is unneeded, and /health tolerates an absent
+    # hydraulic-sim). Keeps the drill fast and focused on the ingest path.
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+
+  edge-gateway:
+    environment:
+      EDGE_INGEST_TOKEN: ""
+      # Fast, finite production so the drill converges deterministically. The
+      # cap is per gateway lifetime, so a kill + restart yields a well-defined
+      # total (read from the persisted spool sequence).
+      EDGE_BATCH_INTERVAL_S: "0.2"
+      EDGE_MAX_BATCHES: "30"

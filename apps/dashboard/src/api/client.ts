@@ -33,6 +33,12 @@ import type {
   PumpCurve,
   RecommendationCard,
   TelemetryReading,
+  TrainingActionRequest,
+  TrainingActionResponse,
+  TrainingRecordResponse,
+  TrainingRecordsResponse,
+  TrainingScenariosResponse,
+  TrainingSessionResponse,
   WaterStream,
   WorkOrderDecisionRequest,
   WorkOrderResponse,
@@ -44,6 +50,8 @@ import type {
   WQScalingResponse,
   WQStatusResponse,
 } from './types';
+
+import type { FacilitiesResponse, FleetOverview } from '../facilities/types';
 
 import { getAccessToken } from '../auth/store';
 import { refreshTokens } from '../auth/oidc';
@@ -106,6 +114,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   getControlBoundary: () => request<ControlBoundary>('/control-boundary'),
   getOverview: () => request<PlantOverview>('/overview'),
+
+  // Multi-facility administration (tenant-scoped by the API; the client also
+  // scopes defensively so cross-tenant rows never render).
+  getFacilities: () => request<FacilitiesResponse>('/facilities'),
+  getFleetOverview: () => request<FleetOverview>('/fleet/overview'),
 
   getAssets: () => request<Asset[]>('/assets'),
   getAsset: (assetId: string) => request<Asset>(`/assets/${assetId}`),
@@ -221,6 +234,27 @@ export const api = {
     }),
   getAssistantExamples: () => request<AssistantExamplesResponse>('/assistant/examples'),
   getDocuments: () => request<DocumentsResponse>('/documents'),
+
+  // Operator Training Simulator (SIMULATION, sandboxed — never emits a command)
+  getTrainingScenarios: () => request<TrainingScenariosResponse>('/training/scenarios'),
+  startTrainingSession: (scenarioId: string, operator?: string) =>
+    request<TrainingSessionResponse>('/training/sessions', {
+      method: 'POST',
+      body: JSON.stringify({ scenario_id: scenarioId, operator: operator ?? null }),
+    }),
+  getTrainingSession: (sessionId: string) =>
+    request<TrainingSessionResponse>(`/training/sessions/${encodeURIComponent(sessionId)}`),
+  captureTrainingAction: (sessionId: string, body: TrainingActionRequest) =>
+    request<TrainingActionResponse>(
+      `/training/sessions/${encodeURIComponent(sessionId)}/actions`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  submitTrainingSession: (sessionId: string) =>
+    request<TrainingRecordResponse>(
+      `/training/sessions/${encodeURIComponent(sessionId)}/submit`,
+      { method: 'POST', body: JSON.stringify({}) },
+    ),
+  getTrainingRecords: () => request<TrainingRecordsResponse>('/training/records'),
 };
 
 export type ApiClient = typeof api;

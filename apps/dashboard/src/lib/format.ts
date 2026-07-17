@@ -23,36 +23,14 @@ export const bandColor: Record<HealthBand, string> = {
   Critical: '#e74c3c',
 };
 
-export const provenanceMeta: Record<
-  DataProvenance,
-  { label: string; validated: boolean; title: string }
-> = {
-  measured: {
-    label: 'Measured',
-    validated: true,
-    title: 'Directly measured instrument data.',
-  },
-  synthetic: {
-    label: 'Synthetic',
-    validated: false,
-    title: 'Synthetic data — generated, not from live plant instruments.',
-  },
-  simulated: {
-    label: 'Simulated',
-    validated: false,
-    title: 'Model simulation output — not validated against plant.',
-  },
-  preliminary: {
-    label: 'Preliminary',
-    validated: false,
-    title: 'Preliminary model output — pending calibration/validation.',
-  },
-  estimated: {
-    label: 'Estimated',
-    validated: false,
-    title:
-      'Illustrative estimate on synthetic pilot data — not a validated saving or guaranteed outcome.',
-  },
+// Whether each provenance represents validated/measured data. Human-readable
+// labels and tooltips are localized (see the `provenance.*` locale keys).
+export const provenanceValidated: Record<DataProvenance, boolean> = {
+  measured: true,
+  synthetic: false,
+  simulated: false,
+  preliminary: false,
+  estimated: false,
 };
 
 export function fmtMoney(value: number | null | undefined, digits = 0): string {
