@@ -1,6 +1,21 @@
 {
   "components": [
     {
+      "bom-ref": "requirements-L22",
+      "description": "requirements line 22: asyncua==1.1.6",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/asyncua/"
+        }
+      ],
+      "name": "asyncua",
+      "purl": "pkg:pypi/asyncua@1.1.6",
+      "type": "library",
+      "version": "1.1.6"
+    },
+    {
       "bom-ref": "requirements-L7",
       "description": "requirements line 7: fastapi==0.139.2",
       "externalReferences": [
@@ -29,6 +44,21 @@
       "purl": "pkg:pypi/httpx@0.28.1",
       "type": "library",
       "version": "0.28.1"
+    },
+    {
+      "bom-ref": "requirements-L27",
+      "description": "requirements line 27: nats-py==2.15.0",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/nats-py/"
+        }
+      ],
+      "name": "nats-py",
+      "purl": "pkg:pypi/nats-py@2.15.0",
+      "type": "library",
+      "version": "2.15.0"
     },
     {
       "bom-ref": "requirements-L11",
@@ -88,6 +118,21 @@
       "version": "2.13.0"
     },
     {
+      "bom-ref": "requirements-L23",
+      "description": "requirements line 23: pymodbus==3.7.4",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/pymodbus/"
+        }
+      ],
+      "name": "pymodbus",
+      "purl": "pkg:pypi/pymodbus@3.7.4",
+      "type": "library",
+      "version": "3.7.4"
+    },
+    {
       "bom-ref": "requirements-L13",
       "description": "requirements line 13: scipy==1.18.0",
       "externalReferences": [
@@ -138,6 +183,15 @@
       "ref": "requirements-L16"
     },
     {
+      "ref": "requirements-L22"
+    },
+    {
+      "ref": "requirements-L23"
+    },
+    {
+      "ref": "requirements-L27"
+    },
+    {
       "ref": "requirements-L7"
     },
     {
@@ -148,7 +202,7 @@
     }
   ],
   "metadata": {
-    "timestamp": "2026-07-17T13:56:02.123918+00:00",
+    "timestamp": "2026-07-17T14:59:50.246261+00:00",
     "tools": {
       "components": [
         {
@@ -252,7 +306,7 @@
       ]
     }
   },
-  "serialNumber": "urn:uuid:7b4bcc92-7bec-4b11-8fe5-488fb7c5dfe5",
+  "serialNumber": "urn:uuid:209685c8-938e-4cdc-9fd5-722f574787c9",
   "version": 1,
   "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
   "bomFormat": "CycloneDX",
