@@ -29,5 +29,8 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     css: false,
     exclude: ['**/node_modules/**', '**/e2e/**', '**/dist/**'],
+    // Pin the timezone so date/time formatting in report snapshots is
+    // deterministic across contributor machines and CI.
+    env: { TZ: 'UTC' },
   },
 });

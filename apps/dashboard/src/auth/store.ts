@@ -17,6 +17,15 @@ export interface AuthSession {
   expiresAt: number | null;
   username: string | null;
   roles: string[];
+  // Multi-tenant / multi-facility scope carried by the identity token. The
+  // client uses these to defensively scope facility data so cross-tenant rows
+  // never render, even if an upstream response were to over-return (the API is
+  // the authoritative enforcer; this is client-side defence in depth).
+  tenantId: string | null;
+  // Facilities this identity is explicitly entitled to. Empty means "all
+  // facilities within the tenant" for tenant-admins/admins; for a
+  // facility-operator it is the single facility (or facilities) they may see.
+  facilityIds: string[];
   error: string | null;
 }
 
@@ -27,7 +36,11 @@ interface AuthState extends AuthSession {
 }
 
 // When auth is not configured, run as a dev "admin" carrying every role so the
-// console is fully usable without Keycloak (mirrors the API dev bypass).
+// console is fully usable without Keycloak (mirrors the API dev bypass). The
+// dev identity is scoped to a demo tenant so the multi-facility surfaces work
+// end-to-end locally.
+export const DEV_TENANT_ID = 'TEN-ACME';
+
 const devDefault: AuthSession = {
   status: 'authenticated',
   accessToken: null,
@@ -35,6 +48,8 @@ const devDefault: AuthSession = {
   expiresAt: null,
   username: 'dev-admin',
   roles: [...ALL_ROLES] as Role[],
+  tenantId: DEV_TENANT_ID,
+  facilityIds: [],
   error: null,
 };
 
@@ -45,6 +60,8 @@ const anonymousDefault: AuthSession = {
   expiresAt: null,
   username: null,
   roles: [],
+  tenantId: null,
+  facilityIds: [],
   error: null,
 };
 

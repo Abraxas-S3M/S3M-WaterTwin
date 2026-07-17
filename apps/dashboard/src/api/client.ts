@@ -10,6 +10,11 @@ import type {
   ConfigDocument,
   ConfigDraftPayload,
   ConfigVersionsResponse,
+  ComplianceLimitsResponse,
+  ComplianceStatusResponse,
+  CmmsAssetHistoryResponse,
+  CmmsStatusResponse,
+  CmmsWorkOrdersResponse,
   ControlBoundary,
   DecisionRequest,
   DocumentsResponse,
@@ -28,13 +33,25 @@ import type {
   MaintenanceRankingResponse,
   MaintenanceRecommendationsResponse,
   MembraneHealthResponse,
+  ModelsResponse,
   PlantOverview,
   ResilienceCriticalityResponse,
   ResilienceGeneratorResponse,
   PumpCurve,
   RecommendationCard,
+  SecurityOverviewResponse,
+  SiemExportResponse,
   TelemetryReading,
+  TrainingActionRequest,
+  TrainingActionResponse,
+  TrainingRecordResponse,
+  TrainingRecordsResponse,
+  TrainingScenariosResponse,
+  TrainingSessionResponse,
   WaterStream,
+  WorkOrderDecisionRequest,
+  WorkOrderResponse,
+  WorkOrdersResponse,
   WQAlertsResponse,
   WQContaminantMatrixResponse,
   WQForecastResponse,
@@ -42,6 +59,8 @@ import type {
   WQScalingResponse,
   WQStatusResponse,
 } from './types';
+
+import type { FacilitiesResponse, FleetOverview } from '../facilities/types';
 
 import { getAccessToken } from '../auth/store';
 import { refreshTokens } from '../auth/oidc';
@@ -73,7 +92,7 @@ async function doFetch(path: string, init?: RequestInit): Promise<Response> {
   });
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function requestRaw(path: string, init?: RequestInit): Promise<Response> {
   let res = await doFetch(path, init);
 
   // On a 401 with a live session, try a single silent token refresh + retry.
@@ -85,7 +104,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     let detail = res.statusText;
     try {
-      const body = await res.json();
+      const body = await res.clone().json();
       detail = (body as { detail?: string }).detail ?? detail;
     } catch {
       /* non-JSON error body */
@@ -97,13 +116,28 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new ApiError(res.status, detail);
   }
+  return res;
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await requestRaw(path, init);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+async function requestText(path: string, init?: RequestInit): Promise<string> {
+  const res = await requestRaw(path, init);
+  return res.text();
 }
 
 export const api = {
   getControlBoundary: () => request<ControlBoundary>('/control-boundary'),
   getOverview: () => request<PlantOverview>('/overview'),
+
+  // Multi-facility administration (tenant-scoped by the API; the client also
+  // scopes defensively so cross-tenant rows never render).
+  getFacilities: () => request<FacilitiesResponse>('/facilities'),
+  getFleetOverview: () => request<FleetOverview>('/fleet/overview'),
 
   getAssets: () => request<Asset[]>('/assets'),
   getAsset: (assetId: string) => request<Asset>(`/assets/${assetId}`),
@@ -171,6 +205,22 @@ export const api = {
   getMaintenanceRecommendations: () =>
     request<MaintenanceRecommendationsResponse>('/maintenance/recommendations'),
 
+  // Work orders / Maintenance Center (advisory; work orders derived from PdM alerts)
+  getWorkOrders: () => request<WorkOrdersResponse>('/maintenance/work-orders'),
+  getWorkOrder: (id: string) =>
+    request<WorkOrderResponse>(`/maintenance/work-orders/${encodeURIComponent(id)}`),
+  decideWorkOrder: (id: string, body: WorkOrderDecisionRequest) =>
+    request<WorkOrderResponse>(
+      `/maintenance/work-orders/${encodeURIComponent(id)}/decision`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  getCmmsStatus: () => request<CmmsStatusResponse>('/maintenance/cmms/status'),
+  getCmmsWorkOrders: () => request<CmmsWorkOrdersResponse>('/maintenance/cmms/work-orders'),
+  getCmmsAssetHistory: (assetId: string) =>
+    request<CmmsAssetHistoryResponse>(
+      `/maintenance/cmms/asset-history/${encodeURIComponent(assetId)}`,
+    ),
+
   // Energy Optimization (advisory, estimated)
   getEnergySummary: () => request<EnergySummaryResponse>('/energy/summary'),
   optimizeEnergy: () =>
@@ -228,6 +278,39 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  // Model governance registry (D1/D2) + regulatory compliance (A1 config store)
+  getModels: () => request<ModelsResponse>('/models'),
+  getComplianceLimits: () => request<ComplianceLimitsResponse>('/compliance/limits'),
+  getComplianceStatus: () => request<ComplianceStatusResponse>('/compliance/status'),
+  getComplianceReport: async (): Promise<string> => {
+    const res = await doFetch('/reports/compliance', { method: 'POST' });
+    if (!res.ok) throw new ApiError(res.status, res.statusText);
+    return res.text();
+  },
+  // Cyber-Physical Security (advisory, read-only; security role required)
+  getSecurityOverview: () => request<SecurityOverviewResponse>('/security/overview'),
+  getSiemExport: () => request<SiemExportResponse>('/security/siem-export?format=json'),
+  getSiemExportCef: () => requestText('/security/siem-export?format=cef'),
+  // Operator Training Simulator (SIMULATION, sandboxed — never emits a command)
+  getTrainingScenarios: () => request<TrainingScenariosResponse>('/training/scenarios'),
+  startTrainingSession: (scenarioId: string, operator?: string) =>
+    request<TrainingSessionResponse>('/training/sessions', {
+      method: 'POST',
+      body: JSON.stringify({ scenario_id: scenarioId, operator: operator ?? null }),
+    }),
+  getTrainingSession: (sessionId: string) =>
+    request<TrainingSessionResponse>(`/training/sessions/${encodeURIComponent(sessionId)}`),
+  captureTrainingAction: (sessionId: string, body: TrainingActionRequest) =>
+    request<TrainingActionResponse>(
+      `/training/sessions/${encodeURIComponent(sessionId)}/actions`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  submitTrainingSession: (sessionId: string) =>
+    request<TrainingRecordResponse>(
+      `/training/sessions/${encodeURIComponent(sessionId)}/submit`,
+      { method: 'POST', body: JSON.stringify({}) },
+    ),
+  getTrainingRecords: () => request<TrainingRecordsResponse>('/training/records'),
 };
 
 export type ApiClient = typeof api;

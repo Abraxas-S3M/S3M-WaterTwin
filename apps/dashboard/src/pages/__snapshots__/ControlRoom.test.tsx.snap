@@ -1,0 +1,168 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ControlRoom display mode > matches the large-format KPI snapshot (production slide) 1`] = `
+<div
+  class="control-room"
+  data-testid="control-room"
+>
+  <header
+    class="cr-header"
+  >
+    <div
+      class="cr-brand"
+    >
+      <span
+        class="cr-title"
+      >
+        S3M-WaterTwin
+      </span>
+      <span
+        class="cr-sub"
+      >
+        Control Room
+      </span>
+    </div>
+    <div
+      class="cr-context"
+    >
+      SWRO-ALPHA · TRAIN-01
+    </div>
+    <div
+      class="cr-right"
+    >
+      <time
+        class="cr-clock"
+        datetime="2026-07-17T07:00:00.000Z"
+      >
+        7:00:00 AM
+      </time>
+      <button
+        class="cr-exit"
+        data-testid="control-room-exit"
+      >
+        Exit
+      </button>
+    </div>
+  </header>
+  <main
+    class="cr-stage"
+  >
+    <div
+      class="cr-stage-title"
+    >
+      Production & Recovery
+    </div>
+    <div
+      class="cr-grid"
+      data-slide="production"
+      data-testid="control-room-slide"
+    >
+      <div
+        class="cr-tile"
+      >
+        <div
+          class="cr-tile-label"
+        >
+          Permeate Flow
+        </div>
+        <div
+          class="cr-tile-value"
+        >
+          498
+          <span
+            class="cr-tile-unit"
+          >
+            m³/h
+          </span>
+        </div>
+      </div>
+      <div
+        class="cr-tile"
+      >
+        <div
+          class="cr-tile-label"
+        >
+          Product / Day
+        </div>
+        <div
+          class="cr-tile-value"
+        >
+          11,952
+          <span
+            class="cr-tile-unit"
+          >
+            m³
+          </span>
+        </div>
+      </div>
+      <div
+        class="cr-tile"
+      >
+        <div
+          class="cr-tile-label"
+        >
+          Recovery
+        </div>
+        <div
+          class="cr-tile-value"
+        >
+          44
+          <span
+            class="cr-tile-unit"
+          >
+            %
+          </span>
+        </div>
+      </div>
+      <div
+        class="cr-tile"
+      >
+        <div
+          class="cr-tile-label"
+        >
+          Permeate Cond.
+        </div>
+        <div
+          class="cr-tile-value"
+        >
+          285
+          <span
+            class="cr-tile-unit"
+          >
+            µS/cm
+          </span>
+        </div>
+      </div>
+    </div>
+    <div
+      aria-label="KPI views"
+      class="cr-dots"
+      role="tablist"
+    >
+      <button
+        aria-label="Production & Recovery"
+        aria-selected="true"
+        class="cr-dot active"
+        role="tab"
+      />
+      <button
+        aria-label="Health & Service-Continuity Risk"
+        aria-selected="false"
+        class="cr-dot"
+        role="tab"
+      />
+      <button
+        aria-label="Energy & Active Signals"
+        aria-selected="false"
+        class="cr-dot"
+        role="tab"
+      />
+    </div>
+  </main>
+  <footer
+    class="cr-footer"
+  >
+    Advisory display · figures are preliminary/estimated on synthetic data · no control write.
+  </footer>
+</div>
+`;

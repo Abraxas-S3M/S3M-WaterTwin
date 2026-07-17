@@ -5,10 +5,15 @@ import {
   canAdministerConfig,
   canApprove,
   canApproveConfig,
+import { canApprove, canReadAudit, canReadSecurity, canReset, canRunScenario } from './roles';
+import {
+  canApprove,
+  canManageFacilities,
   canReadAudit,
   canReset,
   canRunScenario,
 } from './roles';
+import type { FacilityScope } from '../facilities/scope';
 
 export interface Capabilities {
   approve: boolean;
@@ -17,30 +22,40 @@ export interface Capabilities {
   readAudit: boolean;
   administerConfig: boolean;
   approveConfig: boolean;
+  readSecurity: boolean;
+  manageFacilities: boolean;
 }
 
-export function useAuth() {
-  const status = useAuthStore((s) => s.status);
-  const username = useAuthStore((s) => s.username);
-  const roles = useAuthStore((s) => s.roles);
-  const error = useAuthStore((s) => s.error);
-
-  const capabilities: Capabilities = {
+function capsFor(roles: readonly string[]): Capabilities {
+  return {
     approve: canApprove(roles),
     runScenario: canRunScenario(roles),
     reset: canReset(roles),
     readAudit: canReadAudit(roles),
     administerConfig: canAdministerConfig(roles),
     approveConfig: canApproveConfig(roles),
+    readSecurity: canReadSecurity(roles),
+    manageFacilities: canManageFacilities(roles),
   };
+}
+
+export function useAuth() {
+  const status = useAuthStore((s) => s.status);
+  const username = useAuthStore((s) => s.username);
+  const roles = useAuthStore((s) => s.roles);
+  const tenantId = useAuthStore((s) => s.tenantId);
+  const facilityIds = useAuthStore((s) => s.facilityIds);
+  const error = useAuthStore((s) => s.error);
 
   return {
     status,
     username,
     roles,
+    tenantId,
+    facilityIds,
     error,
     isAuthenticated: status === 'authenticated',
-    capabilities,
+    capabilities: capsFor(roles),
   };
 }
 
@@ -54,5 +69,16 @@ export function useCapabilities(): Capabilities {
     readAudit: canReadAudit(roles),
     administerConfig: canAdministerConfig(roles),
     approveConfig: canApproveConfig(roles),
+    readSecurity: canReadSecurity(roles),
   };
+  return capsFor(roles);
+}
+
+// The identity's tenant/facility scope, used to defensively filter facility
+// data client-side so cross-tenant rows never render.
+export function useFacilityScope(): FacilityScope {
+  const roles = useAuthStore((s) => s.roles);
+  const tenantId = useAuthStore((s) => s.tenantId);
+  const facilityIds = useAuthStore((s) => s.facilityIds);
+  return { tenantId, facilityIds, roles };
 }

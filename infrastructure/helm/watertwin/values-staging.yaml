@@ -1,0 +1,130 @@
+# ---------------------------------------------------------------------------
+# STAGING environment overrides.
+# Prod-like: OIDC enforced, ingress exposed under a staging host, moderate HA.
+# Replace image tags, hostnames and OT CIDRs with your staging values.
+# ---------------------------------------------------------------------------
+global:
+  imageRegistry: registry.example.com/s3m-watertwin
+  networkPolicy:
+    defaultDeny: true
+
+watertwin-api:
+  enabled: true
+  replicaCount: 2
+  image:
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  env:
+    HYDRAULIC_SIM_URL: "http://hydraulic-sim:8100"
+    TREATMENT_SIM_URL: "http://treatment-sim:8080"
+    WATERTWIN_RECO_STORE: "/data/recommendations.json"
+    WATERTWIN_CORS_ORIGINS: "https://watertwin.staging.example.com"
+    WATERTWIN_AUTH_DISABLED: "false"
+    WATERTWIN_OIDC_ISSUER: "https://auth.staging.example.com/realms/watertwin"
+    WATERTWIN_OIDC_JWKS_URI: "https://auth.staging.example.com/realms/watertwin/protocol/openid-connect/certs"
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-staging
+    hosts:
+      - host: api.watertwin.staging.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+            servicePort: 8000
+    tls:
+      - secretName: watertwin-api-staging-tls
+        hosts:
+          - api.watertwin.staging.example.com
+
+hydraulic-sim:
+  enabled: true
+  replicaCount: 1
+  image:
+    tag: "0.1.0"
+
+treatment-sim:
+  enabled: true
+  replicaCount: 1
+  image:
+    tag: "0.1.0"
+
+edge-gateway:
+  enabled: true
+  replicaCount: 1
+  image:
+    tag: "0.1.0"
+  env:
+    OT_SOURCE: "opcua"
+    WATERTWIN_API_URL: "http://watertwin-api:8000"
+    OT_OPCUA_ENDPOINT: "opc.tcp://10.30.10.5:4840"
+  secretEnv:
+    - name: OT_OPCUA_USERNAME
+      secretName: edge-gateway-ot
+      secretKey: opcua-username
+    - name: OT_OPCUA_PASSWORD
+      secretName: edge-gateway-ot
+      secretKey: opcua-password
+  # Outbound-only egress scoped to the staging OT segment.
+  networkPolicy:
+    enabled: true
+    allowDNS: true
+    ingress:
+      - from:
+          - namespace: monitoring
+        ports:
+          - port: 8200
+    egress:
+      - to:
+          - component: watertwin-api
+        ports:
+          - port: 8000
+      - to:
+          - cidr: 10.30.10.0/24
+        ports:
+          - port: 4840
+          - port: 502
+          - port: 443
+
+dashboard:
+  enabled: true
+  replicaCount: 2
+  image:
+    tag: "0.1.0"
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-staging
+    hosts:
+      - host: watertwin.staging.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+            servicePort: 80
+    tls:
+      - secretName: watertwin-dashboard-staging-tls
+        hosts:
+          - watertwin.staging.example.com
+
+timescaledb:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClass: standard
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+postgis:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: standard
