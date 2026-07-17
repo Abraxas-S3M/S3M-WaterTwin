@@ -23,6 +23,7 @@ from simulation_contracts import ScenarioType, SimulationResult
 
 from . import auth
 from . import config
+from . import events
 from .auth import (
     Principal,
     get_current_user,
@@ -48,7 +49,26 @@ from .store import Store
 async def _lifespan(_app: FastAPI):
     # Log whether auth is enforced or bypassed (explicit dev mode) at startup.
     auth.log_auth_mode()
+    # Bring the advisory event bus online (connects to NATS when configured,
+    # otherwise degrades to direct in-process delivery). Then publish the
+    # active telemetry configuration as a config-published event.
+    events.get_bus()
+    _publish_active_config()
     yield
+
+
+def _publish_active_config() -> None:
+    """Publish the currently active telemetry config (config-published event)."""
+    try:
+        telemetry = get_source_resolution().describe()
+        events.publish_config_published(
+            active_source=telemetry.get("active_source"),
+            requested_source=telemetry.get("requested_source"),
+            tag_map=config.OT_TAG_MAP,
+            fallback=bool(telemetry.get("fallback")),
+        )
+    except Exception:  # pragma: no cover - startup publish is best-effort
+        pass
 
 
 app = FastAPI(
@@ -96,7 +116,9 @@ def _actor(user: Principal, fallback: str | None = None) -> str:
 
 
 reco_store = RecommendationStore(config.RECOMMENDATION_STORE_PATH)
-store = Store(config.DATABASE_URL)
+# The store fires the advisory ``audit-appended`` event after every successful
+# append. The hook resolves the bus lazily so tests can inject their own bus.
+store = Store(config.DATABASE_URL, event_sink=events.audit_event_sink)
 
 # Completed runs cached by simulation job id so a downloadable report can be
 # regenerated on demand. Advisory, read-only what-if data only.
@@ -203,6 +225,7 @@ def health() -> dict:
         "telemetry_source_requested": telemetry.get("requested_source"),
         "telemetry_source_fallback": telemetry.get("fallback"),
         "telemetry": telemetry,
+        "event_bus": events.get_bus().status(),
         "control_mode": cb.control_mode,
         "operator_approval_required": cb.operator_approval_required,
         "control_write_enabled": cb.control_write_enabled,
@@ -368,6 +391,20 @@ def audit_verify() -> dict:
     return store.verify_chain()
 
 
+@app.get("/api/v1/events/status", dependencies=AUTHENTICATED)
+def events_status() -> dict:
+    """Report advisory event-bus state + metrics (degraded when NATS is down).
+
+    The bus is advisory / notification only; it never carries a control command.
+    ``degraded == true`` means events are being delivered directly in-process
+    (fallback) because NATS is not configured or unreachable.
+    """
+    return {
+        **events.get_bus().status(),
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Ingestion: telemetry source status + tag-normalization preview (read-only)
 #
@@ -476,6 +513,12 @@ def ingestion_normalize_preview(body: NormalizePreviewRequest) -> dict:
         for r in body.readings
     ]
     result = normalize(raw, tag_map)
+    events.publish_telemetry_ingested(
+        tag_map=tag_map.map_id,
+        mapped=len(result.readings),
+        rejected=len(result.rejected),
+        total=len(raw),
+    )
     return {
         "tag_map": tag_map.map_id,
         "readings": [reading.model_dump(mode="json") for reading in result.readings],
@@ -547,6 +590,12 @@ def _route_wq_alerts(alerts: list[WQAlert], actor: str = "system") -> None:
             payload={"recommendation_id": card.recommendation_id, "code": alert.code},
             actor=actor,
             subject=card.recommendation_id,
+        )
+        events.publish_alert_raised(
+            code=alert.code,
+            recommendation_id=card.recommendation_id,
+            stage=(alert.stage.value if alert.stage else None),
+            cause=alert.cause,
         )
 
 
@@ -731,6 +780,9 @@ def _route_pdm_recommendations(cards: list, actor: str = "system") -> None:
             payload={"recommendation_id": card.recommendation_id, "asset_id": card.asset_id},
             actor=actor,
             subject=card.recommendation_id,
+        )
+        events.publish_workorder_created(
+            recommendation_id=card.recommendation_id, asset_id=card.asset_id
         )
 
 

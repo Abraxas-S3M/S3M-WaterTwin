@@ -109,6 +109,12 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
 - `packages/simulation_contracts` — shared what-if simulation request/result
   contracts (`provenance="simulated"`, `status="preliminary"`, read-only control
   boundary).
+- `packages/watertwin_events` — shared **advisory service-event bus** (NATS) for
+  publish/subscribe of notification-only events (telemetry-ingested,
+  alert-raised, workorder-created, config-published, audit-appended). The bus is
+  **advisory-only** — a subject guard rejects any control verb so a control
+  command can never be published — and degrades gracefully to direct in-process
+  delivery (log + metric) when the broker is unavailable.
 
 ## Services
 
@@ -146,6 +152,7 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
 | `treatment-sim` | http://localhost:8081 | WaterTAP/IDAES RO process what-if |
 | `edge-gateway` | http://localhost:8200 | Read-only telemetry store-and-forward gateway |
 | `timescaledb` | localhost:5432 | Persistent store (`WATERTWIN_DATABASE_URL`) |
+| `nats` | localhost:4222 (monitor :8222) | Advisory service-event bus (`NATS_URL`); notification-only |
 | `prometheus` | http://localhost:9090 | Scrapes each service's `/metrics` |
 | `grafana` | http://localhost:3000 | Auto-provisioned WaterTwin dashboard (admin/admin) |
 
@@ -163,6 +170,15 @@ Additional Phase 10 capabilities:
   control-write path (`control_write_enabled = True`) ever appears in
   `services/` or `packages/`, alongside per-service lint/type/test and a
   supply-chain job (CycloneDX SBOMs + `pip-audit` + secret scanning).
+- **Advisory service-event bus** (NATS): `watertwin-api` publishes notification
+  events (telemetry-ingested, alert-raised, workorder-created, config-published,
+  audit-appended) via `packages/watertwin_events`. The bus is **advisory /
+  notification only** — a subject guard rejects any control verb (guard test:
+  `packages/tests/test_event_bus.py`), so a control command can never ride the
+  bus. If NATS is unset/unreachable the API **degrades gracefully** to direct
+  in-process delivery (log + metric); state is surfaced at
+  `GET /api/v1/events/status` and in `/health` (`event_bus.*`). Configure with
+  `NATS_URL` (unset ⇒ degraded).
 - **Observability**: every service is instrumented via the shared
   `watertwin_observability` package — structured JSON logs with correlation ids,
   OpenTelemetry traces, and Prometheus metrics (request latency, telemetry

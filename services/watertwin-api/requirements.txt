@@ -21,6 +21,10 @@ pyjwt[crypto]==2.13.0
 #   pymodbus -- Modbus client using read function codes only (BSD-3-Clause).
 asyncua==1.1.6
 pymodbus==3.7.4
+# Advisory service-event bus (packages/watertwin_events). NATS client only; the
+# bus is advisory/notification-only (no control command is ever published) and
+# degrades gracefully to direct in-process delivery when the broker is down.
+nats-py==2.15.0
 # Observability: structured JSON logs + correlation ids, Prometheus /metrics and
 # OpenTelemetry traces (shared watertwin_observability package). See
 # docs/architecture/observability.md.

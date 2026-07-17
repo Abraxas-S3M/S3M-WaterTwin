@@ -59,6 +59,7 @@ components are enumerated in full inside those SBOMs.
 | psycopg[binary] | 3.2.3 | `LGPL-3.0-or-later` | PyPI | `services/watertwin-api` (DB driver) |
 | asyncua | 1.1.6 | `LGPL-3.0-only` | PyPI | `services/watertwin-api` (read-only OPC UA **client** connector) |
 | pymodbus | 3.7.4 | `BSD-3-Clause` | PyPI | `services/watertwin-api` (read-only Modbus connector) |
+| nats-py | 2.15.0 | `Apache-2.0` | PyPI | `services/watertwin-api` (advisory service-event bus client; notification-only, no control command) |
 | prometheus-client | 0.25.0 | `Apache-2.0` | PyPI | all API services (Prometheus `/metrics` exposition, via `packages/watertwin_observability`) |
 | opentelemetry-api | 1.44.0 | `Apache-2.0` | PyPI | all API services (OpenTelemetry trace API) |
 | opentelemetry-sdk | 1.44.0 | `Apache-2.0` | PyPI | all API services (OpenTelemetry trace SDK) |

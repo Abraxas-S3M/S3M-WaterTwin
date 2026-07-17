@@ -17,6 +17,7 @@ import hashlib
 import logging
 import threading
 import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -120,11 +121,22 @@ CREATE TABLE IF NOT EXISTS telemetry_batch (
 class Store:
     """Audit + recommendation persistence with graceful in-memory fallback."""
 
-    def __init__(self, database_url: str | None = None, *, connect: bool = True) -> None:
+    def __init__(
+        self,
+        database_url: str | None = None,
+        *,
+        connect: bool = True,
+        event_sink: Callable[[dict[str, Any]], None] | None = None,
+    ) -> None:
         self.database_url = database_url or None
         self.db_connected = False
         self._conn: Any = None
         self._lock = threading.RLock()
+        # Optional advisory hook invoked (outside the store lock) after an audit
+        # event is successfully appended. Used to emit the ``audit-appended``
+        # service event. Never a control-write path; failures are swallowed by
+        # the caller so persistence is unaffected by a bus outage.
+        self._event_sink = event_sink
 
         # In-memory mirrors used whenever the database is unavailable.
         self._audit_mem: list[dict[str, Any]] = []
@@ -163,6 +175,20 @@ class Store:
                 "store falling back to in-memory mode",
                 extra={"db_connected": False, "error": str(exc)},
             )
+
+    def set_event_sink(self, event_sink: Callable[[dict[str, Any]], None] | None) -> None:
+        """Register (or clear) the advisory audit-appended hook."""
+        self._event_sink = event_sink
+
+    def _emit(self, event: dict[str, Any]) -> None:
+        """Fire the advisory audit-appended hook, never breaking persistence."""
+        sink = self._event_sink
+        if sink is None:
+            return
+        try:
+            sink(event)
+        except Exception as exc:  # pragma: no cover - advisory hook is best-effort
+            logger.warning("audit event sink failed", extra={"error": str(exc)})
 
     def close(self) -> None:
         with self._lock:
@@ -207,6 +233,7 @@ class Store:
             "payload": payload or {},
         }
         with self._lock:
+            written_to_db = False
             if self.db_connected:
                 try:
                     from psycopg.types.json import Jsonb
@@ -229,14 +256,18 @@ class Store:
                                 event["hash"],
                             ),
                         )
-                    return event
+                    written_to_db = True
                 except Exception as exc:  # pragma: no cover - real DB only
                     logger.warning(
                         "audit write failed; mirroring to memory", extra={"error": str(exc)}
                     )
-            audit_chain.link_event(event, self._chain_head)
-            self._audit_mem.append(event)
-            self._chain_head = event["hash"]
+            if not written_to_db:
+                audit_chain.link_event(event, self._chain_head)
+                self._audit_mem.append(event)
+                self._chain_head = event["hash"]
+        # Emit outside the lock so the advisory hook (event-bus publish) can
+        # never deadlock the store or block a persistence write.
+        self._emit(event)
         return event
 
     def audit_chain_asc(self) -> list[dict[str, Any]]:
