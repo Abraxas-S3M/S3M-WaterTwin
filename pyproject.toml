@@ -43,6 +43,7 @@ include = [
     "canonical_water_model*",
     "simulation_contracts*",
     "watertwin_engineering*",
+    "watertwin_models*",
     "watertwin_events*",
     "watertwin_observability*",
 ]

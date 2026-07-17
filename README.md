@@ -109,6 +109,14 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
 - `packages/simulation_contracts` — shared what-if simulation request/result
   contracts (`provenance="simulated"`, `status="preliminary"`, read-only control
   boundary).
+- `packages/watertwin_models` — the **D1 framework**: `ModelSpec` metadata,
+  synthetic back-test harness, false-alarm tracking, confidence calibration,
+  population-stability-index drift hooks and a benchmark scaffold. Pure and
+  deterministic; the three D1 models (HP-pump condition, membrane fouling & salt
+  passage, cartridge-filter replacement) reuse the canonical physics + WQ/membrane
+  layer and expose read-only endpoints under `/api/v1/models` — every threshold is
+  **preliminary pending customer calibration** (see
+  [`docs/validation/d1-models.md`](docs/validation/d1-models.md)).
 - `packages/watertwin_events` — shared **advisory service-event bus** (NATS) for
   publish/subscribe of notification-only events (telemetry-ingested,
   alert-raised, workorder-created, config-published, audit-appended). The bus is

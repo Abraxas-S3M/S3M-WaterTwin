@@ -37,6 +37,7 @@ from . import documents
 from . import energy
 from . import executive
 from . import membrane
+from . import models as d1_models
 from . import predictive_maintenance as pdm
 from . import resilience as resil
 from . import sources
@@ -932,6 +933,108 @@ def maintenance_recommendations(
             ],
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# D1 analytics models (advisory, read-only)
+#
+# Three D1-framework models -- HP-pump condition, membrane fouling & salt passage,
+# and cartridge-filter replacement -- each with full ModelSpec metadata, a
+# synthetic back-test dataset, preliminary (pending-calibration) alert thresholds,
+# a drift hook and a benchmark scaffold. Every model REUSES existing canonical
+# physics / service layers (nothing duplicated). Every response carries the
+# read-only control boundary + provenance; thresholds are preliminary pending
+# customer calibration; nothing here writes to any control system.
+# ---------------------------------------------------------------------------
+
+
+def _models_envelope(payload: dict, provenance: DataProvenance = DataProvenance.preliminary) -> dict:
+    """Attach the read-only control boundary + provenance to a model response."""
+    return {
+        **payload,
+        "facility_id": wq.FACILITY_ID,
+        "train_id": wq.TRAIN_ID,
+        "provenance": provenance.value,
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+def _require_model(model_id: str):
+    if model_id not in d1_models.MODELS:
+        raise HTTPException(
+            status_code=404,
+            detail=f"unknown model: {model_id}; known: {d1_models.list_model_ids()}",
+        )
+    return d1_models.get_adapter(model_id)
+
+
+class ModelAssessmentRequest(BaseModel):
+    inputs: dict[str, float] = Field(default_factory=dict)
+
+
+@app.get("/api/v1/models", dependencies=AUTHENTICATED)
+def list_models() -> dict:
+    """List the registered D1 models with their spec summaries."""
+    return _models_envelope(
+        {
+            "models": [
+                {
+                    "model_id": ad.spec.model_id,
+                    "name": ad.spec.name,
+                    "version": ad.spec.version,
+                    "tier": ad.spec.tier.value,
+                    "asset_type": ad.spec.asset_type,
+                    "target": ad.spec.target,
+                    "status": ad.spec.status,
+                }
+                for ad in d1_models.MODELS.values()
+            ]
+        }
+    )
+
+
+@app.get("/api/v1/models/{model_id}/spec", dependencies=AUTHENTICATED)
+def model_spec(model_id: str) -> dict:
+    """Full ModelSpec metadata (inputs, outputs, baseline, reused components,
+    preliminary thresholds, drift + calibration configuration)."""
+    adapter = _require_model(model_id)
+    return _models_envelope({"spec": adapter.spec.model_dump(mode="json")})
+
+
+@app.get("/api/v1/models/{model_id}/assessment", dependencies=AUTHENTICATED)
+def model_assessment(model_id: str, fouling: Optional[float] = None) -> dict:
+    """Reference advisory assessment for the model's asset (read-only).
+
+    ``fouling`` is an optional what-if severity honoured by the membrane model.
+    """
+    adapter = _require_model(model_id)
+    inputs: dict[str, float] = {} if fouling is None else {"fouling": _wq_fouling(fouling)}
+    assessment = adapter.assess(inputs)
+    return _models_envelope({"assessment": assessment.model_dump(mode="json")})
+
+
+@app.post("/api/v1/models/{model_id}/assessment", dependencies=AUTHENTICATED)
+def model_assessment_post(model_id: str, body: ModelAssessmentRequest | None = None) -> dict:
+    """Advisory assessment for arbitrary (read-only) model inputs."""
+    adapter = _require_model(model_id)
+    assessment = adapter.assess(body.inputs if body else {})
+    return _models_envelope({"assessment": assessment.model_dump(mode="json")})
+
+
+@app.get("/api/v1/models/{model_id}/backtest", dependencies=AUTHENTICATED)
+def model_backtest(model_id: str, threshold: Optional[float] = None) -> dict:
+    """Back-test metrics from the D1 harness (preliminary, synthetic dataset)."""
+    adapter = _require_model(model_id)
+    metrics = adapter.backtest(threshold)
+    return _models_envelope({"backtest": metrics.model_dump(mode="json")})
+
+
+@app.get("/api/v1/models/{model_id}/benchmark", dependencies=AUTHENTICATED)
+def model_benchmark(model_id: str) -> dict:
+    """Preliminary benchmark scaffold (back-test + Brier + drift)."""
+    adapter = _require_model(model_id)
+    result = adapter.benchmark()
+    return _models_envelope({"benchmark": result.model_dump(mode="json")})
 
 
 # ---------------------------------------------------------------------------
