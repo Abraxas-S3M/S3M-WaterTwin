@@ -20,6 +20,7 @@ import { EnergyOptimization } from './pages/EnergyOptimization';
 import { ResilienceCommand } from './pages/ResilienceCommand';
 import { ExecutiveValue } from './pages/ExecutiveValue';
 import { OperationsAssistant } from './pages/OperationsAssistant';
+import { Administration } from './pages/Administration';
 import { ControlRoom } from './pages/ControlRoom';
 import { ShiftReport } from './pages/reports/ShiftReport';
 import { ExecutiveReport } from './pages/reports/ExecutiveReport';
@@ -54,6 +55,7 @@ const NAV: NavEntry[] = [
   { id: 'security', label: 'Cyber-Physical Security', page: 12, requiresSecurity: true },
   { id: 'training', label: 'Training Simulator', page: 12, note: 'SIMULATION' },
   { id: 'simulation', label: 'Simulation Center', page: 8, note: 'Phase 8–9' },
+  { id: 'administration', label: 'Administration', page: 12 },
   { id: 'command', page: 1 },
   { id: 'process', page: 2 },
   { id: 'asset', page: 4 },
@@ -205,6 +207,8 @@ function CurrentPage() {
       return <TrainingSimulator />;
     case 'simulation':
       return <SimulationCenter />;
+    case 'administration':
+      return <Administration />;
     case 'admin-facilities':
       return <MultiFacilityAdmin />;
     default:

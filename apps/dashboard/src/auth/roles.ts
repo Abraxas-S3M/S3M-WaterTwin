@@ -50,6 +50,14 @@ export function canReadAudit(roles: readonly string[]): boolean {
   return hasAny(roles, 'auditor', 'admin');
 }
 
+// Configuration Workbench: editing the config draft and approving a submitted
+// version are both administrator-only. Every other role gets a read-only view.
+export function canAdministerConfig(roles: readonly string[]): boolean {
+  return hasAny(roles, 'admin');
+}
+
+export function canApproveConfig(roles: readonly string[]): boolean {
+  return hasAny(roles, 'admin');
 // The Cyber-Physical Security views + signed SIEM export are gated to the
 // security role (admin is a superset). This is a UX affordance only; the API
 // independently enforces the same gate on every request.

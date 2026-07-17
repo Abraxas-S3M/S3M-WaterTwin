@@ -946,6 +946,55 @@ input[type='text'] {
   border-color: var(--accent);
 }
 
+/* --- Administration / Configuration Workbench --- */
+.admin-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.admin-tabs .chip.active {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--bg-elev-2);
+}
+
+.admin-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.admin-cell {
+  padding: 5px 8px;
+  font-size: 12px;
+  width: 100%;
+  min-width: 90px;
+}
+
+.admin-subtable {
+  margin-top: 16px;
+}
+
+.admin-equipment {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--bg-elev-2);
+}
+
+.admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.admin-workflow .btn-row {
+  margin-top: 10px;
 /* --- Nav group: display modes & report actions --- */
 .nav-group {
   display: flex;

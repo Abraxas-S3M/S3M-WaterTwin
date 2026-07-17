@@ -900,6 +900,160 @@ export interface AssistantExamplesResponse {
   control_boundary: ControlBoundary;
 }
 
+// --- Administration / Configuration Workbench (A1: /api/v1/config) ---
+//
+// Mirrors the configuration document served by the /api/v1/config API. The
+// document is versioned and moves through a draft -> submitted -> approved
+// lifecycle. Editing and approval are RBAC-gated (admin only); everyone else
+// gets a read-only view.
+
+export type ConfigStatus = 'draft' | 'submitted' | 'approved' | 'rejected';
+
+export interface AssetHierarchyNode {
+  asset_id: string;
+  name: string;
+  asset_type: AssetType;
+  parent_id?: string | null;
+  treatment_stage?: TreatmentStage | null;
+  criticality: Criticality;
+}
+
+/** Customer OT tag -> canonical asset_id.metric mapping (with unit/scale/offset/sampling). */
+export interface TagMapping {
+  customer_tag: string;
+  asset_id: string;
+  metric: string;
+  unit: string;
+  scale: number;
+  offset: number;
+  sampling_interval_s: number;
+  provenance: DataProvenance;
+}
+
+export interface AlarmThreshold {
+  id: string;
+  asset_id: string;
+  metric: string;
+  unit: string;
+  warn_low?: number | null;
+  warn_high?: number | null;
+  alarm_low?: number | null;
+  alarm_high?: number | null;
+  enabled: boolean;
+}
+
+export type RatedEquipmentType = 'pump' | 'membrane';
+
+export interface RatedPumpCurvePoint {
+  flow_m3h: number;
+  head_m: number;
+  efficiency_pct: number;
+}
+
+export interface RatedMembraneModel {
+  model: string;
+  element_area_m2: number;
+  elements_per_vessel: number;
+  nominal_salt_rejection_pct: number;
+  max_feed_pressure_bar: number;
+}
+
+export interface RatedEquipment {
+  asset_id: string;
+  name: string;
+  equipment_type: RatedEquipmentType;
+  pump_curve?: RatedPumpCurvePoint[] | null;
+  membrane_model?: RatedMembraneModel | null;
+}
+
+export interface ProcessStage {
+  stage_id: string;
+  name: string;
+  order: number;
+  description: string;
+}
+
+export interface SamplingPoint {
+  sampling_point_id: string;
+  stage: string;
+  stream_id?: string | null;
+  description: string;
+  sample_type: SampleType;
+}
+
+export interface LabMethod {
+  method_id: string;
+  name: string;
+  analyte: string;
+  technique: string;
+  detection_limit: number;
+  unit: string;
+}
+
+export interface ComplianceLimit {
+  id: string;
+  analyte: string;
+  limit: number;
+  unit: string;
+  basis: string;
+  stage?: string | null;
+}
+
+export interface UserRoleAssignment {
+  username: string;
+  roles: string[];
+}
+
+export interface ConfigDocument {
+  version: number;
+  status: ConfigStatus;
+  updated_at: string;
+  updated_by: string;
+  provenance: DataProvenance;
+  control_boundary: ControlBoundary;
+  asset_hierarchy: AssetHierarchyNode[];
+  tag_mappings: TagMapping[];
+  alarm_thresholds: AlarmThreshold[];
+  rated_equipment: RatedEquipment[];
+  process_stages: ProcessStage[];
+  sampling_points: SamplingPoint[];
+  lab_methods: LabMethod[];
+  compliance_limits: ComplianceLimit[];
+  user_roles: UserRoleAssignment[];
+}
+
+export interface ConfigVersionEntry {
+  version: number;
+  status: ConfigStatus;
+  created_at: string;
+  author: string;
+  submitted_by?: string | null;
+  approved_by?: string | null;
+  note?: string | null;
+}
+
+export interface ConfigVersionsResponse {
+  versions: ConfigVersionEntry[];
+  control_boundary: ControlBoundary;
+}
+
+/** Editable slice of the config document (everything except server-owned metadata). */
+export type ConfigDraftPayload = Pick<
+  ConfigDocument,
+  | 'asset_hierarchy'
+  | 'tag_mappings'
+  | 'alarm_thresholds'
+  | 'rated_equipment'
+  | 'process_stages'
+  | 'sampling_points'
+  | 'lab_methods'
+  | 'compliance_limits'
+  | 'user_roles'
+>;
+
+export interface ConfigActionRequest {
+  actor?: string;
+  note?: string | null;
 // --- Model governance registry (D1/D2 governance) ---
 
 export type DriftStatus = 'stable' | 'watch' | 'drifting' | 'unknown';

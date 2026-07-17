@@ -6,6 +6,10 @@ import type {
   AssistantExamplesResponse,
   AssistantResponse,
   AuditResponse,
+  ConfigActionRequest,
+  ConfigDocument,
+  ConfigDraftPayload,
+  ConfigVersionsResponse,
   ComplianceLimitsResponse,
   ComplianceStatusResponse,
   CmmsAssetHistoryResponse,
@@ -250,6 +254,30 @@ export const api = {
   getAssistantExamples: () => request<AssistantExamplesResponse>('/assistant/examples'),
   getDocuments: () => request<DocumentsResponse>('/documents'),
 
+  // Administration / Configuration Workbench (A1). Draft -> submit -> approve
+  // lifecycle; writes are RBAC-enforced server-side (admin only).
+  getConfig: () => request<ConfigDocument>('/config'),
+  getConfigVersions: () => request<ConfigVersionsResponse>('/config/versions'),
+  saveConfigDraft: (payload: ConfigDraftPayload) =>
+    request<ConfigDocument>('/config/draft', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  submitConfig: (body: ConfigActionRequest = {}) =>
+    request<ConfigDocument>('/config/submit', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  approveConfig: (body: ConfigActionRequest = {}) =>
+    request<ConfigDocument>('/config/approve', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  rejectConfig: (body: ConfigActionRequest = {}) =>
+    request<ConfigDocument>('/config/reject', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   // Model governance registry (D1/D2) + regulatory compliance (A1 config store)
   getModels: () => request<ModelsResponse>('/models'),
   getComplianceLimits: () => request<ComplianceLimitsResponse>('/compliance/limits'),

@@ -29,6 +29,7 @@ export type PageId =
   | 'resilience'
   | 'executive'
   | 'assistant'
+  | 'administration';
   | 'models';
   | 'security';
   | 'admin-facilities';

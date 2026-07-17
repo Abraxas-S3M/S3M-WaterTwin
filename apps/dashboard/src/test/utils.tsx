@@ -155,6 +155,18 @@ export function installFetchMock(overrides: Record<string, unknown> = {}): Fetch
       return json(overrides.assistantAnswer ?? fx.assistantAnswer);
     if (path.startsWith('/documents')) return json(overrides.documentsList ?? fx.documentsList);
 
+    // Administration / Configuration Workbench.
+    if (path.startsWith('/config/versions'))
+      return json(overrides.configVersions ?? fx.configVersions);
+    if (path.startsWith('/config/draft') && method === 'PUT')
+      return json({ ...(overrides.configDocument ?? fx.configDocument), status: 'draft', ...(body ?? {}) });
+    if (path.startsWith('/config/submit') && method === 'POST')
+      return json({ ...(overrides.configDocument ?? fx.configDocument), status: 'submitted' });
+    if (path.startsWith('/config/approve') && method === 'POST')
+      return json({ ...(overrides.configDocument ?? fx.configDocument), status: 'approved' });
+    if (path.startsWith('/config/reject') && method === 'POST')
+      return json({ ...(overrides.configDocument ?? fx.configDocument), status: 'rejected' });
+    if (path.startsWith('/config')) return json(overrides.configDocument ?? fx.configDocument);
     // Model governance registry (D1/D2) + compliance (A1 config store).
     if (path.startsWith('/models')) return json(overrides.models ?? fx.models);
     if (path.startsWith('/compliance/limits'))
