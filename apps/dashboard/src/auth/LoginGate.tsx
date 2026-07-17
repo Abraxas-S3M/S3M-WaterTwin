@@ -1,4 +1,6 @@
+import { useTranslation } from 'react-i18next';
 import { SafetyBoundaryBanner } from '../components/SafetyBoundaryBanner';
+import { useBranding } from '../branding/useBranding';
 import { beginLogin } from './oidc';
 import { useAuth } from './useAuth';
 
@@ -8,20 +10,18 @@ import { useAuth } from './useAuth';
  * the login screen.
  */
 export function LoginGate() {
+  const { t } = useTranslation();
   const { error } = useAuth();
+  const { displayName, displaySubtitle } = useBranding();
 
   return (
     <div className="app-shell" data-testid="login-gate">
       <SafetyBoundaryBanner />
       <div className="login-wrap">
         <div className="login-card">
-          <h1>S3M-WaterTwin</h1>
-          <div className="sub">Operator Console</div>
-          <p className="muted">
-            Sign in with your operator identity to access the advisory console.
-            All actions are read-only with respect to plant control and are
-            recorded in the audit trail.
-          </p>
+          <h1>{displayName}</h1>
+          <div className="sub">{displaySubtitle}</div>
+          <p className="muted">{t('auth.loginPrompt')}</p>
           {error ? (
             <div className="login-error" role="alert" data-testid="login-error">
               {error}
@@ -32,7 +32,7 @@ export function LoginGate() {
             onClick={() => void beginLogin()}
             data-testid="login-button"
           >
-            Sign in with Keycloak
+            {t('auth.signInKeycloak')}
           </button>
         </div>
       </div>

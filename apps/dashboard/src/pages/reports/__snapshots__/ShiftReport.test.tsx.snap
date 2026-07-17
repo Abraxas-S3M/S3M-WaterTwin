@@ -1,0 +1,439 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ShiftReport print view > matches the paginated shift-report snapshot 1`] = `
+<div
+  class="report-view"
+  data-testid="shift-report"
+>
+  <div
+    aria-label="Report actions"
+    class="report-toolbar"
+    role="toolbar"
+  >
+    <div
+      class="report-toolbar-title"
+    >
+      Shift Report
+    </div>
+    <div
+      class="report-toolbar-actions"
+    >
+      <button
+        class="btn primary"
+        data-testid="report-print"
+      >
+        Print / Save as PDF
+      </button>
+      <button
+        class="btn ghost"
+        data-testid="report-close"
+      >
+        Close
+      </button>
+    </div>
+  </div>
+  <div
+    class="report-sheet"
+  >
+    <section
+      class="report-page"
+    >
+      <header
+        class="report-header"
+      >
+        <div>
+          <h1
+            class="report-title"
+          >
+            Shift Report
+          </h1>
+          <div
+            class="report-subtitle"
+          >
+            Operational handover summary
+          </div>
+        </div>
+        <dl
+          class="report-meta"
+        >
+          <div>
+            <dt>
+              Facility / Train
+            </dt>
+            <dd>
+              SWRO-ALPHA
+               · TRAIN-01
+            </dd>
+          </div>
+          <div>
+            <dt>
+              Generated
+            </dt>
+            <dd>
+              7/17/2026, 7:00:00 AM
+            </dd>
+          </div>
+          <div>
+            <dt>
+              Prepared by
+            </dt>
+            <dd>
+              operator
+            </dd>
+          </div>
+        </dl>
+      </header>
+      <h2
+        class="report-h2"
+      >
+        Key performance indicators
+      </h2>
+      <table
+        class="report-table"
+        data-testid="shift-kpis"
+      >
+        <thead>
+          <tr>
+            <th>
+              Metric
+            </th>
+            <th
+              class="num"
+            >
+              Value
+            </th>
+            <th>
+              Status
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              Plant health
+            </td>
+            <td
+              class="num"
+            >
+              79.5
+            </td>
+            <td>
+              Monitor
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Permeate flow (m³/h)
+            </td>
+            <td
+              class="num"
+            >
+              498
+            </td>
+            <td>
+              11,952
+               m³/day
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Recovery (%)
+            </td>
+            <td
+              class="num"
+            >
+              44
+            </td>
+            <td>
+              —
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Permeate conductivity (µS/cm)
+            </td>
+            <td
+              class="num"
+            >
+              285
+            </td>
+            <td>
+              —
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Total power (kW)
+            </td>
+            <td
+              class="num"
+            >
+              1,520
+            </td>
+            <td>
+              3.05
+               kWh/m³
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Service-continuity risk
+            </td>
+            <td
+              class="num"
+            >
+              34
+            </td>
+            <td>
+              elevated
+               risk
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <h2
+        class="report-h2"
+      >
+        Active alarms (
+        1
+        )
+      </h2>
+      <table
+        class="report-table"
+        data-testid="shift-alarms"
+      >
+        <thead>
+          <tr>
+            <th>
+              Severity
+            </th>
+            <th>
+              Asset
+            </th>
+            <th>
+              Message
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              high
+            </td>
+            <td>
+              High-Pressure Pump A
+            </td>
+            <td>
+              High-Pressure Pump A: health 63.2 (Degraded), anomaly 0.61
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+    <section
+      class="report-page"
+    >
+      <h2
+        class="report-h2"
+      >
+        Open recommendations (
+        1
+        )
+      </h2>
+      <ul
+        class="report-list"
+        data-testid="shift-recommendations"
+      >
+        <li>
+          <strong>
+            High-Pressure Pump A: health 63.2 (Degraded), anomaly 0.61.
+          </strong>
+          <div
+            class="report-muted"
+          >
+            Schedule vibration diagnostic and inspect drive-end bearing.
+             · status: 
+            pending
+          </div>
+        </li>
+      </ul>
+      <h2
+        class="report-h2"
+      >
+        Energy (estimated)
+      </h2>
+      <table
+        class="report-table"
+        data-testid="shift-energy"
+      >
+        <tbody>
+          <tr>
+            <td>
+              Current specific energy
+            </td>
+            <td
+              class="num"
+            >
+              2.58
+               kWh/m³
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Best achievable specific energy
+            </td>
+            <td
+              class="num"
+            >
+              2.21
+               kWh/m³
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Estimated avoidable cost / day
+            </td>
+            <td
+              class="num"
+            >
+              $220
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <h2
+        class="report-h2"
+      >
+        Standby power readiness (preliminary)
+      </h2>
+      <table
+        class="report-table"
+        data-testid="shift-generator"
+      >
+        <tbody>
+          <tr>
+            <td>
+              Generator start probability
+            </td>
+            <td
+              class="num"
+            >
+              94
+              %
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Fuel endurance
+            </td>
+            <td
+              class="num"
+            >
+              13
+               h
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Days since last test
+            </td>
+            <td
+              class="num"
+            >
+              22
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <h2
+        class="report-h2"
+      >
+        Upcoming maintenance priorities
+      </h2>
+      <table
+        class="report-table"
+        data-testid="shift-maintenance"
+      >
+        <thead>
+          <tr>
+            <th>
+              Asset
+            </th>
+            <th>
+              Predicted failure mode
+            </th>
+            <th
+              class="num"
+            >
+              Intervene in
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              High-Pressure Pump A
+            </td>
+            <td>
+              Progressive hydraulic-efficiency loss / bearing wear
+            </td>
+            <td
+              class="num"
+            >
+              34
+               d
+            </td>
+          </tr>
+          <tr>
+            <td>
+              RO Membrane Array (Train 1)
+            </td>
+            <td>
+              Irreversible fouling / salt-passage breakthrough
+            </td>
+            <td
+              class="num"
+            >
+              84
+               d
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div
+        class="report-signoff"
+      >
+        <div
+          class="report-signoff-cell"
+        >
+          <span
+            class="report-signoff-line"
+          />
+          Outgoing operator
+        </div>
+        <div
+          class="report-signoff-cell"
+        >
+          <span
+            class="report-signoff-line"
+          />
+          Incoming operator
+        </div>
+      </div>
+      <footer
+        class="report-boundary"
+        data-testid="report-boundary"
+      >
+        <div
+          class="report-boundary-badge"
+        >
+          ADVISORY · READ-ONLY · NO CONTROL WRITE
+        </div>
+        <p>
+          This report is advisory and preliminary. Figures are read-only model output on synthetic data — not measured or validated plant data — and must not be used as an autonomous control action. All actions require operator approval and are recorded for audit.
+        </p>
+      </footer>
+    </section>
+  </div>
+</div>
+`;

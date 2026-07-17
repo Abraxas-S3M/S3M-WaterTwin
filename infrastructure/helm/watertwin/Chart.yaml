@@ -1,0 +1,40 @@
+apiVersion: v2
+name: watertwin
+description: >-
+  Umbrella chart for the S3M-WaterTwin advisory / read-only digital-twin
+  platform. Deploys the API, hydraulic & treatment simulation services, the OT
+  edge-gateway, the operator dashboard, and the persistent stores
+  (TimescaleDB, PostGIS) with a zero-trust NetworkPolicy posture: namespace
+  default-deny plus per-component allow-lists, and outbound-only egress to OT.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - watertwin
+  - digital-twin
+  - water
+  - advisory
+maintainers:
+  - name: S3M-WaterTwin
+dependencies:
+  - name: watertwin-api
+    version: 0.1.0
+    condition: watertwin-api.enabled
+  - name: hydraulic-sim
+    version: 0.1.0
+    condition: hydraulic-sim.enabled
+  - name: treatment-sim
+    version: 0.1.0
+    condition: treatment-sim.enabled
+  - name: edge-gateway
+    version: 0.1.0
+    condition: edge-gateway.enabled
+  - name: dashboard
+    version: 0.1.0
+    condition: dashboard.enabled
+  - name: timescaledb
+    version: 0.1.0
+    condition: timescaledb.enabled
+  - name: postgis
+    version: 0.1.0
+    condition: postgis.enabled

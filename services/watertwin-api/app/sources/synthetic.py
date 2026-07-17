@@ -1,74 +1,40 @@
-"""Synthetic telemetry source (default).
+"""Synthetic telemetry source -- compatibility shim.
 
-Wraps the platform's existing synthetic plant telemetry -- the per-asset
-telemetry declared on :data:`app.predictive_maintenance.ASSETS` -- and exposes
-it through the :class:`TelemetrySource` interface as canonical
-:class:`TelemetryReading` objects. It **reads** that existing synthetic data
-unchanged; it does not alter how the synthetic plant behaves.
+Re-exports the shared :mod:`ot_ingestion.sources.synthetic` and registers the
+API's existing synthetic plant (``app.predictive_maintenance.ASSETS``) as the
+default synthetic asset provider, so ``SyntheticSource()`` yields exactly the
+same telemetry as before the sources were moved to the shared package.
 """
 
 from __future__ import annotations
 
-from typing import Optional
-
-from canonical_water_model import DataProvenance, TelemetryReading, now_iso
-
-from .base import TelemetrySource
-
-#: Engineering unit inferred from a metric-name suffix. Ordered longest-first so
-#: e.g. ``winding_temp_c`` and ``vibration_mm_s`` resolve before generic ``_c``.
-_UNIT_BY_SUFFIX: tuple[tuple[str, str], ...] = (
-    ("_mm_s", "mm/s"),
-    ("_ml_min", "mL/min"),
-    ("_pct", "%"),
-    ("_bar", "bar"),
-    ("_c", "degC"),
+from ot_ingestion.sources.synthetic import (  # noqa: F401
+    BUILTIN_SYNTHETIC_ASSETS,
+    SyntheticAsset,
+    SyntheticSource,
+    register_default_assets_provider,
+    unit_for,
 )
 
 
-def unit_for(metric: str) -> str:
-    """Best-effort canonical unit for a synthetic telemetry metric name."""
-    for suffix, unit in _UNIT_BY_SUFFIX:
-        if metric.endswith(suffix):
-            return unit
-    return "dimensionless"
+def _api_synthetic_assets() -> dict:
+    """Provide the API's synthetic plant as the default source of truth.
+
+    Imported lazily to avoid an import cycle with the API package (the
+    predictive-maintenance module imports the canonical model + engineering
+    layers), matching the pre-move lazy-import behaviour.
+    """
+    from ..predictive_maintenance import ASSETS
+
+    return ASSETS
 
 
-class SyntheticSource(TelemetrySource):
-    """The default source: the existing synthetic plant telemetry, read-only."""
+register_default_assets_provider(_api_synthetic_assets)
 
-    kind = "synthetic"
-    name = "synthetic"
-
-    def __init__(self, assets: Optional[dict] = None) -> None:
-        # Import lazily to avoid a hard import cycle with the API package and to
-        # keep the (unchanged) synthetic plant the single source of truth.
-        if assets is None:
-            from ..predictive_maintenance import ASSETS
-
-            assets = ASSETS
-        self._assets = assets
-
-    def read_latest(self) -> list[TelemetryReading]:
-        ts = now_iso()
-        readings: list[TelemetryReading] = []
-        for spec in self._assets.values():
-            for metric, value in spec.telemetry.items():
-                readings.append(
-                    TelemetryReading(
-                        asset_id=spec.asset_id,
-                        metric=metric,
-                        value=float(value),
-                        unit=unit_for(metric),
-                        timestamp=ts,
-                        provenance=DataProvenance.synthetic,
-                    )
-                )
-        return readings
-
-    def describe(self) -> dict:
-        return {
-            "kind": self.kind,
-            "name": self.name,
-            "asset_count": len(self._assets),
-        }
+__all__ = [
+    "BUILTIN_SYNTHETIC_ASSETS",
+    "SyntheticAsset",
+    "SyntheticSource",
+    "register_default_assets_provider",
+    "unit_for",
+]

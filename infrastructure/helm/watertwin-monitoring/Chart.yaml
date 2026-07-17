@@ -1,0 +1,16 @@
+apiVersion: v2
+name: watertwin-monitoring
+description: >-
+  Prometheus + Grafana observability stack for the S3M-WaterTwin advisory
+  digital twin. Scrapes each service's /metrics endpoint and provisions the
+  WaterTwin Grafana dashboard (request latency, ingest lag, buffer depth, model
+  drift, audit-chain length). Read-only observation only; no control-write path.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - observability
+  - prometheus
+  - grafana
+  - watertwin
+home: https://github.com/Abraxas-S3M/S3M-WaterTwin

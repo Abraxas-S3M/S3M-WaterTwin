@@ -1,0 +1,38 @@
+{{- if .Values.prometheus.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "watertwin-monitoring.prometheus.fullname" . }}
+  labels:
+    {{- include "watertwin-monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+spec:
+  type: {{ .Values.prometheus.service.type }}
+  selector:
+    app.kubernetes.io/name: {{ include "watertwin-monitoring.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: prometheus
+  ports:
+    - name: http
+      port: {{ .Values.prometheus.service.port }}
+      targetPort: http
+{{- if .Values.prometheus.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "watertwin-monitoring.prometheus.fullname" . }}
+  labels:
+    {{- include "watertwin-monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.prometheus.persistence.size }}
+  {{- with .Values.prometheus.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,31 @@
+{{- if .Values.prometheus.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "watertwin-monitoring.prometheus.fullname" . }}
+  labels:
+    {{- include "watertwin-monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: {{ .Values.prometheus.scrapeInterval }}
+      evaluation_interval: {{ .Values.prometheus.scrapeInterval }}
+      external_labels:
+        platform: s3m-watertwin
+    scrape_configs:
+      - job_name: prometheus
+        static_configs:
+          - targets: ["localhost:{{ .Values.prometheus.service.port }}"]
+      {{- range .Values.prometheus.targets }}
+      - job_name: {{ .job | quote }}
+        metrics_path: /metrics
+        static_configs:
+          - targets: ["{{ .service }}:{{ .port }}"]
+            labels:
+              service: {{ .job | quote }}
+      {{- end }}
+      {{- with .Values.prometheus.extraScrapeConfigs }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+{{- end }}

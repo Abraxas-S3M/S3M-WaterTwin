@@ -1,0 +1,25 @@
+watertwin-monitoring installed.
+
+Prometheus + Grafana are now running as read-only observers of the WaterTwin
+services (they never talk to a control system).
+
+{{- if .Values.prometheus.enabled }}
+
+Prometheus
+  Service: {{ include "watertwin-monitoring.prometheus.fullname" . }}:{{ .Values.prometheus.service.port }}
+  Port-forward:
+    kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "watertwin-monitoring.prometheus.fullname" . }} {{ .Values.prometheus.service.port }}:{{ .Values.prometheus.service.port }}
+  Scraping /metrics on:
+  {{- range .Values.prometheus.targets }}
+    - {{ .service }}:{{ .port }} (job {{ .job }})
+  {{- end }}
+{{- end }}
+{{- if .Values.grafana.enabled }}
+
+Grafana
+  Service: {{ include "watertwin-monitoring.grafana.fullname" . }}:{{ .Values.grafana.service.port }}
+  Port-forward, then open http://localhost:{{ .Values.grafana.service.port }} :
+    kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "watertwin-monitoring.grafana.fullname" . }} {{ .Values.grafana.service.port }}:{{ .Values.grafana.service.port }}
+  Login: {{ .Values.grafana.adminUser }} / (the configured admin password)
+  Dashboard: WaterTwin -> "WaterTwin — Service Observability" (auto-provisioned)
+{{- end }}

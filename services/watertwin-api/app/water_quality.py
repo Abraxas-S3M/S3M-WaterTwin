@@ -123,6 +123,10 @@ PRIORITY_VARIABLES: dict[str, list[str]] = {
     "chlorophyll_a": ["chlorophyll_a_ug_l"],
 }
 
+#: TDS -> electrical-conductivity conversion factor (mg/L ≈ 0.64 × µS/cm). Used
+#: to derive a conductivity reading from TDS for compliance screening.
+_TDS_TO_CONDUCTIVITY = 0.64
+
 #: Advisory limits used for compliance flags (screening only, not regulatory).
 LIMITS: dict[str, float] = {
     "turbidity_ntu": 0.3,
@@ -371,6 +375,22 @@ def _composition(fouling: float) -> dict[str, dict[str, float]]:
     }
     comp["brine"] = brine
     return comp
+
+
+def composition_at(fouling: float, location: str = "finished") -> dict[str, float]:
+    """Public accessor for the synthetic per-location composition.
+
+    Returns the tracked variables at one treatment ``location`` (one of
+    :data:`_LOCATIONS`), augmented with a derived ``conductivity_us_cm`` (from
+    TDS) so downstream compliance screening can check conductivity directly.
+    Read-only synthetic data; returns an empty dict for an unknown location.
+    """
+    comp = _composition(max(0.0, min(1.0, fouling)))
+    values = dict(comp.get(location, {}))
+    tds = values.get("tds_mg_l")
+    if tds is not None:
+        values.setdefault("conductivity_us_cm", round(tds / _TDS_TO_CONDUCTIVITY, 2))
+    return values
 
 
 # ---------------------------------------------------------------------------

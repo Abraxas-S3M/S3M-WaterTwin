@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useControlBoundary } from '../hooks';
 
 /**
@@ -6,6 +7,7 @@ import { useControlBoundary } from '../hooks';
  * system), the banner switches to an error state.
  */
 export function SafetyBoundaryBanner() {
+  const { t } = useTranslation();
   const { data } = useControlBoundary();
   const writeEnabled = data?.control_write_enabled ?? false;
   const mode = data?.control_mode ?? 'advisory';
@@ -17,11 +19,13 @@ export function SafetyBoundaryBanner() {
       aria-live="polite"
       data-testid="safety-boundary-banner"
     >
-      <span className="badge-lock">{writeEnabled ? 'WRITE ENABLED' : 'NO CONTROL WRITE'}</span>
+      <span className="badge-lock">
+        {writeEnabled ? t('safety.writeEnabledBadge') : t('safety.noWriteBadge')}
+      </span>
       <span>
         {writeEnabled
-          ? 'Warning: control write is enabled — this violates the advisory boundary.'
-          : `Advisory mode (${mode}). This system does not write to plant controls; all actions require operator approval and are recorded for audit.`}
+          ? t('safety.writeEnabledMessage')
+          : t('safety.advisoryMessage', { mode })}
       </span>
     </div>
   );

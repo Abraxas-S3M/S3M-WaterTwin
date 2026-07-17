@@ -1,0 +1,201 @@
+# ---------------------------------------------------------------------------
+# PROD environment overrides.
+# HA replicas, pinned images, TLS ingress, faster storage, and OT egress locked
+# to the real production OT segment CIDRs. Replace hostnames / CIDRs / storage
+# classes with your production values. NO secrets here — see secretEnv refs.
+# ---------------------------------------------------------------------------
+global:
+  imageRegistry: registry.example.com/s3m-watertwin
+  networkPolicy:
+    defaultDeny: true
+
+watertwin-api:
+  enabled: true
+  replicaCount: 3
+  image:
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  env:
+    HYDRAULIC_SIM_URL: "http://hydraulic-sim:8100"
+    TREATMENT_SIM_URL: "http://treatment-sim:8080"
+    WATERTWIN_RECO_STORE: "/data/recommendations.json"
+    WATERTWIN_CORS_ORIGINS: "https://watertwin.example.com"
+    WATERTWIN_AUTH_DISABLED: "false"
+    WATERTWIN_OIDC_ISSUER: "https://auth.example.com/realms/watertwin"
+    WATERTWIN_OIDC_JWKS_URI: "https://auth.example.com/realms/watertwin/protocol/openid-connect/certs"
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+  # Spread replicas across nodes for availability.
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: watertwin-api
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    hosts:
+      - host: api.watertwin.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+            servicePort: 8000
+    tls:
+      - secretName: watertwin-api-tls
+        hosts:
+          - api.watertwin.example.com
+  # Lock OIDC/JWKS egress to the identity provider CIDR instead of 0.0.0.0/0.
+  networkPolicy:
+    enabled: true
+    allowDNS: true
+    ingress:
+      - from:
+          - component: dashboard
+          - component: edge-gateway
+        ports:
+          - port: 8000
+      - from:
+          - namespace: ingress-nginx
+        ports:
+          - port: 8000
+    egress:
+      - to:
+          - component: hydraulic-sim
+        ports:
+          - port: 8100
+      - to:
+          - component: treatment-sim
+        ports:
+          - port: 8080
+      - to:
+          - component: timescaledb
+          - component: postgis
+        ports:
+          - port: 5432
+      - to:
+          - cidr: 10.40.0.0/16   # identity provider / Keycloak segment
+        ports:
+          - port: 443
+
+hydraulic-sim:
+  enabled: true
+  replicaCount: 2
+  image:
+    tag: "0.1.0"
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+treatment-sim:
+  enabled: true
+  replicaCount: 2
+  image:
+    tag: "0.1.0"
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+edge-gateway:
+  enabled: true
+  replicaCount: 2
+  image:
+    tag: "0.1.0"
+  env:
+    OT_SOURCE: "opcua"
+    WATERTWIN_API_URL: "http://watertwin-api:8000"
+    OT_OPCUA_ENDPOINT: "opc.tcp://10.50.10.5:4840"
+  secretEnv:
+    - name: OT_OPCUA_USERNAME
+      secretName: edge-gateway-ot
+      secretKey: opcua-username
+    - name: OT_OPCUA_PASSWORD
+      secretName: edge-gateway-ot
+      secretKey: opcua-password
+  # Outbound-only egress locked to the production OT segment(s).
+  networkPolicy:
+    enabled: true
+    allowDNS: true
+    ingress:
+      - from:
+          - namespace: monitoring
+        ports:
+          - port: 8200
+    egress:
+      - to:
+          - component: watertwin-api
+        ports:
+          - port: 8000
+      - to:
+          - cidr: 10.50.10.0/24   # production OT segment (read-only)
+        ports:
+          - port: 4840            # OPC UA
+          - port: 502             # Modbus TCP
+          - port: 443             # Historian (TLS)
+
+dashboard:
+  enabled: true
+  replicaCount: 3
+  image:
+    tag: "0.1.0"
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    hosts:
+      - host: watertwin.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+            servicePort: 80
+    tls:
+      - secretName: watertwin-dashboard-tls
+        hosts:
+          - watertwin.example.com
+
+timescaledb:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 100Gi
+    storageClass: fast-ssd
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
+    limits:
+      cpu: "4"
+      memory: 8Gi
+
+postgis:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 50Gi
+    storageClass: fast-ssd
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
