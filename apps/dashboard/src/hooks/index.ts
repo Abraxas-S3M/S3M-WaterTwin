@@ -7,11 +7,17 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import { api } from '../api/client';
+import type { FacilitiesResponse, FleetOverview } from '../facilities/types';
 import type {
   AnomalyResult,
   Asset,
   AssistantExamplesResponse,
   AuditResponse,
+  ComplianceLimitsResponse,
+  ComplianceStatusResponse,
+  CmmsAssetHistoryResponse,
+  CmmsStatusResponse,
+  CmmsWorkOrdersResponse,
   ControlBoundary,
   DecisionRequest,
   DocumentsResponse,
@@ -29,12 +35,20 @@ import type {
   MaintenanceRankingResponse,
   MaintenanceRecommendationsResponse,
   MembraneHealthResponse,
+  ModelsResponse,
   PlantOverview,
   PumpCurve,
   RecommendationCard,
   ResilienceCriticalityResponse,
   ResilienceGeneratorResponse,
+  SecurityOverviewResponse,
   TelemetryReading,
+  TrainingActionRequest,
+  TrainingActionResponse,
+  TrainingRecordResponse,
+  TrainingRecordsResponse,
+  TrainingScenariosResponse,
+  TrainingSessionResponse,
   WaterStream,
   WQAlertsResponse,
   WQContaminantMatrixResponse,
@@ -42,6 +56,9 @@ import type {
   WQRemovalResponse,
   WQScalingResponse,
   WQStatusResponse,
+  WorkOrderDecisionRequest,
+  WorkOrderResponse,
+  WorkOrdersResponse,
 } from '../api/types';
 
 export const POLL_INTERVAL_MS = 4000;
@@ -49,6 +66,8 @@ export const POLL_INTERVAL_MS = 4000;
 export const queryKeys = {
   controlBoundary: ['control-boundary'] as const,
   overview: ['overview'] as const,
+  facilities: ['facilities'] as const,
+  fleetOverview: ['fleet-overview'] as const,
   assets: ['assets'] as const,
   asset: (id: string) => ['asset', id] as const,
   streams: ['streams'] as const,
@@ -74,6 +93,10 @@ export const queryKeys = {
   membraneHealth: (id: string) => ['membrane-health', id] as const,
   maintenanceRanking: ['maintenance-ranking'] as const,
   maintenanceRecommendations: ['maintenance-recommendations'] as const,
+  workOrders: ['work-orders'] as const,
+  cmmsStatus: ['cmms-status'] as const,
+  cmmsWorkOrders: ['cmms-work-orders'] as const,
+  cmmsAssetHistory: (id: string) => ['cmms-asset-history', id] as const,
   energySummary: ['energy-summary'] as const,
   energyLosses: ['energy-losses'] as const,
   resilienceCriticality: ['resilience-criticality'] as const,
@@ -82,6 +105,12 @@ export const queryKeys = {
   executiveRoi: ['executive-roi'] as const,
   assistantExamples: ['assistant-examples'] as const,
   documents: ['documents'] as const,
+  models: ['models'] as const,
+  complianceLimits: ['compliance-limits'] as const,
+  complianceStatus: ['compliance-status'] as const,
+  securityOverview: ['security-overview'] as const,
+  trainingScenarios: ['training-scenarios'] as const,
+  trainingRecords: ['training-records'] as const,
 };
 
 // Control boundary rarely changes; poll slowly but keep it fresh.
@@ -98,6 +127,24 @@ export function useOverview(): UseQueryResult<PlantOverview> {
   return useQuery({
     queryKey: queryKeys.overview,
     queryFn: api.getOverview,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+// --- Multi-facility administration hooks -----------------------------------
+
+export function useFacilities(): UseQueryResult<FacilitiesResponse> {
+  return useQuery({
+    queryKey: queryKeys.facilities,
+    queryFn: api.getFacilities,
+    staleTime: POLL_INTERVAL_MS * 15,
+  });
+}
+
+export function useFleetOverview(): UseQueryResult<FleetOverview> {
+  return useQuery({
+    queryKey: queryKeys.fleetOverview,
+    queryFn: api.getFleetOverview,
     refetchInterval: POLL_INTERVAL_MS,
   });
 }
@@ -319,6 +366,55 @@ export function useMaintenanceRecommendations(): UseQueryResult<MaintenanceRecom
   });
 }
 
+// --- Work orders / Maintenance Center (advisory, preliminary) ---
+
+export function useWorkOrders(): UseQueryResult<WorkOrdersResponse> {
+  return useQuery({
+    queryKey: queryKeys.workOrders,
+    queryFn: api.getWorkOrders,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useCmmsStatus(): UseQueryResult<CmmsStatusResponse> {
+  return useQuery({
+    queryKey: queryKeys.cmmsStatus,
+    queryFn: api.getCmmsStatus,
+    staleTime: POLL_INTERVAL_MS * 15,
+  });
+}
+
+export function useCmmsWorkOrders(): UseQueryResult<CmmsWorkOrdersResponse> {
+  return useQuery({
+    queryKey: queryKeys.cmmsWorkOrders,
+    queryFn: api.getCmmsWorkOrders,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useCmmsAssetHistory(
+  assetId: string | null,
+): UseQueryResult<CmmsAssetHistoryResponse> {
+  return useQuery({
+    queryKey: queryKeys.cmmsAssetHistory(assetId ?? ''),
+    queryFn: () => api.getCmmsAssetHistory(assetId as string),
+    enabled: !!assetId,
+    staleTime: POLL_INTERVAL_MS * 15,
+  });
+}
+
+export function useWorkOrderDecision() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: WorkOrderDecisionRequest }): Promise<WorkOrderResponse> =>
+      api.decideWorkOrder(id, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.workOrders });
+      void qc.invalidateQueries({ queryKey: ['audit'] });
+    },
+  });
+}
+
 // --- Energy Optimization hooks (advisory, estimated) ---
 
 export function useEnergySummary(): UseQueryResult<EnergySummaryResponse> {
@@ -406,6 +502,16 @@ export function useDocuments(): UseQueryResult<DocumentsResponse> {
   });
 }
 
+// --- Cyber-Physical Security hooks (advisory, read-only) ---
+
+export function useSecurityOverview(): UseQueryResult<SecurityOverviewResponse> {
+  return useQuery({
+    queryKey: queryKeys.securityOverview,
+    queryFn: api.getSecurityOverview,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
 export function useAskAssistant() {
   const qc = useQueryClient();
   return useMutation({
@@ -425,6 +531,36 @@ function useInvalidateRecommendationViews() {
     void qc.invalidateQueries({ queryKey: ['audit'] });
     void qc.invalidateQueries({ queryKey: queryKeys.overview });
   };
+}
+
+// --- Model governance registry (D1/D2) + compliance (A1 config store) ---
+
+export function useModels(): UseQueryResult<ModelsResponse> {
+  return useQuery({
+    queryKey: queryKeys.models,
+    queryFn: api.getModels,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useComplianceLimits(): UseQueryResult<ComplianceLimitsResponse> {
+  return useQuery({
+    queryKey: queryKeys.complianceLimits,
+    queryFn: api.getComplianceLimits,
+    staleTime: POLL_INTERVAL_MS * 15,
+  });
+}
+
+export function useComplianceStatus(): UseQueryResult<ComplianceStatusResponse> {
+  return useQuery({
+    queryKey: queryKeys.complianceStatus,
+    queryFn: api.getComplianceStatus,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useComplianceReport() {
+  return useMutation({ mutationFn: () => api.getComplianceReport() });
 }
 
 export function useAskS3M() {
@@ -451,5 +587,54 @@ export function useDecision() {
         ? api.approveRecommendation(recId, body)
         : api.rejectRecommendation(recId, body),
     onSuccess: invalidate,
+  });
+}
+
+// --- Operator Training Simulator hooks (SIMULATION, sandboxed) ---
+
+export function useTrainingScenarios(): UseQueryResult<TrainingScenariosResponse> {
+  return useQuery({
+    queryKey: queryKeys.trainingScenarios,
+    queryFn: api.getTrainingScenarios,
+    staleTime: POLL_INTERVAL_MS * 60,
+  });
+}
+
+export function useTrainingRecords(): UseQueryResult<TrainingRecordsResponse> {
+  return useQuery({
+    queryKey: queryKeys.trainingRecords,
+    queryFn: api.getTrainingRecords,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useStartTrainingSession() {
+  return useMutation({
+    mutationFn: ({ scenarioId, operator }: { scenarioId: string; operator?: string }): Promise<TrainingSessionResponse> =>
+      api.startTrainingSession(scenarioId, operator),
+  });
+}
+
+export function useCaptureTrainingAction() {
+  return useMutation({
+    mutationFn: ({
+      sessionId,
+      body,
+    }: {
+      sessionId: string;
+      body: TrainingActionRequest;
+    }): Promise<TrainingActionResponse> => api.captureTrainingAction(sessionId, body),
+  });
+}
+
+export function useSubmitTrainingSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string): Promise<TrainingRecordResponse> =>
+      api.submitTrainingSession(sessionId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.trainingRecords });
+      void qc.invalidateQueries({ queryKey: ['audit'] });
+    },
   });
 }

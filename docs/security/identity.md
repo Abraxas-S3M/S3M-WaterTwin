@@ -21,7 +21,7 @@ remains advisory and `human_review_required`, and every response still carries
 
 ## Roles
 
-Five realm roles are seeded in the `watertwin` realm:
+Six realm roles are seeded in the `watertwin` realm:
 
 | Role | Grants |
 | --- | --- |
@@ -29,7 +29,53 @@ Five realm roles are seeded in the `watertwin` realm:
 | `operator` | Everything a viewer can, **plus** approve/reject recommendations. |
 | `engineer` | Everything a viewer can, **plus** run what-if scenarios and reset demo state. |
 | `auditor` | Everything a viewer can, **plus** read the audit trail. |
+| `security` | Everything a viewer can, **plus** read the cyber-physical security analytics and export the signed SIEM feed. |
 | `admin` | Superset of all roles. |
+
+## Tenant &amp; facility scoping (multi-tenancy)
+
+Roles decide *what a caller may do*; **tenant / facility membership** decides
+*what data a caller may see*. The two are orthogonal — an `admin` of one tenant
+still may not read another tenant's data. Every canonical record and persisted
+row (`audit_event`, `recommendation`, `telemetry`) carries a `tenant_id` /
+`facility_id`, and reads are **row-level scoped** so cross-tenant access is
+denied (`403`) at the API layer before any store query runs.
+
+Membership is carried in the access token and extracted in `auth.py`:
+
+| Claim (any accepted) | Meaning |
+| --- | --- |
+| `tenant_ids` / `tenants` / `tenant_id` / `tenant` | Tenants the caller may read (list, scalar, or CSV). |
+| `facility_ids` / `facilities` / `facility_id` / `facility` | Facilities the caller may read. |
+
+Resolution rules (backward compatible):
+
+- A token with **no tenant claim** is treated as a member of the single default
+  tenant (`s3m-default`) with access to every facility in it — so legacy
+  single-facility tokens keep working unchanged.
+- A token with tenant claims but **no facility claim** may read every facility
+  *within its tenants*.
+- The dev bypass (`WATERTWIN_AUTH_DISABLED=true`) runs as a wildcard
+  (`*`) admin with access to all tenants/facilities.
+
+Scoped read/write surfaces:
+
+- **Analytics** (`water-quality/*`, `equipment/*`, `membrane/*`,
+  `maintenance/*`, `energy/*`, `resilience/*`, `executive/*`) accept optional
+  `tenant_id` / `facility_id` query parameters (defaulting to the platform
+  defaults) and echo the resolved scope in the response envelope.
+- **Config** (`recommendations`, `recommendations/{id}`) only ever lists /
+  returns records inside the caller's tenant/facility.
+- **Audit** (`audit`) is filtered to the caller's tenant (and optional
+  facility); an auditor of one tenant can never read another's trail. The
+  tamper-evident hash chain is a single global chain and `audit/verify` still
+  verifies it in full — `tenant_id` / `facility_id` are stored *alongside* the
+  hashed event core, never inside it, so scoping leaves the chain invariant
+  unchanged.
+
+Pre-existing single-facility data is migrated into the default tenant/facility
+on connect (`store.py` backfill + `infrastructure/database/init.sql`), so nothing
+breaks on upgrade.
 
 ## RBAC matrix (enforced in `watertwin-api`)
 
@@ -40,9 +86,15 @@ Five realm roles are seeded in the `watertwin` realm:
 | `recommendations/{id}/decision` (approve/reject) | POST | `operator` or `admin` |
 | `simulation-center/run` (scenario) | POST | `engineer` or `admin` |
 | `reset` | POST | `engineer` or `admin` |
-| `audit` (read audit trail) | GET | `auditor` or `admin` |
+| `audit` (read audit trail), `audit/verify` | GET | `auditor` or `admin` |
+| `security/overview` (cyber-physical security posture), `security/siem-export` (signed SIEM export) | GET | `security` or `admin` |
 
 Notes:
+
+- The `security` views are **monitoring only**: they read the existing
+  cyber-physical + anomaly signals (sensor-confidence, telemetry-vs-hydraulic
+  consistency, source-health) and export the immutable audit log as a signed,
+  append-only JSON/CEF feed. There is no control-write path.
 
 - `admin` satisfies every check (it is the superset role).
 - The POST endpoints that *compute* advisory what-ifs (`energy/optimize`,
@@ -64,7 +116,8 @@ Each user's password equals their username (dev only — never for production):
 | `operator` | `operator` | `viewer`, `operator` |
 | `engineer` | `engineer` | `viewer`, `engineer` |
 | `auditor` | `auditor` | `viewer`, `auditor` |
-| `admin` | `admin` | `viewer`, `operator`, `engineer`, `auditor`, `admin` |
+| `security` | `security` | `viewer`, `security` |
+| `admin` | `admin` | `viewer`, `operator`, `engineer`, `auditor`, `security`, `admin` |
 
 ## Enforced vs. dev-bypass mode
 

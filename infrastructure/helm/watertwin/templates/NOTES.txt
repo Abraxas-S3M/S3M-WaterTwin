@@ -1,0 +1,24 @@
+S3M-WaterTwin has been deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+Advisory / read-only posture:
+  * Every component is deployed with a NetworkPolicy allow-list on top of a
+    namespace default-deny{{ if not .Values.global.networkPolicy.defaultDeny }} (currently DISABLED — re-enable global.networkPolicy.defaultDeny){{ end }}.
+  * The edge-gateway reaches OT segments outbound-only, on read-only protocol
+    ports; OT can never initiate a connection into the platform.
+
+Before this release can start cleanly, the referenced Secrets must exist
+(NO secret material is stored in these charts):
+
+  kubectl -n {{ .Release.Namespace }} create secret generic watertwin-db \
+    --from-literal=postgres-password='<db-password>' \
+    --from-literal=database-url='postgresql://watertwin:<db-password>@timescaledb:5432/watertwin'
+
+{{- if index .Values "postgis" "enabled" }}
+  kubectl -n {{ .Release.Namespace }} create secret generic watertwin-postgis \
+    --from-literal=postgres-password='<postgis-password>'
+{{- end }}
+
+Check rollout:
+  kubectl -n {{ .Release.Namespace }} get pods,svc,networkpolicy -l app.kubernetes.io/part-of=watertwin
+
+See docs/deployment/kubernetes.md for the full runbook.

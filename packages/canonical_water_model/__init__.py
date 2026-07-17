@@ -11,9 +11,11 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 __all__ = [
+    "DEFAULT_TENANT_ID",
+    "DEFAULT_FACILITY_ID",
     "AssetType",
     "TreatmentStage",
     "StreamType",
@@ -51,6 +53,12 @@ __all__ = [
     "FoulingSeverity",
     "MembraneHealth",
     "PdMRecommendation",
+    "WorkOrderStatus",
+    "WorkOrderPriority",
+    "WorkOrderSource",
+    "CmmsSyncStatus",
+    "MaintenanceWorkOrder",
+    "AssetMaintenanceRecord",
     "EnergyOptimizationResult",
     "EnergyLoss",
     "ResilienceCriticality",
@@ -65,9 +73,29 @@ __all__ = [
     "DocumentRef",
     "AssistantQuery",
     "AssistantResponse",
+    "LimitBound",
+    "ComplianceLimit",
+    "ComplianceCheck",
+    "ComplianceExceedance",
+    "ComplianceEvaluation",
+    "DriftStatus",
+    "ModelMetric",
+    "ModelSpec",
+    "ModelRegistryEntry",
     "VALUE_DISCLAIMER",
+    "COMPLIANCE_DISCLAIMER",
     "now_iso",
 ]
+
+#: Canonical default tenant + facility. The platform historically modelled a
+#: single seawater-RO facility with no explicit tenant boundary. Multi-tenant
+#: scoping treats that pre-existing data as belonging to this default
+#: tenant/facility so nothing breaks on upgrade (see the store migration in
+#: ``watertwin-api/app/store.py``). ``DEFAULT_FACILITY_ID`` matches the canonical
+#: RO facility id used throughout the synthetic plant.
+DEFAULT_TENANT_ID = "s3m-default"
+DEFAULT_FACILITY_ID = "S3M-DESAL-01"
+
 
 #: Standard disclaimer stamped on every value/ROI artifact. These figures are
 #: illustrative estimates on synthetic pilot data -- not validated savings or
@@ -75,6 +103,18 @@ __all__ = [
 VALUE_DISCLAIMER = (
     "Illustrative estimates on synthetic pilot data — not validated savings or "
     "guaranteed outcomes. Every figure is preliminary and advisory only."
+)
+
+#: Standard disclaimer stamped on every regulatory-compliance artifact. The
+#: underlying values are synthetic/preliminary engineering estimates screened
+#: against operator-configured limits -- this is a decision-support summary, not
+#: a certified regulatory submission or a validated compliance determination.
+COMPLIANCE_DISCLAIMER = (
+    "This compliance summary is advisory and preliminary. Values are synthetic / "
+    "preliminary engineering estimates screened against operator-configured limits, "
+    "not measured, validated, or certified regulatory data. It is decision support "
+    "only and must not be used as a regulatory submission or an autonomous control "
+    "action."
 )
 
 
@@ -201,6 +241,7 @@ class Asset(BaseModel):
     asset_id: str
     name: str
     asset_type: AssetType
+    tenant_id: str = DEFAULT_TENANT_ID
     facility_id: str
     train_id: str
     treatment_stage: Optional[TreatmentStage] = None
@@ -289,6 +330,7 @@ class WaterTwinPacket(BaseModel):
     packet_type: str
     source: str = "s3m-watertwin"
     track: str
+    tenant_id: str = DEFAULT_TENANT_ID
     facility_id: str
     train_id: str
     asset_id: Optional[str] = None
@@ -302,6 +344,7 @@ class WaterTwinPacket(BaseModel):
 class RecommendationCard(BaseModel):
     recommendation_id: str
     packet_id: str
+    tenant_id: str = DEFAULT_TENANT_ID
     facility_id: str
     train_id: str
     asset_id: Optional[str] = None
@@ -583,6 +626,143 @@ class PdMRecommendation(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Work-order / maintenance (CMMS) models
+#
+# A :class:`MaintenanceWorkOrder` is a PROPOSED maintenance work order derived
+# from a predictive-maintenance alert (or pulled read-only from a CMMS). It is
+# fully traceable back to the originating model and its :class:`Evidence`
+# (``originating_model`` + ``source_recommendation_id`` + ``ranked_causes`` +
+# ``evidence``). It is created ``pending`` operator approval with the read-only
+# :class:`ControlBoundary` intact.
+#
+# CRITICAL BOUNDARY: a work order is a CMMS *ticket*, never a device command.
+# Even when a write-back CMMS integration is enabled (behind a config flag and
+# only AFTER operator approval), creating a CMMS ticket is a business-system
+# write -- it is NEVER an OT/control path and it NEVER sets
+# ``control_write_enabled``. ``control_boundary`` therefore stays advisory /
+# read-only on every work order.
+# ---------------------------------------------------------------------------
+
+
+class WorkOrderStatus(str, Enum):
+    """Lifecycle state of a maintenance work order.
+
+    ``proposed`` work orders are derived from a predictive-maintenance alert and
+    await operator approval. The remaining states mirror the states a CMMS
+    reports for records pulled read-only (``open`` .. ``cancelled``).
+    """
+
+    proposed = "proposed"
+    approved = "approved"
+    rejected = "rejected"
+    open = "open"
+    in_progress = "in_progress"
+    completed = "completed"
+    cancelled = "cancelled"
+
+
+class WorkOrderPriority(str, Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+    urgent = "urgent"
+
+
+class WorkOrderSource(str, Enum):
+    """Where a work order originated."""
+
+    #: Derived from a predictive-maintenance alert (traceable to the model).
+    predictive_maintenance = "predictive_maintenance"
+    #: Pulled read-only from the CMMS of record.
+    cmms = "cmms"
+    #: Manually raised by an operator (not used in the synthetic default).
+    manual = "manual"
+
+
+class CmmsSyncStatus(str, Enum):
+    """Whether a proposed work order has been written back to the CMMS.
+
+    A write-back only ever creates a CMMS *ticket* (business system), never a
+    control/OT command, and only after operator approval.
+    """
+
+    not_synced = "not_synced"
+    synced = "synced"
+    failed = "failed"
+
+
+class MaintenanceWorkOrder(BaseModel):
+    """A proposed maintenance work order traceable to its originating model.
+
+    Derived from a :class:`PdMRecommendation` (predictive-maintenance alert):
+    ``originating_model`` + ``source_recommendation_id`` + ``source_alert_code``
+    name the exact model artifact behind it, ``ranked_causes`` + ``evidence``
+    carry the supporting evidence, and the failure-mode / RUL / cost fields are
+    the preliminary estimates it was built from. It is created ``pending``
+    operator approval with the read-only control boundary intact.
+
+    A write-back to the CMMS (when enabled) creates a ticket only -- it sets the
+    ``cmms_*`` fields but NEVER changes ``control_boundary``; a work order is a
+    ticket, not a device command.
+    """
+
+    work_order_id: str
+    asset_id: str
+    asset_name: Optional[str] = None
+    title: str
+    description: str
+    priority: WorkOrderPriority = WorkOrderPriority.medium
+    status: WorkOrderStatus = WorkOrderStatus.proposed
+    source: WorkOrderSource = WorkOrderSource.predictive_maintenance
+
+    # -- traceability to the originating model + evidence -------------------
+    originating_model: Optional[str] = None
+    source_recommendation_id: Optional[str] = None
+    source_alert_code: Optional[str] = None
+    predicted_failure_mode: Optional[str] = None
+    failure_probability_30d: Optional[float] = None
+    rul_days: Optional[float] = None
+    recommended_window: Optional[str] = None
+    spares_required: list[str] = Field(default_factory=list)
+    estimated_downtime_hours: Optional[float] = None
+    estimated_cost: Optional[float] = None
+    ranked_causes: list[RankedCause] = Field(default_factory=list)
+    evidence: Optional[Evidence] = None
+
+    # -- approval + CMMS linkage -------------------------------------------
+    approval_status: ApprovalStatus = ApprovalStatus.pending
+    approved_by: Optional[str] = None
+    decided_at: Optional[str] = None
+    cmms_system: Optional[str] = None
+    cmms_external_id: Optional[str] = None
+    cmms_sync_status: CmmsSyncStatus = CmmsSyncStatus.not_synced
+
+    control_boundary: ControlBoundary = Field(default_factory=ControlBoundary)
+    provenance: DataProvenance = DataProvenance.preliminary
+    created_at: str = Field(default_factory=now_iso)
+
+
+class AssetMaintenanceRecord(BaseModel):
+    """A historical maintenance record pulled READ-ONLY from a CMMS.
+
+    Read-only asset history for context on an asset's past work; no field here
+    is ever written back to the CMMS or to any control system.
+    """
+
+    work_order_id: str
+    asset_id: str
+    title: str
+    status: WorkOrderStatus = WorkOrderStatus.completed
+    performed_at: Optional[str] = None
+    performed_by: Optional[str] = None
+    labor_hours: Optional[float] = None
+    cost: Optional[float] = None
+    notes: Optional[str] = None
+    cmms_system: Optional[str] = None
+    provenance: DataProvenance = DataProvenance.synthetic
+
+
+# ---------------------------------------------------------------------------
 # Value layer: Energy Optimization, Resilience & Generator Command, Executive
 # ROI.
 #
@@ -859,3 +1039,159 @@ class AssistantResponse(BaseModel):
     control_boundary: ControlBoundary = Field(default_factory=ControlBoundary)
     packet_id: Optional[str] = None
     created_at: str = Field(default_factory=now_iso)
+
+
+# ---------------------------------------------------------------------------
+# Regulatory compliance models (A1 config store)
+#
+# Configurable, per-parameter regulatory limits (e.g. turbidity, conductivity,
+# chlorine residual) and the artifacts produced when current water-quality
+# values are screened against them. Limits are held in the A1 config store and
+# are deployment-configurable; the check/exceedance/evaluation artifacts are
+# advisory decision support only -- screened against operator-configured limits
+# on synthetic/preliminary values, never a certified regulatory determination.
+# ---------------------------------------------------------------------------
+
+
+class LimitBound(str, Enum):
+    """Whether a limit is an upper bound (``max``) or a lower bound (``min``).
+
+    A ``max`` limit is exceeded when the measured value is *above* the limit
+    (e.g. turbidity, conductivity). A ``min`` limit is exceeded when the value
+    falls *below* the limit (e.g. a minimum chlorine residual for disinfection).
+    """
+
+    max = "max"
+    min = "min"
+
+
+class ComplianceLimit(BaseModel):
+    """A configurable per-parameter regulatory limit (A1 config store).
+
+    ``parameter`` is the canonical measurement key (e.g. ``turbidity_ntu``);
+    ``stage`` is the treatment location the limit applies to (default the
+    finished/product water); ``basis`` records the regulatory provenance (which
+    standard/guideline the limit is drawn from) so a report is fully traceable.
+    """
+
+    parameter: str
+    display_name: str
+    unit: str
+    limit: float
+    bound: LimitBound = LimitBound.max
+    stage: str = "finished"
+    basis: str = "operator-configured"
+    enabled: bool = True
+
+
+class ComplianceCheck(BaseModel):
+    """The result of screening one measured value against one configured limit."""
+
+    parameter: str
+    display_name: str
+    unit: str
+    stage: str
+    value: float
+    limit: float
+    bound: LimitBound
+    within_limit: bool
+    exceedance_pct: float = 0.0
+    basis: str = "operator-configured"
+
+
+class ComplianceExceedance(ComplianceCheck):
+    """A :class:`ComplianceCheck` that failed its configured limit.
+
+    Always carries ``within_limit == False``; ``exceedance_pct`` is how far the
+    value breaches the limit (positive for both ``max`` and ``min`` bounds).
+    """
+
+    within_limit: bool = False
+
+
+class ComplianceEvaluation(BaseModel):
+    """A full screening of current values against the configured limits."""
+
+    facility_id: str
+    train_id: str
+    generated_at: str = Field(default_factory=now_iso)
+    scenario_fouling: Optional[float] = None
+    checks: list[ComplianceCheck] = Field(default_factory=list)
+    exceedances: list[ComplianceExceedance] = Field(default_factory=list)
+    compliant: bool = True
+    provenance: DataProvenance = DataProvenance.synthetic
+    control_boundary: ControlBoundary = Field(default_factory=ControlBoundary)
+    disclaimer: str = COMPLIANCE_DISCLAIMER
+
+
+# ---------------------------------------------------------------------------
+# Model governance / registry (D1/D2 governance)
+#
+# A read-only governance view of the platform's deterministic analytical models
+# (water-quality, membrane, predictive-maintenance, energy, hydraulic, ...).
+# Each entry exposes its version, spec (inputs/outputs/method/assumptions), the
+# current headline metrics, and a drift status derived from a registered
+# reference baseline. Governance is advisory: none of these models writes to a
+# control system and every output is preliminary/synthetic, not validated.
+# ---------------------------------------------------------------------------
+
+
+class DriftStatus(str, Enum):
+    """Coarse model-drift disposition against a registered reference baseline."""
+
+    stable = "stable"
+    watch = "watch"
+    drifting = "drifting"
+    unknown = "unknown"
+
+
+class ModelMetric(BaseModel):
+    """One headline metric currently produced by a registered model.
+
+    ``reference`` is the registered baseline value the metric is compared
+    against for drift; ``drift_pct`` is the relative change from that baseline.
+    """
+
+    name: str
+    value: float
+    unit: Optional[str] = None
+    reference: Optional[float] = None
+    drift_pct: Optional[float] = None
+
+
+class ModelSpec(BaseModel):
+    """The specification of a registered model (what it consumes and produces)."""
+
+    inputs: list[str] = Field(default_factory=list)
+    outputs: list[str] = Field(default_factory=list)
+    method: str
+    assumptions: list[str] = Field(default_factory=list)
+
+
+class ModelRegistryEntry(BaseModel):
+    """A governance registry entry for one analytical model (D1/D2).
+
+    Bundles the model identity + version, its :class:`ModelSpec`, current
+    headline metrics, and a :class:`DriftStatus` derived from a registered
+    reference baseline. Advisory/read-only: ``provenance`` is never ``measured``
+    and the control boundary stays read-only.
+    """
+
+    # ``model_*`` field names would collide with pydantic's protected namespace.
+    model_config = ConfigDict(protected_namespaces=())
+
+    model_id: str
+    name: str
+    version: str
+    track: str
+    description: str
+    engine: str
+    spec: ModelSpec
+    current_metrics: list[ModelMetric] = Field(default_factory=list)
+    drift_status: DriftStatus = DriftStatus.unknown
+    drift_detail: Optional[str] = None
+    validation_status: str = "preliminary — advisory only, not validated"
+    owner: str = "S3M-WaterTwin governance"
+    last_evaluated: str = Field(default_factory=now_iso)
+    provenance: DataProvenance = DataProvenance.preliminary
+    control_boundary: ControlBoundary = Field(default_factory=ControlBoundary)
