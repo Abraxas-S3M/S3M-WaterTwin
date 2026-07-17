@@ -1,0 +1,24 @@
+# Namespace baseline: default-deny all ingress and egress.
+#
+# Applied first so that every pod in the `watertwin` namespace starts with zero
+# reachability; specific NetworkPolicies (see watertwin-api-networkpolicy.yaml)
+# then re-open only the flows that are explicitly allowed. This makes "no route
+# into the OT zone" the default state rather than something we must remember to
+# forbid.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: watertwin
+  labels:
+    app.kubernetes.io/part-of: s3m-watertwin
+  annotations:
+    watertwin.s3m/intent: >-
+      Deny-by-default baseline. Combined with the per-app allowlists this
+      guarantees the platform has no implicit path toward the OT zone.
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  # No ingress/egress rules => deny all until a more specific policy allows.

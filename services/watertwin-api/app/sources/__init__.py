@@ -1,45 +1,57 @@
-"""Pluggable, read-only telemetry sources.
+"""Read-only telemetry sources -- compatibility shim.
 
-The active source is selected by the ``OT_SOURCE`` environment variable
-(``synthetic`` | ``opcua`` | ``modbus`` | ``historian``; default ``synthetic``).
-When a real OT source is configured but unreachable/misconfigured, the resolver
-logs and **falls back to the synthetic source** (it never crashes); the active
-source and any fallback are surfaced in ``/health`` and
-``GET /api/v1/ingestion/source``.
+The read-only OT source adapters (synthetic / OPC UA / Modbus / historian) and
+the pluggable source resolver were moved to the shared, importable
+:mod:`ot_ingestion.sources` package so both this API and the independently
+deployable ``services/edge-gateway`` reuse a single implementation (no
+duplicated logic). This module re-exports that package unchanged so the existing
+``app.sources`` import path (and its behaviour) is preserved.
 
-No source in this package writes to a control system. The read-only posture is
-enforced by a boundary-guard test that scans this package for forbidden write
-calls (mirroring the platform's control-write boundary guard).
+Importing this shim also registers the API's existing synthetic plant
+(``app.predictive_maintenance.ASSETS``) as the default synthetic asset provider,
+so ``SyntheticSource()`` yields exactly the same telemetry as before the move.
 """
 
 from __future__ import annotations
 
-import logging
-from dataclasses import dataclass
-from typing import Optional
+from ot_ingestion.sources import (  # noqa: F401
+    SOURCE_KINDS,
+    BUILTIN_SYNTHETIC_ASSETS,
+    HistorianSource,
+    ModbusSource,
+    OpcUaSource,
+    RegisterSpec,
+    SourceResolution,
+    SourceUnavailable,
+    SyntheticAsset,
+    SyntheticSource,
+    TelemetrySource,
+    parse_register_specs,
+    register_default_assets_provider,
+    resolve_source,
+    unit_for,
+)
 
-from .base import SourceUnavailable, TelemetrySource
-from .historian import HistorianSource
-from .modbus import ModbusSource, parse_register_specs
-from .opcua import OpcUaSource
-from .synthetic import SyntheticSource
-
-logger = logging.getLogger("watertwin.sources")
-
-#: All selectable source kinds.
-SOURCE_KINDS = ("synthetic", "opcua", "modbus", "historian")
+# Import the synthetic shim for its import-time side effect: registering the
+# API's synthetic plant as the default asset provider.
+from . import synthetic as _synthetic  # noqa: F401
 
 __all__ = [
-    "SourceUnavailable",
-    "TelemetrySource",
-    "SyntheticSource",
-    "OpcUaSource",
-    "ModbusSource",
-    "HistorianSource",
-    "parse_register_specs",
-    "SourceResolution",
-    "resolve_source",
     "SOURCE_KINDS",
+    "BUILTIN_SYNTHETIC_ASSETS",
+    "HistorianSource",
+    "ModbusSource",
+    "OpcUaSource",
+    "RegisterSpec",
+    "SourceResolution",
+    "SourceUnavailable",
+    "SyntheticAsset",
+    "SyntheticSource",
+    "TelemetrySource",
+    "parse_register_specs",
+    "register_default_assets_provider",
+    "resolve_source",
+    "unit_for",
 ]
 
 
@@ -139,6 +151,15 @@ def resolve_source(config, *, probe: bool = True) -> SourceResolution:
 
     if requested == "synthetic":
         return SourceResolution("synthetic", "synthetic", SyntheticSource())
+
+    # Fail-closed directional guard: under the one-way / data-diode deployment
+    # profile the platform must never initiate a connection toward the OT zone.
+    # A platform->OT pull source is refused outright (it is NOT downgraded to a
+    # silent synthetic fallback) so the misconfiguration is loud and the one-way
+    # guarantee cannot be broken. See app/deployment.py.
+    from .. import deployment
+
+    deployment.assert_source_allowed(requested, config)
 
     builder = _BUILDERS.get(requested)
     if builder is None:
