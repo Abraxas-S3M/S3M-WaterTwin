@@ -93,6 +93,53 @@ jobs:
         run: python -m pytest -q
 
   # ---------------------------------------------------------------------------
+  # Shared physics + contract packages.
+  # ---------------------------------------------------------------------------
+  packages:
+    name: packages (shared physics + contracts)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip
+          pip install pytest pydantic
+
+      - name: Pytest
+        working-directory: packages
+        run: python -m pytest -q
+
+  # ---------------------------------------------------------------------------
+  # Dashboard (React/TypeScript) unit tests.
+  # ---------------------------------------------------------------------------
+  dashboard:
+    name: dashboard (React/TS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/dashboard/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/dashboard
+        run: npm ci
+
+      - name: Test
+        working-directory: apps/dashboard
+        run: npm test
+
+  # ---------------------------------------------------------------------------
   # Supply chain: CycloneDX SBOMs + dependency & secret scanning.
   # ---------------------------------------------------------------------------
   security:

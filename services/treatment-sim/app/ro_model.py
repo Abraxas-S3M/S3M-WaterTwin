@@ -17,42 +17,17 @@ from __future__ import annotations
 
 from simulation_contracts import ROBaselineResult
 
-# van 't Hoff osmotic-pressure constant for NaCl, identical physics constant to
-# watertwin.calculations (shared physics, independent numerics).
-_NACL_MW = 58.44
-_R_L_BAR = 0.083145
-_VANT_HOFF_I = 2.0
-K_OSMOTIC = _VANT_HOFF_I * _R_L_BAR / _NACL_MW
+# The osmotic-pressure relation and the lumped specific-energy calculation are
+# the single canonical implementations from the shared physics package. This
+# service contributes only its *distinct numerical method* (the discretized
+# multi-segment marching solve below), never a duplicate of the shared physics.
+from watertwin_engineering import osmotic_pressure_bar
+from watertwin_engineering.calculations import specific_energy as specific_energy_kwh_m3
+
+__all__ = ["osmotic_pressure_bar", "specific_energy_kwh_m3", "simulate_ro"]
 
 _BETA = 1.10  # concentration-polarization factor (wall / bulk)
 _N_SEGMENTS = 200
-
-
-def osmotic_pressure_bar(tds_mg_l: float, temperature_c: float = 25.0) -> float:
-    return K_OSMOTIC * (tds_mg_l / 1000.0) * (temperature_c + 273.15)
-
-
-def specific_energy_kwh_m3(
-    feed_flow_m3h: float,
-    feed_pressure_bar: float,
-    recovery: float,
-    pump_efficiency: float,
-    erd_efficiency: float,
-    use_erd: bool,
-    pressure_drop_bar: float,
-) -> float:
-    """Specific energy (kWh/m3 permeate) with optional energy recovery."""
-    if recovery <= 0:
-        return float("inf")
-    permeate_flow = feed_flow_m3h * recovery
-    concentrate_flow = feed_flow_m3h * (1.0 - recovery)
-    concentrate_pressure = max(feed_pressure_bar - pressure_drop_bar, 0.0)
-    gross = feed_flow_m3h * feed_pressure_bar
-    recovered = (
-        erd_efficiency * concentrate_flow * concentrate_pressure if use_erd else 0.0
-    )
-    net_power_kw = max(gross - recovered, 0.0) / (36.0 * pump_efficiency)
-    return net_power_kw / permeate_flow
 
 
 def simulate_ro(
@@ -71,7 +46,6 @@ def simulate_ro(
     engine_label: str = "analytical",
 ) -> ROBaselineResult:
     """Solve a single RO stage by marching along ``n_segments`` membrane slices."""
-    t_k = temperature_c + 273.15
     d_area = membrane_area_m2 / n_segments
     dp_per_segment = pressure_drop_bar / n_segments
 
@@ -88,7 +62,8 @@ def simulate_ro(
             break
         c_bulk = salt_flow / q  # g/L
         c_wall = c_bulk * _BETA
-        pi_local = K_OSMOTIC * c_wall * t_k
+        # c_wall is g/L; the canonical osmotic function takes mg/L.
+        pi_local = osmotic_pressure_bar(c_wall * 1000.0, temperature_c)
         ndp = max(pressure - pi_local, 0.0)
         jw = a_lmh_bar * ndp  # LMH
         dqp = jw * d_area / 1000.0  # m3/h

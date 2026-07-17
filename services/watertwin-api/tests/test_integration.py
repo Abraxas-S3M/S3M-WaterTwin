@@ -1,6 +1,15 @@
-"""End-to-end integration: watertwin-api -> hydraulic-sim -> recommendation."""
+"""End-to-end integration: watertwin-api -> hydraulic-sim -> recommendation.
+
+These spin up a live hydraulic-sim (EPANET/WNTR) subprocess. They are marked
+``integration`` and skip automatically when that heavy stack is unavailable;
+``test_reports.py`` is the equivalent fast, dependency-free unit path.
+"""
 
 from __future__ import annotations
+
+import pytest
+
+pytestmark = pytest.mark.integration
 
 
 def test_health_exposes_control_boundary(client):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from watertwin.engineering.osmotic import (
+from watertwin_engineering.osmotic import (
     osmotic_pressure_bar,
     seawater_osmotic_pressure_bar,
 )

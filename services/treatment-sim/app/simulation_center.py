@@ -1,11 +1,11 @@
-"""Simulation Center RO what-if scenario (watertwin-api side).
+"""Simulation Center RO what-if scenario (treatment-sim side).
 
 Compares a baseline RO operating point against a scenario and produces the
 deltas the Simulation Center surfaces to operators: energy, water-quality, and
 recovery changes plus a confidence score. The confidence is grounded in an
-independent cross-check of the scenario against ``watertwin.calculations`` (the
-API's analytical RO reference) -- large disagreement lowers confidence because
-it is a bug/uncertainty signal.
+independent cross-check of the scenario against the canonical analytical RO
+reference (:mod:`watertwin_engineering.calculations`) -- large disagreement
+lowers confidence because it is a bug/uncertainty signal.
 
 The ``simulation_id`` of each underlying treatment-sim job is threaded into the
 canonical :class:`Evidence` block so downstream packets can trace the result
@@ -18,9 +18,9 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-from watertwin import calculations
+from watertwin_engineering import calculations
 
-try:  # canonical_water_model is the shared model package (Phase 1).
+try:  # canonical_water_model is the shared model package.
     from canonical_water_model import ControlBoundary, DataProvenance, Evidence, now_iso
 except Exception:  # pragma: no cover - fallback if package not on path
     ControlBoundary = None  # type: ignore
@@ -151,7 +151,7 @@ def build_ro_scenario(
     evidence_dict: Optional[dict] = None
     assumptions = [
         "Read-only what-if; results are simulated, not measured or validated.",
-        f"Cross-checked vs watertwin.calculations (rel error {cross_err:.3f}).",
+        f"Cross-checked vs watertwin_engineering.calculations (rel error {cross_err:.3f}).",
         f"Engine: {engine}.",
     ]
     if Evidence is not None:

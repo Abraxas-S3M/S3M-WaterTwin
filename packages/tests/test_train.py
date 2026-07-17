@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from watertwin.engineering.train import TrainEvaluation, evaluate_train
+from watertwin_engineering.train import TrainEvaluation, evaluate_train
 
 
 def _nominal_kwargs() -> dict[str, float]:

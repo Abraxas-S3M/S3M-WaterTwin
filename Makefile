@@ -32,10 +32,15 @@ ps:
 	docker compose ps
 
 test:
-	@set -e; for s in $(SERVICES); do \
+	@set -e; \
+	echo "== pytest packages =="; \
+	( cd packages && python -m pytest -q ); \
+	for s in $(SERVICES); do \
 		echo "== pytest $$s =="; \
 		( cd services/$$s && python -m pytest -q ); \
-	done
+	done; \
+	echo "== npm test dashboard =="; \
+	( cd apps/dashboard && npm test )
 
 lint:
 	@set -e; for s in $(SERVICES); do \

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from app import engine
+from app.simulation_center import build_ro_scenario
 from simulation_contracts import ROFeed, ROMembrane, ROOperating, SimulateRequest
-from watertwin.simulation_center import build_ro_scenario
 
 
 def _job(job_id: str, req: SimulateRequest):

@@ -1,14 +1,15 @@
-"""Analytical reverse-osmosis reference calculations (API side).
+"""Analytical reverse-osmosis reference calculations (lumped average-element).
 
 This module is a deliberately *simple, closed-form* implementation of the core
-RO physics that the S3M-WaterTwin API uses for quick energy/quality estimates
-(e.g. when scoring health or annotating recommendation packets).
+RO physics used for quick energy/quality estimates (e.g. when scoring health or
+annotating recommendation packets) and as an independent cross-check of the
+``treatment-sim`` process-simulation service.
 
 It is intentionally an **independent** implementation of the same physics that
-the ``treatment-sim`` process-simulation service solves with the WaterTAP/IDAES
-stack (or its analytical fallback). The two are expected to agree within a
-modest tolerance; a larger divergence is a *bug signal*, not an accepted
-difference. The two implementations differ in numerical method:
+the ``treatment-sim`` service solves with a discretized multi-segment membrane
+integration (and/or a full WaterTAP flowsheet). The two are expected to agree
+within a modest tolerance; a larger divergence is a *bug signal*, not an
+accepted difference. The two implementations differ in numerical method:
 
 * Here: a single average-element (lumped) solve using mean-concentration
   osmotic pressure.
@@ -17,30 +18,23 @@ difference. The two implementations differ in numerical method:
 
 All quantities use practical field units (m3/h, bar, mg/L, deg C, kWh/m3).
 
-References for the underlying relations:
-
-* Solution-diffusion flux model (water flux ``Jw = A*(dP - d_pi)``, salt flux
-  ``Js = B*dC``) -- standard membrane-transport theory.
-* van 't Hoff osmotic pressure for NaCl-equivalent salinity.
+The osmotic-pressure relation is the single canonical
+:func:`watertwin_engineering.osmotic.osmotic_pressure_bar` (van 't Hoff for
+NaCl-equivalent salinity); this module does not re-implement it.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-# van 't Hoff osmotic-pressure constant for NaCl (i=2, M=58.44 g/mol,
-# R=0.083145 L*bar/mol/K): pi[bar] = K_OSMOTIC * C[g/L] * T[K].
-_NACL_MW = 58.44
-_R_L_BAR = 0.083145
-_VANT_HOFF_I = 2.0
-K_OSMOTIC = _VANT_HOFF_I * _R_L_BAR / _NACL_MW  # ~0.002846 bar / (g/L * K)
+from watertwin_engineering.osmotic import osmotic_pressure_bar
 
-
-def osmotic_pressure_bar(tds_mg_l: float, temperature_c: float = 25.0) -> float:
-    """Osmotic pressure (bar) of a NaCl-equivalent solution via van 't Hoff."""
-    c_g_l = tds_mg_l / 1000.0
-    t_k = temperature_c + 273.15
-    return K_OSMOTIC * c_g_l * t_k
+__all__ = [
+    "ROReference",
+    "osmotic_pressure_bar",
+    "ro_performance",
+    "specific_energy",
+]
 
 
 @dataclass
