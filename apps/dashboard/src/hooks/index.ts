@@ -19,6 +19,12 @@ import type {
   RecommendationCard,
   TelemetryReading,
   WaterStream,
+  WQAlertsResponse,
+  WQContaminantMatrixResponse,
+  WQForecastResponse,
+  WQRemovalResponse,
+  WQScalingResponse,
+  WQStatusResponse,
 } from '../api/types';
 
 export const POLL_INTERVAL_MS = 4000;
@@ -37,6 +43,12 @@ export const queryKeys = {
   pumpCurve: (id: string) => ['pump-curve', id] as const,
   recommendations: (id?: string) => ['recommendations', id ?? 'all'] as const,
   audit: (id?: string) => ['audit', id ?? 'all'] as const,
+  wqStatus: ['wq-status'] as const,
+  wqContaminantMatrix: ['wq-contaminant-matrix'] as const,
+  wqRemoval: ['wq-removal'] as const,
+  wqScaling: ['wq-scaling'] as const,
+  wqForecast: ['wq-forecast'] as const,
+  wqAlerts: ['wq-alerts'] as const,
 };
 
 // Control boundary rarely changes; poll slowly but keep it fresh.
@@ -138,6 +150,56 @@ export function useAudit(assetId?: string): UseQueryResult<AuditResponse> {
   return useQuery({
     queryKey: queryKeys.audit(assetId),
     queryFn: () => api.getAudit(assetId),
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+// --- Water Quality Intelligence hooks (advisory, preliminary) ---
+
+export function useWaterQualityStatus(): UseQueryResult<WQStatusResponse> {
+  return useQuery({
+    queryKey: queryKeys.wqStatus,
+    queryFn: api.getWaterQualityStatus,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useWaterQualityContaminantMatrix(): UseQueryResult<WQContaminantMatrixResponse> {
+  return useQuery({
+    queryKey: queryKeys.wqContaminantMatrix,
+    queryFn: api.getWaterQualityContaminantMatrix,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useWaterQualityRemoval(): UseQueryResult<WQRemovalResponse> {
+  return useQuery({
+    queryKey: queryKeys.wqRemoval,
+    queryFn: api.getWaterQualityRemoval,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useWaterQualityScaling(): UseQueryResult<WQScalingResponse> {
+  return useQuery({
+    queryKey: queryKeys.wqScaling,
+    queryFn: api.getWaterQualityScaling,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useWaterQualityForecast(): UseQueryResult<WQForecastResponse> {
+  return useQuery({
+    queryKey: queryKeys.wqForecast,
+    queryFn: api.getWaterQualityForecast,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useWaterQualityAlerts(): UseQueryResult<WQAlertsResponse> {
+  return useQuery({
+    queryKey: queryKeys.wqAlerts,
+    queryFn: api.getWaterQualityAlerts,
     refetchInterval: POLL_INTERVAL_MS,
   });
 }

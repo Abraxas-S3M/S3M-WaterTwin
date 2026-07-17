@@ -8,6 +8,12 @@ import type {
   PumpCurve,
   RecommendationCard,
   TelemetryReading,
+  WQAlertsResponse,
+  WQContaminantMatrixResponse,
+  WQForecastResponse,
+  WQRemovalResponse,
+  WQScalingResponse,
+  WQStatusResponse,
 } from '../api/types';
 
 export const controlBoundary: ControlBoundary = {
@@ -139,6 +145,220 @@ export const audit: AuditResponse = {
       asset_id: 'AST-HPP-01',
       actor: 's3m-engine',
       detail: 'Recommendation created',
+    },
+  ],
+};
+
+const wqEnvelope = {
+  facility_id: 'S3M-DESAL-01',
+  train_id: 'RO-TRAIN-001',
+  control_boundary: controlBoundary,
+};
+
+export const wqStatus: WQStatusResponse = {
+  ...wqEnvelope,
+  provenance: 'synthetic',
+  stage_status: [
+    {
+      stage: 'intake',
+      location: 'intake',
+      provenance: 'synthetic',
+      compliance: [{ variable: 'turbidity_ntu', value: 2.2, limit: 0.3, within_limit: false }],
+    },
+    {
+      stage: 'permeate',
+      location: 'permeate',
+      provenance: 'synthetic',
+      compliance: [{ variable: 'tds_mg_l', value: 401, limit: 500, within_limit: true }],
+      recovery: 0.317,
+      salt_rejection: 0.99109,
+      salt_passage: 0.00891,
+    },
+  ],
+  samples: [
+    {
+      sample_id: 'WQS-SP-01-t0',
+      sampling_point_id: 'SP-01',
+      stage: 'intake',
+      stream_id: 'STR-SW-FEED',
+      timestamp: '2026-07-17T07:00:00Z',
+      provenance: 'synthetic',
+      measurements: { turbidity_ntu: 2.2, sdi: 5.6, boron_mg_l: 5.0 },
+      sample_type: 'continuous',
+      method: 'online analyzer',
+      detection_limit: 0.01,
+      limit: null,
+      qc_status: 'pass',
+    },
+  ],
+  summary: {
+    recovery: 0.317,
+    salt_rejection: 0.99109,
+    salt_passage: 0.00891,
+    normalized_salt_passage: 0.00865,
+    normalized_dp_bar: 1.0,
+    permeate_tds_mg_l: 401.0,
+    permeate_boron_mg_l: 0.582,
+  },
+};
+
+export const wqContaminantMatrix: WQContaminantMatrixResponse = {
+  ...wqEnvelope,
+  provenance: 'synthetic',
+  rows: [
+    {
+      contaminant: 'Boron',
+      unit: 'mg/L',
+      intake: 5.0,
+      post_pretreatment: 5.0,
+      ro_feed: 5.0,
+      permeate: 0.582,
+      finished: 0.582,
+      brine: 7.3,
+      removal_pct: 88.4,
+      limit: 1.0,
+      provenance: 'synthetic',
+    },
+    {
+      contaminant: 'TDS',
+      unit: 'mg/L',
+      intake: 45000,
+      post_pretreatment: 45000,
+      ro_feed: 45000,
+      permeate: 401,
+      finished: 521,
+      brine: 65700,
+      removal_pct: 98.8,
+      limit: 500,
+      provenance: 'synthetic',
+    },
+  ],
+};
+
+export const wqRemoval: WQRemovalResponse = {
+  ...wqEnvelope,
+  provenance: 'preliminary',
+  removal: [
+    {
+      contaminant: 'Boron',
+      unit: '%',
+      current_pct: 88.4,
+      design_pct: 90.0,
+      predicted_pct: 87.8,
+      confidence: 0.67,
+      provenance: 'preliminary',
+    },
+    {
+      contaminant: 'TDS',
+      unit: '%',
+      current_pct: 98.8,
+      design_pct: 99.4,
+      predicted_pct: 98.2,
+      confidence: 0.67,
+      provenance: 'preliminary',
+    },
+  ],
+};
+
+export const wqScaling: WQScalingResponse = {
+  ...wqEnvelope,
+  provenance: 'preliminary',
+  scaling: [
+    {
+      compound: 'CaCO3',
+      saturation: 0.775,
+      probability: 0.31,
+      ro_stage_at_risk: 'ro_stage_2',
+      max_safe_recovery: 0.45,
+      recommended_antiscalant_note: 'Acid/antiscalant dosing indicated (preliminary).',
+      provenance: 'preliminary',
+    },
+    {
+      compound: 'BaSO4',
+      saturation: 2.68,
+      probability: 1.0,
+      ro_stage_at_risk: 'ro_stage_2',
+      max_safe_recovery: 0.45,
+      recommended_antiscalant_note: 'BaSO4 super-saturated (preliminary).',
+      provenance: 'preliminary',
+    },
+  ],
+};
+
+export const wqForecast: WQForecastResponse = {
+  ...wqEnvelope,
+  provenance: 'preliminary',
+  forecasts: [
+    {
+      target: 'permeate_salinity',
+      unit: 'mg/L TDS',
+      horizon: '24h',
+      predicted_value: 404.2,
+      lower: 380.0,
+      upper: 428.4,
+      confidence: 0.71,
+      basis: 'normalized salt-passage trend (preliminary)',
+      provenance: 'preliminary',
+    },
+    {
+      target: 'permeate_boron',
+      unit: 'mg/L',
+      horizon: '24h',
+      predicted_value: 0.6,
+      lower: 0.55,
+      upper: 0.65,
+      confidence: 0.71,
+      basis: 'pKa speciation (preliminary)',
+      provenance: 'preliminary',
+    },
+    {
+      target: 'scaling_time_to_critical:BaSO4',
+      unit: 'h',
+      horizon: '7d',
+      predicted_value: 4.0,
+      lower: 2.4,
+      upper: 6.4,
+      confidence: 0.45,
+      basis: 'dominant scale BaSO4 (preliminary)',
+      provenance: 'preliminary',
+    },
+    {
+      target: 'fouling_risk',
+      unit: 'index 0-1',
+      horizon: '24h',
+      predicted_value: 0.42,
+      lower: 0.33,
+      upper: 0.51,
+      confidence: 0.71,
+      basis: 'normalized dP + ATP + UV254 (preliminary)',
+      provenance: 'preliminary',
+    },
+  ],
+};
+
+export const wqAlerts: WQAlertsResponse = {
+  ...wqEnvelope,
+  provenance: 'preliminary',
+  alerts: [
+    {
+      code: 'WQ-SCALING-BASO4',
+      stage: 'ro_stage_2',
+      cause: 'BaSO4 scaling risk elevated in concentrate (saturation 2.68, p=1.00).',
+      horizon: 'shift',
+      confidence: 0.8,
+      recommended_action: 'Verify antiscalant dosing / reduce recovery; advisory only.',
+      approval_required: true,
+      provenance: 'preliminary',
+    },
+  ],
+  recommendations: [
+    {
+      ...recommendation,
+      recommendation_id: 'rec-wq-wq-scaling-baso4',
+      summary: 'BaSO4 scaling risk elevated in concentrate (saturation 2.68, p=1.00).',
+      recommended_action: 'Verify antiscalant dosing / reduce recovery; advisory only.',
+      source_engine_status: 'water-quality: preliminary',
+      approval_status: 'pending',
     },
   ],
 };

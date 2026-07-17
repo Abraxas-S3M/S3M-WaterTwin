@@ -7,6 +7,7 @@ with the run's ``simulation_id`` attached to ``evidence.simulation_ids``.
 
 from __future__ import annotations
 
+import os
 import threading
 from typing import Any, Optional
 
@@ -15,10 +16,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
-from canonical_water_model import ControlBoundary
+from canonical_water_model import ControlBoundary, DataProvenance, WQAlert
+
 from simulation_contracts import ScenarioType, SimulationResult
 
 from . import config
+from . import water_quality as wq
 from .hydraulic_client import HydraulicSimClient, HydraulicSimError
 from .recommendations import RecommendationStore, build_recommendation
 from .reports import build_scenario_report
@@ -242,6 +245,140 @@ def decide_recommendation(recommendation_id: str, body: DecisionRequest) -> dict
 @app.get("/api/v1/audit")
 def audit_log(limit: int = 100) -> dict:
     return {"events": store.recent_audit(limit)}
+
+
+# ---------------------------------------------------------------------------
+# Water Quality Intelligence (advisory, read-only)
+#
+# Deterministic water-quality calculations, scaling/fouling/boron forecasts and
+# alerts. Every response carries the control boundary + provenance; forecasts
+# and risks are preliminary engineering estimates (never validated production
+# predictions or guaranteed compliance). Alerts route through the existing
+# recommendation + audit path with operator approval required.
+# ---------------------------------------------------------------------------
+
+# Nominal fouling severity used by the synthetic generator. A caller may pass a
+# ``fouling`` query parameter (0..1) to inspect a membrane-fouling scenario;
+# this is read-only what-if data only.
+DEFAULT_WQ_FOULING = float(os.environ.get("WATERTWIN_WQ_FOULING", "0.15"))
+
+
+def _wq_fouling(fouling: Optional[float]) -> float:
+    return DEFAULT_WQ_FOULING if fouling is None else max(0.0, min(1.0, fouling))
+
+
+def _wq_envelope(payload: dict, provenance: DataProvenance) -> dict:
+    """Attach the read-only control boundary + provenance to every WQ response."""
+    return {
+        **payload,
+        "facility_id": wq.FACILITY_ID,
+        "train_id": wq.TRAIN_ID,
+        "provenance": provenance.value,
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+def _route_wq_alerts(alerts: list[WQAlert]) -> None:
+    """Route WQ alerts through the existing recommendation + audit path.
+
+    Each alert becomes a ``pending`` recommendation card (operator approval
+    required, no control write). Idempotent by the alert-derived id so repeated
+    polling does not duplicate cards or reset an operator's decision.
+    """
+    for alert in alerts:
+        card = wq.build_wq_recommendation(alert)
+        if reco_store.get(card.recommendation_id) is not None:
+            continue
+        reco_store.put(card)
+        store.save_recommendation(
+            card.recommendation_id,
+            card.model_dump(mode="json"),
+            facility_id=card.facility_id,
+            train_id=card.train_id,
+            status=card.approval_status.value,
+        )
+        store.audit(
+            "wq.alert.created",
+            payload={"recommendation_id": card.recommendation_id, "code": alert.code},
+            subject=card.recommendation_id,
+        )
+
+
+@app.get("/api/v1/water-quality/status")
+def water_quality_status(fouling: Optional[float] = None) -> dict:
+    """Live water quality by stage with compliance flags + train summary."""
+    snap = wq.compute_snapshot(_wq_fouling(fouling))
+    return _wq_envelope(
+        {
+            "stage_status": snap.stage_status,
+            "samples": [s.model_dump(mode="json") for s in snap.samples],
+            "summary": {
+                "recovery": snap.recovery,
+                "salt_rejection": snap.salt_rejection,
+                "salt_passage": snap.salt_passage,
+                "normalized_salt_passage": snap.normalized_salt_passage,
+                "normalized_dp_bar": snap.normalized_dp_bar,
+                "permeate_tds_mg_l": snap.permeate_tds_mg_l,
+                "permeate_boron_mg_l": snap.permeate_boron_mg_l,
+            },
+        },
+        DataProvenance.synthetic,
+    )
+
+
+@app.get("/api/v1/water-quality/contaminant-matrix")
+def water_quality_contaminant_matrix(fouling: Optional[float] = None) -> dict:
+    """Contaminant concentration across the treatment path (intake -> brine)."""
+    snap = wq.compute_snapshot(_wq_fouling(fouling))
+    return _wq_envelope(
+        {"rows": [r.model_dump(mode="json") for r in snap.contaminant_matrix]},
+        DataProvenance.synthetic,
+    )
+
+
+@app.get("/api/v1/water-quality/removal")
+def water_quality_removal(fouling: Optional[float] = None) -> dict:
+    """Treatment removal: current vs design vs predicted (with confidence)."""
+    snap = wq.compute_snapshot(_wq_fouling(fouling))
+    return _wq_envelope({"removal": snap.removal}, DataProvenance.preliminary)
+
+
+@app.get("/api/v1/water-quality/scaling")
+def water_quality_scaling(fouling: Optional[float] = None) -> dict:
+    """Per-compound scaling risk (preliminary)."""
+    snap = wq.compute_snapshot(_wq_fouling(fouling))
+    return _wq_envelope(
+        {"scaling": [r.model_dump(mode="json") for r in snap.scaling]},
+        DataProvenance.preliminary,
+    )
+
+
+@app.get("/api/v1/water-quality/forecast")
+def water_quality_forecast(fouling: Optional[float] = None) -> dict:
+    """Preliminary forecasts: salinity, boron, scaling, fouling (bounded)."""
+    snap = wq.compute_snapshot(_wq_fouling(fouling))
+    return _wq_envelope(
+        {"forecasts": [f.model_dump(mode="json") for f in snap.forecasts]},
+        DataProvenance.preliminary,
+    )
+
+
+@app.get("/api/v1/water-quality/alerts")
+def water_quality_alerts(fouling: Optional[float] = None) -> dict:
+    """WQ alerts; each is routed to the recommendation + audit path (pending)."""
+    snap = wq.compute_snapshot(_wq_fouling(fouling))
+    _route_wq_alerts(snap.alerts)
+    return _wq_envelope(
+        {
+            "alerts": [a.model_dump(mode="json") for a in snap.alerts],
+            "recommendations": [
+                reco_store.get(f"rec-wq-{a.code.lower()}").model_dump(mode="json")
+                for a in snap.alerts
+                if reco_store.get(f"rec-wq-{a.code.lower()}") is not None
+            ],
+        },
+        DataProvenance.preliminary,
+    )
 
 
 @app.post("/api/v1/reset")

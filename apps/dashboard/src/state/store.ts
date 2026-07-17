@@ -36,7 +36,7 @@ export const SCENARIOS: Scenario[] = [
   },
 ];
 
-export type PageId = 'command' | 'process' | 'asset' | 'simulation';
+export type PageId = 'command' | 'process' | 'asset' | 'simulation' | 'water-quality';
 
 interface DashboardState {
   page: PageId;

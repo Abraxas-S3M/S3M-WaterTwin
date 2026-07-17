@@ -35,6 +35,13 @@ __all__ = [
     "RankedCause",
     "WaterTwinPacket",
     "RecommendationCard",
+    "SampleType",
+    "QCStatus",
+    "WaterQualitySample",
+    "ContaminantMatrixRow",
+    "ScalingRisk",
+    "WaterQualityForecast",
+    "WQAlert",
     "now_iso",
 ]
 
@@ -272,3 +279,116 @@ class RecommendationCard(BaseModel):
     approval_status: ApprovalStatus = ApprovalStatus.pending
     source_engine_status: str
     created_at: str
+
+
+# ---------------------------------------------------------------------------
+# Water Quality Intelligence models
+#
+# Advisory, read-only artifacts for the Water Quality Intelligence capability.
+# Scaling/fouling/boron risks and forecasts are preliminary engineering
+# estimates (never validated production predictions or guaranteed compliance);
+# every alert routes through the operator-approval + audit path.
+# ---------------------------------------------------------------------------
+
+
+class SampleType(str, Enum):
+    """Whether a sample is a continuous (online analyzer) reading or a lab grab."""
+
+    continuous = "continuous"
+    lab = "lab"
+
+
+class QCStatus(str, Enum):
+    """Quality-control disposition of a water-quality sample."""
+
+    passed = "pass"
+    warn = "warn"
+    fail = "fail"
+    pending = "pending"
+
+
+class WaterQualitySample(BaseModel):
+    """A water-quality sample taken at a sampling point.
+
+    ``measurements`` maps a variable name (e.g. ``"boron_mg_l"``) to its value;
+    ``method``/``detection_limit`` describe how it was obtained, ``limit`` is the
+    applicable advisory compliance limit (when known), and ``qc_status`` records
+    the QC disposition. Provenance is ``synthetic`` for generated data.
+    """
+
+    sample_id: str
+    sampling_point_id: str
+    stage: TreatmentStage
+    stream_id: Optional[str] = None
+    timestamp: str
+    provenance: DataProvenance = DataProvenance.synthetic
+    measurements: dict[str, float] = Field(default_factory=dict)
+    sample_type: SampleType = SampleType.continuous
+    method: Optional[str] = None
+    detection_limit: Optional[float] = None
+    limit: Optional[float] = None
+    qc_status: QCStatus = QCStatus.passed
+
+
+class ContaminantMatrixRow(BaseModel):
+    """One contaminant tracked across the treatment path (intake -> brine).
+
+    Concentrations are per stream in the contaminant's native units; fields are
+    optional because not every contaminant is measured at every stage. The
+    ``removal_pct`` is the intake-to-finished removal percentage.
+    """
+
+    contaminant: str
+    unit: str
+    intake: Optional[float] = None
+    post_pretreatment: Optional[float] = None
+    ro_feed: Optional[float] = None
+    permeate: Optional[float] = None
+    finished: Optional[float] = None
+    brine: Optional[float] = None
+    removal_pct: Optional[float] = None
+    limit: Optional[float] = None
+    provenance: DataProvenance = DataProvenance.synthetic
+
+
+class ScalingRisk(BaseModel):
+    """Preliminary scaling risk for a scale-forming compound."""
+
+    compound: str
+    saturation: float
+    probability: float = Field(ge=0, le=1)
+    ro_stage_at_risk: Optional[TreatmentStage] = None
+    max_safe_recovery: Optional[float] = None
+    recommended_antiscalant_note: Optional[str] = None
+    provenance: DataProvenance = DataProvenance.preliminary
+
+
+class WaterQualityForecast(BaseModel):
+    """Preliminary physics/trend-based forecast with uncertainty bounds.
+
+    Not a validated production prediction: ``lower``/``upper`` bracket the
+    forecast and ``confidence`` is an advisory qualifier only.
+    """
+
+    target: str
+    unit: str
+    horizon: str
+    predicted_value: float
+    lower: float
+    upper: float
+    confidence: float = Field(ge=0, le=1)
+    basis: Optional[str] = None
+    provenance: DataProvenance = DataProvenance.preliminary
+
+
+class WQAlert(BaseModel):
+    """A water-quality alert requiring operator approval before any action."""
+
+    code: str
+    stage: Optional[TreatmentStage] = None
+    cause: str
+    horizon: Optional[str] = None
+    confidence: float = Field(ge=0, le=1)
+    recommended_action: str
+    approval_required: bool = True
+    provenance: DataProvenance = DataProvenance.preliminary

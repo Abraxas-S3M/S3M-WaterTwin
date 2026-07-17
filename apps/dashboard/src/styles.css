@@ -278,6 +278,11 @@ button {
   background: #082217;
 }
 
+/* Push an inline provenance badge to the trailing edge of a flex header. */
+.prov-inline {
+  margin-left: auto;
+}
+
 /* --- Health bar --- */
 .health-bar {
   display: flex;
