@@ -1,0 +1,79 @@
+import { SafetyBoundaryBanner } from './components/SafetyBoundaryBanner';
+import { CommandOverview } from './pages/CommandOverview';
+import { ProcessTwin } from './pages/ProcessTwin';
+import { AssetTwin } from './pages/AssetTwin';
+import { SimulationCenter } from './pages/SimulationCenter';
+import { useDashboardStore, type PageId } from './state/store';
+
+interface NavEntry {
+  id: PageId;
+  label: string;
+  page: number;
+  disabled?: boolean;
+  note?: string;
+}
+
+const NAV: NavEntry[] = [
+  { id: 'command', label: 'Command Overview', page: 1 },
+  { id: 'process', label: 'Process Twin', page: 2 },
+  { id: 'asset', label: 'Asset Twin', page: 4 },
+  { id: 'simulation', label: 'Simulation Center', page: 8, note: 'Phase 8–9' },
+];
+
+function Nav() {
+  const page = useDashboardStore((s) => s.page);
+  const navigate = useDashboardStore((s) => s.navigate);
+  return (
+    <nav className="app-nav" aria-label="Primary">
+      <div className="brand">
+        <h1>S3M-WaterTwin</h1>
+        <div className="sub">Operator Console</div>
+      </div>
+      {NAV.map((item) => (
+        <button
+          key={item.id}
+          className={`nav-item${page === item.id ? ' active' : ''}`}
+          onClick={() => navigate(item.id)}
+          aria-current={page === item.id ? 'page' : undefined}
+        >
+          <span>{item.label}</span>
+          {item.note ? <span className="phase-tag">{item.note}</span> : null}
+        </button>
+      ))}
+      <div style={{ flex: 1 }} />
+      <div className="brand">
+        <div className="sub">Pages 1, 2, 4 live · others in later phases</div>
+      </div>
+    </nav>
+  );
+}
+
+function CurrentPage() {
+  const page = useDashboardStore((s) => s.page);
+  switch (page) {
+    case 'command':
+      return <CommandOverview />;
+    case 'process':
+      return <ProcessTwin />;
+    case 'asset':
+      return <AssetTwin />;
+    case 'simulation':
+      return <SimulationCenter />;
+    default:
+      return <CommandOverview />;
+  }
+}
+
+export default function App() {
+  return (
+    <div className="app-shell">
+      <SafetyBoundaryBanner />
+      <div className="app-body">
+        <Nav />
+        <main className="app-main">
+          <CurrentPage />
+        </main>
+      </div>
+    </div>
+  );
+}
