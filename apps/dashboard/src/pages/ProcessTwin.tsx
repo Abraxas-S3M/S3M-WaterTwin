@@ -175,7 +175,7 @@ export function ProcessTwin() {
                       <td className="muted">{titleCase(a.asset_type)}</td>
                       <td className="muted">{a.criticality}</td>
                       <td style={{ color: h ? bandColor[h.band] : undefined }}>
-                        {h ? `${h.score.toFixed(1)} (${h.band})` : '—'}
+                        {h ? `${h.score.toFixed(1)} (${h.band})` : t('common.dash')}
                       </td>
                       <td>
                         <button className="btn" onClick={() => openAssetTwin(a.asset_id)}>
