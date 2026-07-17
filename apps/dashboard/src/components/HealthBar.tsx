@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { DataProvenance, HealthBand } from '../api/types';
 import { bandColor, fmtNumber } from '../lib/format';
 import { ProvenanceBadge } from './ProvenanceBadge';
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function HealthBar({ score, band, provenance, compact }: Props) {
+  const { t } = useTranslation();
   const color = bandColor[band];
   const pct = Math.max(0, Math.min(100, score));
   return (
@@ -33,7 +35,7 @@ export function HealthBar({ score, band, provenance, compact }: Props) {
           </span>
           <span className="row" style={{ gap: 8 }}>
             <strong style={{ color }}>{fmtNumber(score, 1)}</strong>
-            <span className="muted">/ 100</span>
+            <span className="muted">{t('healthBar.outOf100')}</span>
             {provenance ? <ProvenanceBadge provenance={provenance} /> : null}
           </span>
         </div>

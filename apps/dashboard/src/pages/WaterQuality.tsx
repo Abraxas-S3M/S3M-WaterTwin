@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { KpiCard } from '../components/KpiCard';
 import { ProvenanceBadge } from '../components/ProvenanceBadge';
 import { RecommendationCard } from '../components/RecommendationCard';
@@ -15,31 +16,34 @@ import { useDashboardStore } from '../state/store';
 import { fmtNumber, titleCase } from '../lib/format';
 import type { ContaminantMatrixRow, WaterQualityForecast } from '../api/types';
 
-const MATRIX_COLUMNS: { key: keyof ContaminantMatrixRow; label: string }[] = [
-  { key: 'intake', label: 'Intake' },
-  { key: 'post_pretreatment', label: 'Post-pretreat' },
-  { key: 'ro_feed', label: 'RO feed' },
-  { key: 'permeate', label: 'Permeate' },
-  { key: 'finished', label: 'Finished' },
-  { key: 'brine', label: 'Brine' },
+// Matrix stage columns (labels localized via `waterQuality.matrixColumns.<key>`).
+const MATRIX_COLUMNS: (keyof ContaminantMatrixRow)[] = [
+  'intake',
+  'post_pretreatment',
+  'ro_feed',
+  'permeate',
+  'finished',
+  'brine',
 ];
 
-// The four forecast families surfaced on this page.
-const FORECAST_FAMILIES: { prefix: string; label: string }[] = [
-  { prefix: 'permeate_salinity', label: 'Permeate salinity' },
-  { prefix: 'permeate_boron', label: 'Boron breakthrough' },
-  { prefix: 'scaling_time_to_critical', label: 'Scaling time-to-critical' },
-  { prefix: 'fouling_risk', label: 'Organic/colloidal/biofouling risk' },
+// The four forecast families surfaced on this page (labels localized via
+// `waterQuality.forecastFamilies.<prefix>`).
+const FORECAST_FAMILIES: string[] = [
+  'permeate_salinity',
+  'permeate_boron',
+  'scaling_time_to_critical',
+  'fouling_risk',
 ];
 
 function groupForecasts(forecasts: WaterQualityForecast[]) {
-  return FORECAST_FAMILIES.map((fam) => ({
-    ...fam,
-    rows: forecasts.filter((f) => f.target.startsWith(fam.prefix)),
+  return FORECAST_FAMILIES.map((prefix) => ({
+    prefix,
+    rows: forecasts.filter((f) => f.target.startsWith(prefix)),
   })).filter((g) => g.rows.length > 0);
 }
 
 export function WaterQuality() {
+  const { t } = useTranslation();
   const status = useWaterQualityStatus();
   const matrix = useWaterQualityContaminantMatrix();
   const removal = useWaterQualityRemoval();
@@ -57,7 +61,7 @@ export function WaterQuality() {
   const handle = (recId: string, kind: 'approve' | 'reject') =>
     decision.mutate({ recId, decision: kind, body: { operator } });
 
-  if (status.isLoading) return <div className="spinner">Loading water quality…</div>;
+  if (status.isLoading) return <div className="spinner">{t('waterQuality.loading')}</div>;
 
   const summary = status.data?.summary;
 
@@ -65,11 +69,13 @@ export function WaterQuality() {
     <div className="stack" data-testid="water-quality">
       <div className="page-header">
         <div>
-          <h2>Water Quality Intelligence</h2>
+          <h2>{t('waterQuality.title')}</h2>
           <div className="context">
-            Advisory water-quality analytics. Forecasts and scaling/fouling/boron risks are{' '}
-            <strong>preliminary</strong> engineering estimates with uncertainty — not validated
-            production predictions or guaranteed compliance.
+            <Trans i18nKey="waterQuality.context">
+              Advisory water-quality analytics. Forecasts and scaling/fouling/boron risks are{' '}
+              <strong>preliminary</strong> engineering estimates with uncertainty — not validated
+              production predictions or guaranteed compliance.
+            </Trans>
           </div>
         </div>
         <ProvenanceBadge provenance="preliminary" />
@@ -79,39 +85,39 @@ export function WaterQuality() {
       {summary ? (
         <div className="grid kpis">
           <KpiCard
-            label="Recovery"
+            label={t('waterQuality.kpi.recovery')}
             value={fmtNumber(summary.recovery * 100, 1)}
-            unit="%"
+            unit={t('units.percent')}
             provenance="synthetic"
           />
           <KpiCard
-            label="Salt Rejection"
+            label={t('waterQuality.kpi.saltRejection')}
             value={fmtNumber(summary.salt_rejection * 100, 2)}
-            unit="%"
+            unit={t('units.percent')}
             provenance="synthetic"
           />
           <KpiCard
-            label="Permeate TDS"
+            label={t('waterQuality.kpi.permeateTds')}
             value={fmtNumber(summary.permeate_tds_mg_l, 0)}
-            unit="mg/L"
+            unit={t('units.concentration_mg_l')}
             provenance="synthetic"
           />
           <KpiCard
-            label="Permeate Boron"
+            label={t('waterQuality.kpi.permeateBoron')}
             value={fmtNumber(summary.permeate_boron_mg_l, 2)}
-            unit="mg/L"
+            unit={t('units.concentration_mg_l')}
             provenance="preliminary"
           />
           <KpiCard
-            label="Norm. Salt Passage"
+            label={t('waterQuality.kpi.normSaltPassage')}
             value={fmtNumber(summary.normalized_salt_passage * 100, 2)}
-            unit="%"
+            unit={t('units.percent')}
             provenance="preliminary"
           />
           <KpiCard
-            label="Norm. Differential Pressure"
+            label={t('waterQuality.kpi.normDp')}
             value={fmtNumber(summary.normalized_dp_bar, 2)}
-            unit="bar"
+            unit={t('units.pressure_bar')}
             provenance="preliminary"
           />
         </div>
@@ -120,16 +126,16 @@ export function WaterQuality() {
       {/* Live WQ status by stage */}
       <div className="card" data-testid="wq-status">
         <h3>
-          Live Water Quality by Stage
+          {t('waterQuality.liveByStage')}
           <ProvenanceBadge provenance="synthetic" className="prov-inline" />
         </h3>
         <table className="data">
           <thead>
             <tr>
-              <th>Stage</th>
-              <th>Compliance</th>
-              <th>Recovery</th>
-              <th>Salt rejection</th>
+              <th>{t('waterQuality.stageTable.stage')}</th>
+              <th>{t('waterQuality.stageTable.compliance')}</th>
+              <th>{t('waterQuality.stageTable.recovery')}</th>
+              <th>{t('waterQuality.stageTable.saltRejection')}</th>
             </tr>
           </thead>
           <tbody>
@@ -140,23 +146,25 @@ export function WaterQuality() {
                   <td>{titleCase(s.stage)}</td>
                   <td>
                     {s.compliance.length === 0 ? (
-                      <span className="muted">—</span>
+                      <span className="muted">{t('common.dash')}</span>
                     ) : breaches.length === 0 ? (
-                      <span className="status-chip approved">within limits</span>
+                      <span className="status-chip approved">{t('waterQuality.withinLimits')}</span>
                     ) : (
                       <span
                         className="status-chip rejected"
                         title={breaches.map((b) => b.variable).join(', ')}
                       >
-                        {breaches.length} over limit
+                        {t('waterQuality.overLimit', { count: breaches.length })}
                       </span>
                     )}
                   </td>
                   <td className="muted">
-                    {s.recovery != null ? `${fmtNumber(s.recovery * 100, 1)}%` : '—'}
+                    {s.recovery != null ? `${fmtNumber(s.recovery * 100, 1)}%` : t('common.dash')}
                   </td>
                   <td className="muted">
-                    {s.salt_rejection != null ? `${fmtNumber(s.salt_rejection * 100, 2)}%` : '—'}
+                    {s.salt_rejection != null
+                      ? `${fmtNumber(s.salt_rejection * 100, 2)}%`
+                      : t('common.dash')}
                   </td>
                 </tr>
               );
@@ -168,18 +176,18 @@ export function WaterQuality() {
       {/* Contaminant matrix */}
       <div className="card" data-testid="wq-contaminant-matrix">
         <h3>
-          Contaminant Matrix — intake → brine
+          {t('waterQuality.contaminantMatrix')}
           <ProvenanceBadge provenance="synthetic" className="prov-inline" />
         </h3>
         <table className="data">
           <thead>
             <tr>
-              <th>Contaminant</th>
-              <th>Unit</th>
-              {MATRIX_COLUMNS.map((c) => (
-                <th key={c.key}>{c.label}</th>
+              <th>{t('waterQuality.matrixTable.contaminant')}</th>
+              <th>{t('waterQuality.matrixTable.unit')}</th>
+              {MATRIX_COLUMNS.map((key) => (
+                <th key={key}>{t(`waterQuality.matrixColumns.${key}`)}</th>
               ))}
-              <th>Removal %</th>
+              <th>{t('waterQuality.matrixTable.removalPct')}</th>
             </tr>
           </thead>
           <tbody>
@@ -187,13 +195,15 @@ export function WaterQuality() {
               <tr key={row.contaminant}>
                 <td>{row.contaminant}</td>
                 <td className="muted">{row.unit}</td>
-                {MATRIX_COLUMNS.map((c) => (
-                  <td key={c.key} className="muted">
-                    {fmtNumber(row[c.key] as number | null | undefined, 2)}
+                {MATRIX_COLUMNS.map((key) => (
+                  <td key={key} className="muted">
+                    {fmtNumber(row[key] as number | null | undefined, 2)}
                   </td>
                 ))}
                 <td>
-                  <strong>{row.removal_pct != null ? `${fmtNumber(row.removal_pct, 1)}%` : '—'}</strong>
+                  <strong>
+                    {row.removal_pct != null ? `${fmtNumber(row.removal_pct, 1)}%` : t('common.dash')}
+                  </strong>
                 </td>
               </tr>
             ))}
@@ -205,26 +215,28 @@ export function WaterQuality() {
         {/* Treatment removal */}
         <div className="card" data-testid="wq-removal">
           <h3>
-            Treatment Removal — current vs design vs predicted
+            {t('waterQuality.treatmentRemoval')}
             <ProvenanceBadge provenance="preliminary" className="prov-inline" />
           </h3>
           <table className="data">
             <thead>
               <tr>
-                <th>Contaminant</th>
-                <th>Current</th>
-                <th>Design</th>
-                <th>Predicted</th>
-                <th>Confidence</th>
+                <th>{t('waterQuality.removalTable.contaminant')}</th>
+                <th>{t('waterQuality.removalTable.current')}</th>
+                <th>{t('waterQuality.removalTable.design')}</th>
+                <th>{t('waterQuality.removalTable.predicted')}</th>
+                <th>{t('waterQuality.removalTable.confidence')}</th>
               </tr>
             </thead>
             <tbody>
               {(removal.data?.removal ?? []).map((r) => (
                 <tr key={r.contaminant}>
                   <td>{r.contaminant}</td>
-                  <td>{r.current_pct != null ? `${fmtNumber(r.current_pct, 1)}%` : '—'}</td>
+                  <td>{r.current_pct != null ? `${fmtNumber(r.current_pct, 1)}%` : t('common.dash')}</td>
                   <td className="muted">{fmtNumber(r.design_pct, 1)}%</td>
-                  <td>{r.predicted_pct != null ? `${fmtNumber(r.predicted_pct, 1)}%` : '—'}</td>
+                  <td>
+                    {r.predicted_pct != null ? `${fmtNumber(r.predicted_pct, 1)}%` : t('common.dash')}
+                  </td>
                   <td className="muted">{fmtNumber(r.confidence * 100, 0)}%</td>
                 </tr>
               ))}
@@ -235,16 +247,16 @@ export function WaterQuality() {
         {/* Scaling risk */}
         <div className="card" data-testid="wq-scaling">
           <h3>
-            Scaling Risk (per compound)
+            {t('waterQuality.scalingRisk')}
             <ProvenanceBadge provenance="preliminary" className="prov-inline" />
           </h3>
           <table className="data">
             <thead>
               <tr>
-                <th>Compound</th>
-                <th>Saturation</th>
-                <th>Probability</th>
-                <th>Max safe recovery</th>
+                <th>{t('waterQuality.scalingTable.compound')}</th>
+                <th>{t('waterQuality.scalingTable.saturation')}</th>
+                <th>{t('waterQuality.scalingTable.probability')}</th>
+                <th>{t('waterQuality.scalingTable.maxSafeRecovery')}</th>
               </tr>
             </thead>
             <tbody>
@@ -262,7 +274,7 @@ export function WaterQuality() {
                   <td className="muted">
                     {r.max_safe_recovery != null
                       ? `${fmtNumber(r.max_safe_recovery * 100, 0)}%`
-                      : '—'}
+                      : t('common.dash')}
                   </td>
                 </tr>
               ))}
@@ -274,24 +286,25 @@ export function WaterQuality() {
       {/* Forecasts */}
       <div className="card" data-testid="wq-forecast">
         <h3>
-          Forecasts — salinity · boron · scaling · fouling
+          {t('waterQuality.forecasts')}
           <ProvenanceBadge provenance="preliminary" className="prov-inline" />
         </h3>
         <div className="context" style={{ marginBottom: 8 }}>
-          Preliminary physics/trend estimates with uncertainty bounds (lower–upper). Horizons:
-          1h · shift · 24h · 7d.
+          {t('waterQuality.forecastsHelp')}
         </div>
         {forecastGroups.map((group) => (
           <div key={group.prefix} style={{ marginBottom: 14 }}>
-            <div className="card-sub" style={{ marginBottom: 4 }}>{group.label}</div>
+            <div className="card-sub" style={{ marginBottom: 4 }}>
+              {t(`waterQuality.forecastFamilies.${group.prefix}`)}
+            </div>
             <table className="data">
               <thead>
                 <tr>
-                  <th>Horizon</th>
-                  <th>Predicted</th>
-                  <th>Range (lower–upper)</th>
-                  <th>Unit</th>
-                  <th>Confidence</th>
+                  <th>{t('waterQuality.forecastTable.horizon')}</th>
+                  <th>{t('waterQuality.forecastTable.predicted')}</th>
+                  <th>{t('waterQuality.forecastTable.range')}</th>
+                  <th>{t('waterQuality.forecastTable.unit')}</th>
+                  <th>{t('waterQuality.forecastTable.confidence')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -317,14 +330,14 @@ export function WaterQuality() {
       {/* Alerts routed through the recommendation flow */}
       <div className="card" data-testid="wq-alerts">
         <h3>
-          Water Quality Alerts
+          {t('waterQuality.alerts')}
           <span className="prov-badge">{alerts.data?.alerts.length ?? 0}</span>
         </h3>
         <div className="context" style={{ marginBottom: 8 }}>
-          Every alert requires operator approval and issues no control write.
+          {t('waterQuality.alertsHelp')}
         </div>
         {(alerts.data?.recommendations ?? []).length === 0 ? (
-          <div className="empty">No active water-quality alerts.</div>
+          <div className="empty">{t('waterQuality.noAlerts')}</div>
         ) : (
           <div className="stack">
             {(alerts.data?.recommendations ?? []).map((rec) => (

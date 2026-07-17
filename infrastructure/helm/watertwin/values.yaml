@@ -1,0 +1,43 @@
+# ---------------------------------------------------------------------------
+# S3M-WaterTwin umbrella defaults.
+#
+# These are the baseline values shared by every environment. Environment-
+# specific overrides live in values-dev.yaml / values-staging.yaml /
+# values-prod.yaml and are layered on top with `-f`, e.g.:
+#
+#   helm upgrade --install watertwin infrastructure/helm/watertwin \
+#     -n watertwin --create-namespace \
+#     -f infrastructure/helm/watertwin/values-prod.yaml
+#
+# NO SECRETS ARE STORED HERE. Every sensitive value (DB passwords, OT
+# credentials) is referenced from a pre-created Kubernetes Secret via
+# `secretEnv` / secretKeyRef. See docs/deployment/kubernetes.md.
+# ---------------------------------------------------------------------------
+
+# Values under `global` are visible to every subchart as `.Values.global`.
+global:
+  # Optional registry prefix applied to every image (e.g. registry.example.com).
+  imageRegistry: ""
+  networkPolicy:
+    # Render a namespace-wide default-deny (ingress + egress) NetworkPolicy so
+    # any pod without an explicit allow-list is isolated. Per-component charts
+    # then add their own allow rules on top.
+    defaultDeny: true
+
+# Component toggles (used by the dependency conditions in Chart.yaml). Deep
+# per-component configuration lives in each subchart's values.yaml and can be
+# overridden here under the matching key.
+watertwin-api:
+  enabled: true
+hydraulic-sim:
+  enabled: true
+treatment-sim:
+  enabled: true
+edge-gateway:
+  enabled: true
+dashboard:
+  enabled: true
+timescaledb:
+  enabled: true
+postgis:
+  enabled: true

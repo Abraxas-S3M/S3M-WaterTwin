@@ -15,5 +15,14 @@ uvicorn[standard]==0.34.0
 pydantic==2.11.7
 httpx==0.28.1
 
+# Observability: structured JSON logs + correlation ids, Prometheus /metrics and
+# OpenTelemetry traces (shared watertwin_observability package). See
+# docs/architecture/observability.md.
+prometheus-client==0.25.0
+opentelemetry-api==1.44.0
+opentelemetry-sdk==1.44.0
+opentelemetry-exporter-otlp-proto-http==1.44.0
+opentelemetry-instrumentation-fastapi==0.65b0
+
 # NOTE: The NLP solver (ipopt) is provided by the container (see Dockerfile),
 # never installed into the API image.

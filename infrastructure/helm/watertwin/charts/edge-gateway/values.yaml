@@ -1,0 +1,155 @@
+# edge-gateway component defaults. Overridden per-env under `edge-gateway:`.
+#
+# SECURITY POSTURE (mirrors the read-only OT connector contract in
+# docs/security/control-boundaries.md):
+#   * The gateway only ever INITIATES connections toward the OT network on
+#     read-only protocol ports (OPC UA 4840, Modbus 502, historian 443).
+#   * OT segments can never open a connection back into the gateway: no
+#     component lists an OT CIDR as an ingress peer, and the namespace-wide
+#     default-deny drops everything else.
+#   * All egress is outbound-only and explicitly enumerated below.
+componentTier: edge
+
+replicaCount: 1
+
+image:
+  registry: ""
+  repository: s3m-watertwin/edge-gateway
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: edge-gateway
+
+serviceAccount:
+  create: true
+  name: ""
+  automount: false
+  annotations: {}
+
+automountServiceAccountToken: false
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Health / metrics port only. There is no OT-facing listener.
+ports:
+  - name: http
+    containerPort: 8200
+    protocol: TCP
+
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8200
+      targetPort: http
+
+env:
+  # Active read-only source: synthetic | opcua | modbus | historian.
+  OT_SOURCE: "synthetic"
+  # Where normalized telemetry is pushed (advisory ingest, never control).
+  WATERTWIN_API_URL: "http://watertwin-api:8000"
+  # Read-only OT endpoints (host/ports only; no credentials here).
+  OT_OPCUA_ENDPOINT: ""
+  OT_MODBUS_HOST: ""
+  OT_MODBUS_PORT: "502"
+  OT_HISTORIAN_URL: ""
+
+# OT credentials (e.g. OPC UA user/password) are ALWAYS injected from a
+# pre-created Secret; never inline them here. Example:
+#   kubectl create secret generic edge-gateway-ot \
+#     --from-literal=opcua-username=<user> --from-literal=opcua-password=<pw>
+secretEnv: []
+  # - name: OT_OPCUA_USERNAME
+  #   secretName: edge-gateway-ot
+  #   secretKey: opcua-username
+  # - name: OT_OPCUA_PASSWORD
+  #   secretName: edge-gateway-ot
+  #   secretKey: opcua-password
+
+extraEnv: []
+envFrom: []
+
+volumes:
+  - name: tmp
+    emptyDir: {}
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 15
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+podLabels: {}
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts: []
+  tls: []
+
+networkPolicy:
+  enabled: true
+  allowDNS: true
+  # No ingress from OT. Only scrape/health from the monitoring namespace.
+  ingress:
+    - from:
+        - namespace: monitoring
+      ports:
+        - port: 8200
+  # Outbound-only egress. The API push path plus the read-only OT protocol
+  # ports scoped to the OT network CIDR(s). The default OT CIDR is an RFC1918
+  # placeholder that MUST be overridden with real OT segments in staging/prod.
+  egress:
+    - to:
+        - component: watertwin-api
+      ports:
+        - port: 8000
+    - to:
+        - cidr: 10.20.0.0/16   # OT network segment (override per environment)
+      ports:
+        - port: 4840           # OPC UA (read-only client)
+        - port: 502            # Modbus TCP (read-only function codes)
+        - port: 443            # Historian (read-only REST/SQL over TLS)

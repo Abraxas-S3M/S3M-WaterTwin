@@ -1,5 +1,6 @@
+import { useTranslation } from 'react-i18next';
 import type { DataProvenance } from '../api/types';
-import { provenanceMeta } from '../lib/format';
+import { provenanceValidated } from '../lib/format';
 
 interface Props {
   provenance: DataProvenance;
@@ -12,16 +13,17 @@ interface Props {
  * mistake them for measured, validated readings.
  */
 export function ProvenanceBadge({ provenance, className }: Props) {
-  const meta = provenanceMeta[provenance];
-  const state = meta.validated ? 'validated' : 'unvalidated';
+  const { t } = useTranslation();
+  const validated = provenanceValidated[provenance];
+  const state = validated ? 'validated' : 'unvalidated';
   return (
     <span
       className={`prov-badge ${state}${className ? ` ${className}` : ''}`}
-      title={meta.title}
+      title={t(`provenance.${provenance}.title`)}
       data-testid="provenance-badge"
       data-provenance={provenance}
     >
-      {meta.label}
+      {t(`provenance.${provenance}.label`)}
     </span>
   );
 }

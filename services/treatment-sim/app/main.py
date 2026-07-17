@@ -40,6 +40,12 @@ app = FastAPI(
     ),
 )
 
+# Observability: JSON logging, correlation ids, Prometheus metrics (+ /metrics)
+# and OpenTelemetry traces; publishes job buffer depth and RO model drift.
+from . import observability  # noqa: E402
+
+observability.setup(app, store=store)
+
 
 @app.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
