@@ -72,8 +72,12 @@ jobs:
             treatment-sim)
               # The treatment-sim test-suite exercises the analytical RO engine
               # (the WaterTAP/IDAES + ipopt stack is confined to the container
-              # image). Install the light runtime the analytical path needs.
-              pip install fastapi "uvicorn[standard]" pydantic httpx numpy
+              # image). Install the light runtime the analytical path needs plus
+              # the shared observability deps (Prometheus + OpenTelemetry).
+              pip install fastapi "uvicorn[standard]" pydantic httpx numpy \
+                prometheus-client opentelemetry-api opentelemetry-sdk \
+                opentelemetry-exporter-otlp-proto-http \
+                opentelemetry-instrumentation-fastapi
               ;;
           esac
 
@@ -110,7 +114,12 @@ jobs:
         run: |
           set -euxo pipefail
           python -m pip install --upgrade pip
-          pip install pytest pydantic scipy==1.18.0
+          # scipy for the physics packages; prometheus-client + OpenTelemetry for
+          # the shared watertwin_observability package and its tests.
+          pip install pytest pydantic scipy==1.18.0 \
+            prometheus-client opentelemetry-api opentelemetry-sdk \
+            opentelemetry-exporter-otlp-proto-http \
+            opentelemetry-instrumentation-fastapi
 
       - name: Pytest
         working-directory: packages
