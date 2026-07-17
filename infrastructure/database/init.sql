@@ -33,6 +33,22 @@ SELECT create_hypertable('telemetry', 'time', if_not_exists => TRUE);
 CREATE INDEX IF NOT EXISTS telemetry_asset_metric_time_idx
     ON telemetry (asset_id, metric, time DESC);
 
+-- Idempotency ledger for telemetry ingest. Each forwarded batch is recorded by
+-- its stable ``batch_id`` (an edge gateway's store-and-forward key). A repeat
+-- delivery of the same batch_id is a no-op, so a gateway that replays its
+-- on-disk spool after a crash/restart never double-writes telemetry or the
+-- audit trail -- making store-and-forward recovery both lossless and
+-- duplicate-free. ``digest`` binds the recorded batch to its content.
+CREATE TABLE IF NOT EXISTS telemetry_batch (
+    batch_id      TEXT        PRIMARY KEY,
+    ts            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    reading_count INTEGER     NOT NULL DEFAULT 0,
+    digest        TEXT        NOT NULL DEFAULT '',
+    source        TEXT
+);
+
+CREATE INDEX IF NOT EXISTS telemetry_batch_ts_idx ON telemetry_batch (ts DESC);
+
 -- 3. Audit trail (tamper-evident, append-only) ----------------------------
 -- Every advisory action (scenario run, recommendation created/decided, report
 -- generated, reset) is appended here. The trail is a hash chain: each row

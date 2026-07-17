@@ -26,6 +26,7 @@ air-gapped setups, a static PEM public key may be supplied via
 
 from __future__ import annotations
 
+import hmac
 import logging
 import os
 import threading
@@ -33,7 +34,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 logger = logging.getLogger("watertwin.auth")
@@ -95,6 +96,17 @@ def oidc_public_key() -> Optional[str]:
     return _env("WATERTWIN_OIDC_PUBLIC_KEY")
 
 
+def ingest_token() -> Optional[str]:
+    """Provisioned shared token an edge gateway presents to the ingest path.
+
+    Edge gateways authenticate machine-to-machine with a provisioned token
+    (the ``X-Ingest-Token`` header) rather than interactive OIDC. When this is
+    unset the ingest path falls back to normal role-based identity so tests and
+    token-less dev keep working.
+    """
+    return _env("WATERTWIN_INGEST_TOKEN")
+
+
 # --------------------------------------------------------------------------- #
 # Principal
 # --------------------------------------------------------------------------- #
@@ -129,6 +141,22 @@ SYNTHETIC_ADMIN = Principal(
     email=None,
     auth_mode="dev-bypass",
 )
+
+# The identity recorded for a batch delivered by an edge gateway that
+# authenticated with the provisioned ingest token. It holds only the operator
+# role (it may feed telemetry, nothing more) and is clearly labelled in the
+# audit trail as a token-authenticated gateway, never a human.
+EDGE_GATEWAY = Principal(
+    username="edge-gateway",
+    roles=frozenset({"operator"}),
+    subject="edge-gateway",
+    email=None,
+    auth_mode="ingest-token",
+)
+
+# Roles permitted to feed the telemetry ingest path when it falls back to
+# identity-based auth (no ingest token configured).
+_INGEST_ROLES = frozenset({"operator", "engineer", "auditor"})
 
 
 # --------------------------------------------------------------------------- #
@@ -272,6 +300,49 @@ def require_role(*required: str):
         return user
 
     return _dependency
+
+
+def require_ingest(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
+) -> Principal:
+    """Authorize a telemetry-ingest request.
+
+    * When ``WATERTWIN_INGEST_TOKEN`` is set, a matching ``X-Ingest-Token``
+      header admits the request as the :data:`EDGE_GATEWAY` principal (constant-
+      time comparison; a missing/incorrect token is a 401). This is the path an
+      edge gateway uses under enforced auth.
+    * When no ingest token is configured, fall back to normal identity: the
+      caller must be an authenticated principal holding an ingest-capable role
+      (or the dev-bypass synthetic admin). This keeps tests and token-less dev
+      working without weakening the enforced-auth default.
+
+    Ingesting telemetry reads data *into* the platform; it is never a control
+    write.
+    """
+    token = ingest_token()
+    if token:
+        provided = request.headers.get("x-ingest-token") or ""
+        if not hmac.compare_digest(provided, token):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="invalid or missing ingest token",
+                headers={"WWW-Authenticate": "X-Ingest-Token"},
+            )
+        return EDGE_GATEWAY
+
+    user = get_current_user(credentials)
+    allowed = _INGEST_ROLES | {"admin"}
+    if not user.has_any(*allowed):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "insufficient role: telemetry ingest requires one of "
+                f"{sorted(_INGEST_ROLES)} (or a configured ingest token); "
+                f"caller has {sorted(user.roles)}"
+            ),
+        )
+    return user
 
 
 def log_auth_mode() -> None:
