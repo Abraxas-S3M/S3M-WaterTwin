@@ -5,7 +5,7 @@ PYTHON ?= python3
 SBOM_DIR := docs/licensing/sbom
 SERVICES := watertwin-api hydraulic-sim treatment-sim
 
-.PHONY: up down logs ps test lint sbom scenario-degrade reset demo help
+.PHONY: up down logs ps test lint sbom reconcile backup scenario-degrade reset demo help
 
 help:
 	@echo "S3M-WaterTwin — make targets"
@@ -15,6 +15,8 @@ help:
 	@echo "  test             Run pytest for every service"
 	@echo "  lint             Run ruff for every service"
 	@echo "  sbom             Generate CycloneDX SBOMs (python services + dashboard)"
+	@echo "  reconcile        Reconcile the SBOMs against the open-source register"
+	@echo "  backup           Back up the audit/Timescale database (pg_dump)"
 	@echo "  scenario-degrade Inject an HPP/pump-outage degradation what-if (end-to-end)"
 	@echo "  reset            Clear cached runs, recommendations, and audit trail"
 	@echo "  demo             scenario-degrade then reset (smoke test the demo path)"
@@ -58,6 +60,16 @@ sbom:
 	@echo "== SBOM dashboard (npm) =="
 	@cd apps/dashboard && npx --yes @cyclonedx/cyclonedx-npm@latest --package-lock-only \
 		--output-format JSON --output-file ../../$(SBOM_DIR)/sbom-dashboard.cdx.json
+	@$(MAKE) reconcile
+
+# Reconcile every generated SBOM's direct dependencies against the
+# open-source register. Fails if any direct dependency is unregistered.
+reconcile:
+	@$(PYTHON) scripts/reconcile_sbom.py
+
+# Back up the audit + Timescale database via pg_dump (see docs/deployment).
+backup:
+	@bash scripts/backup_audit_db.sh
 
 # Inject a pump-outage / HPP degradation what-if and show the impact + the
 # advisory recommendation. Read-only end to end; nothing is written to plant.
