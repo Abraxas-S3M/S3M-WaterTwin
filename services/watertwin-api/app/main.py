@@ -23,11 +23,11 @@ from canonical_water_model import (
     ApprovalStatus,
     ControlBoundary,
     DataProvenance,
+    TelemetryReading,
     WorkOrderStatus,
     WQAlert,
+    now_iso,
 )
-from canonical_water_model import ControlBoundary, DataProvenance, WQAlert, now_iso
-from canonical_water_model import ControlBoundary, DataProvenance, TelemetryReading, WQAlert
 
 from simulation_contracts import ScenarioType, SimulationResult
 
@@ -1054,8 +1054,8 @@ class TelemetryIngestBatch(BaseModel):
     readings: list[TelemetryReadingInput] = Field(default_factory=list)
 
 
-@app.post("/api/v1/ingestion/telemetry")
-def ingest_telemetry(
+@app.post("/api/v1/ingestion/telemetry/gateway")
+def ingest_gateway_telemetry(
     batch: TelemetryIngestBatch,
     user: Principal = Depends(get_current_user),
 ) -> dict:
@@ -1064,6 +1064,12 @@ def ingest_telemetry(
     Stores the newest reading per ``(asset_id, metric)`` for observability,
     records the gateway's source-health snapshot, and audits the ingest. This is
     advisory data only and never writes to any control system.
+
+    NOTE: The durable, idempotent-on-``batch_id`` ingest path lives at
+    ``POST /api/v1/ingestion/telemetry`` (see :func:`ingest_telemetry`). This
+    companion endpoint powers the in-memory ``/telemetry/latest`` observability
+    view and is exposed on its own sub-path so the two ingest contracts no longer
+    collide (previously this handler shadowed the durable one on the same path).
     """
     accepted = 0
     rejected: list[dict[str, Any]] = []

@@ -18,6 +18,10 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
+# ``SourceResolution`` and ``resolve_source`` are intentionally NOT imported
+# here: this shim re-defines them below to add the API's deployment directional
+# guard (the one-way / data-diode profile). Everything else is re-exported from
+# the shared package unchanged.
 from ot_ingestion.sources import (  # noqa: F401
     SOURCE_KINDS,
     BUILTIN_SYNTHETIC_ASSETS,
@@ -25,14 +29,12 @@ from ot_ingestion.sources import (  # noqa: F401
     ModbusSource,
     OpcUaSource,
     RegisterSpec,
-    SourceResolution,
     SourceUnavailable,
     SyntheticAsset,
     SyntheticSource,
     TelemetrySource,
     parse_register_specs,
     register_default_assets_provider,
-    resolve_source,
     unit_for,
 )
 
