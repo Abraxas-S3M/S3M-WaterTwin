@@ -13,7 +13,15 @@ import type {
   AuditResponse,
   ControlBoundary,
   DecisionRequest,
+  EquipmentEnvelopeResponse,
+  EquipmentFailureProbabilityResponse,
+  EquipmentHealthResponse,
+  EquipmentRootCauseResponse,
+  EquipmentRulResponse,
   HealthScore,
+  MaintenanceRankingResponse,
+  MaintenanceRecommendationsResponse,
+  MembraneHealthResponse,
   PlantOverview,
   PumpCurve,
   RecommendationCard,
@@ -49,6 +57,14 @@ export const queryKeys = {
   wqScaling: ['wq-scaling'] as const,
   wqForecast: ['wq-forecast'] as const,
   wqAlerts: ['wq-alerts'] as const,
+  equipmentHealth: (id: string) => ['equipment-health', id] as const,
+  equipmentRul: (id: string) => ['equipment-rul', id] as const,
+  equipmentFailureProbability: (id: string) => ['equipment-failure-probability', id] as const,
+  equipmentEnvelope: (id: string) => ['equipment-envelope', id] as const,
+  equipmentRootCause: (id: string) => ['equipment-root-cause', id] as const,
+  membraneHealth: (id: string) => ['membrane-health', id] as const,
+  maintenanceRanking: ['maintenance-ranking'] as const,
+  maintenanceRecommendations: ['maintenance-recommendations'] as const,
 };
 
 // Control boundary rarely changes; poll slowly but keep it fresh.
@@ -200,6 +216,88 @@ export function useWaterQualityAlerts(): UseQueryResult<WQAlertsResponse> {
   return useQuery({
     queryKey: queryKeys.wqAlerts,
     queryFn: api.getWaterQualityAlerts,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+// --- Equipment & Membrane Intelligence + Predictive Maintenance hooks ---
+
+export function useEquipmentHealth(
+  assetId: string | null,
+): UseQueryResult<EquipmentHealthResponse> {
+  return useQuery({
+    queryKey: queryKeys.equipmentHealth(assetId ?? ''),
+    queryFn: () => api.getEquipmentHealth(assetId as string),
+    enabled: !!assetId,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useEquipmentRul(assetId: string | null): UseQueryResult<EquipmentRulResponse> {
+  return useQuery({
+    queryKey: queryKeys.equipmentRul(assetId ?? ''),
+    queryFn: () => api.getEquipmentRul(assetId as string),
+    enabled: !!assetId,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useEquipmentFailureProbability(
+  assetId: string | null,
+): UseQueryResult<EquipmentFailureProbabilityResponse> {
+  return useQuery({
+    queryKey: queryKeys.equipmentFailureProbability(assetId ?? ''),
+    queryFn: () => api.getEquipmentFailureProbability(assetId as string),
+    enabled: !!assetId,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useEquipmentEnvelope(
+  assetId: string | null,
+): UseQueryResult<EquipmentEnvelopeResponse> {
+  return useQuery({
+    queryKey: queryKeys.equipmentEnvelope(assetId ?? ''),
+    queryFn: () => api.getEquipmentEnvelope(assetId as string),
+    enabled: !!assetId,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useEquipmentRootCause(
+  assetId: string | null,
+): UseQueryResult<EquipmentRootCauseResponse> {
+  return useQuery({
+    queryKey: queryKeys.equipmentRootCause(assetId ?? ''),
+    queryFn: () => api.getEquipmentRootCause(assetId as string),
+    enabled: !!assetId,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useMembraneHealth(
+  assetId: string | null,
+): UseQueryResult<MembraneHealthResponse> {
+  return useQuery({
+    queryKey: queryKeys.membraneHealth(assetId ?? ''),
+    queryFn: () => api.getMembraneHealth(assetId as string),
+    enabled: !!assetId,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useMaintenanceRanking(): UseQueryResult<MaintenanceRankingResponse> {
+  return useQuery({
+    queryKey: queryKeys.maintenanceRanking,
+    queryFn: api.getMaintenanceRanking,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useMaintenanceRecommendations(): UseQueryResult<MaintenanceRecommendationsResponse> {
+  return useQuery({
+    queryKey: queryKeys.maintenanceRecommendations,
+    queryFn: api.getMaintenanceRecommendations,
     refetchInterval: POLL_INTERVAL_MS,
   });
 }

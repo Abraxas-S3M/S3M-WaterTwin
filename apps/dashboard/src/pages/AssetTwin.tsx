@@ -11,14 +11,53 @@ import {
   useAudit,
   useAskS3M,
   useDecision,
+  useEquipmentEnvelope,
+  useEquipmentFailureProbability,
+  useEquipmentHealth,
+  useEquipmentRootCause,
+  useEquipmentRul,
   useHealth,
+  useMembraneHealth,
   usePumpCurve,
   useRecommendations,
   useTelemetry,
 } from '../hooks';
 import { useDashboardStore } from '../state/store';
 import { fmtNumber, titleCase } from '../lib/format';
-import type { RatedData } from '../api/types';
+import type { OperatingEnvelope, RatedData } from '../api/types';
+
+const ENVELOPE_REGIMES: [keyof OperatingEnvelope, string][] = [
+  ['at_bep_fraction', 'At BEP'],
+  ['low_flow_fraction', 'Low flow'],
+  ['high_pressure_fraction', 'High pressure'],
+  ['excess_temperature_fraction', 'Excess temperature'],
+  ['cavitation_risk_fraction', 'Cavitation risk'],
+];
+
+function EnvelopeGauge({ envelope }: { envelope: OperatingEnvelope }) {
+  return (
+    <div data-testid="operating-envelope">
+      {ENVELOPE_REGIMES.map(([key, label]) => {
+        const value = (envelope[key] as number) ?? 0;
+        const pct = Math.max(0, Math.min(100, value * 100));
+        const danger = key !== 'at_bep_fraction';
+        const color = !danger ? '#2ecc71' : pct >= 25 ? '#e67e22' : '#f1c40f';
+        return (
+          <div className="contrib-row" key={key}>
+            <div>
+              <div className="factor">{label}</div>
+              <div className="detail">{fmtNumber(pct, 0)}% of observed duty</div>
+            </div>
+            <div className="contrib-bar">
+              <div className="seg" style={{ background: color, left: 0, width: `${pct}%` }} />
+            </div>
+            <div className="contrib-value">{fmtNumber(pct, 0)}%</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 const RATED_LABELS: Partial<Record<keyof RatedData, [string, string]>> = {
   rated_flow_m3h: ['Rated flow', 'm³/h'],
@@ -76,6 +115,14 @@ export function AssetTwin() {
   const audit = useAudit(assetId ?? undefined);
   const askS3M = useAskS3M();
   const decision = useDecision();
+
+  const equipmentHealth = useEquipmentHealth(assetId);
+  const rul = useEquipmentRul(assetId);
+  const failureProbability = useEquipmentFailureProbability(assetId);
+  const envelope = useEquipmentEnvelope(assetId);
+  const rootCause = useEquipmentRootCause(assetId);
+  const isMembrane = asset.data?.asset_type === 'membrane_array';
+  const membraneHealth = useMembraneHealth(isMembrane ? assetId : null);
 
   if (!assetId) return <AssetPicker />;
   if (asset.isLoading) return <div className="spinner">Loading asset twin…</div>;
@@ -243,6 +290,179 @@ export function AssetTwin() {
       <div className="card">
         <h3>Pump Curve</h3>
         <PumpCurve data={pumpCurve.data} loading={pumpCurve.isLoading} />
+      </div>
+
+      {equipmentHealth.data ? (
+        <div className="card" data-testid="component-health">
+          <h3>
+            Component Health <span className="muted">(Predictive Maintenance)</span>{' '}
+            <ProvenanceBadge provenance={equipmentHealth.data.health.provenance} />
+          </h3>
+          <HealthBar
+            score={equipmentHealth.data.health.score}
+            band={equipmentHealth.data.health.band}
+            provenance={equipmentHealth.data.health.provenance}
+          />
+          <h3 style={{ marginTop: 16 }}>Contribution Breakdown</h3>
+          <ContributionBreakdown contributions={equipmentHealth.data.health.contributions} />
+        </div>
+      ) : null}
+
+      <div className="grid cols-2">
+        <div className="card" data-testid="rul-panel">
+          <h3>
+            Remaining Useful Life <ProvenanceBadge provenance="preliminary" />
+          </h3>
+          {rul.data ? (
+            <>
+              <div className="kpi-value" style={{ marginBottom: 8 }}>
+                {fmtNumber(rul.data.rul.rul_days, 0)}
+                <span className="unit"> days</span>
+              </div>
+              <div className="card-sub">
+                Band: {fmtNumber(rul.data.rul.lower_days, 0)}–{fmtNumber(rul.data.rul.upper_days, 0)}{' '}
+                days (preliminary, not guaranteed)
+              </div>
+              <ul className="muted" style={{ marginTop: 8 }}>
+                {rul.data.rul.basis.map((b) => (
+                  <li key={b}>{b}</li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <div className="empty">No RUL estimate for this asset.</div>
+          )}
+        </div>
+
+        <div className="card" data-testid="failure-probability-panel">
+          <h3>
+            Failure Probability <ProvenanceBadge provenance="preliminary" />
+          </h3>
+          {failureProbability.data ? (
+            <>
+              {failureProbability.data.failure_probability.predicted_failure_mode ? (
+                <div className="card-sub" style={{ marginBottom: 8 }}>
+                  Predicted mode:{' '}
+                  {failureProbability.data.failure_probability.predicted_failure_mode}
+                </div>
+              ) : null}
+              <table className="data">
+                <thead>
+                  <tr>
+                    <th>Horizon</th>
+                    <th style={{ textAlign: 'right' }}>P(failure)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {['24h', '7d', '30d', '90d'].map((h) => (
+                    <tr key={h}>
+                      <td>{h}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        {fmtNumber(
+                          (failureProbability.data.failure_probability.horizons[h] ?? 0) * 100,
+                          0,
+                        )}
+                        %
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          ) : (
+            <div className="empty">No failure-probability estimate for this asset.</div>
+          )}
+        </div>
+      </div>
+
+      {envelope.data ? (
+        <div className="card">
+          <h3>
+            Operating Envelope <ProvenanceBadge provenance={envelope.data.envelope.provenance} />
+          </h3>
+          <p className="muted">
+            Fraction of observed duty ({envelope.data.envelope.samples} samples) spent in each
+            regime. Time away from BEP accelerates wear.
+          </p>
+          <EnvelopeGauge envelope={envelope.data.envelope} />
+        </div>
+      ) : null}
+
+      {rootCause.data ? (
+        <div className="card" data-testid="root-cause">
+          <h3>
+            Root-Cause Ranking <ProvenanceBadge provenance={rootCause.data.root_cause.provenance} />
+          </h3>
+          <table className="data">
+            <thead>
+              <tr>
+                <th>Cause</th>
+                <th style={{ textAlign: 'right' }}>Probability</th>
+                <th>Evidence</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rootCause.data.root_cause.ranked_causes.map((c) => (
+                <tr key={c.cause}>
+                  <td>{c.cause}</td>
+                  <td style={{ textAlign: 'right' }}>{fmtNumber(c.probability * 100, 0)}%</td>
+                  <td className="muted">{c.evidence}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      {isMembrane && membraneHealth.data ? (
+        <div className="card" data-testid="membrane-panel">
+          <h3>
+            Membrane Intelligence{' '}
+            <ProvenanceBadge provenance={membraneHealth.data.membrane.provenance} />
+          </h3>
+          <HealthBar
+            score={membraneHealth.data.membrane.score}
+            band={membraneHealth.data.membrane.band}
+            provenance={membraneHealth.data.membrane.provenance}
+          />
+          <dl className="definition" style={{ marginTop: 12 }}>
+            <dt>Permeate flow decline</dt>
+            <dd>{fmtNumber(membraneHealth.data.membrane.normalized_permeate_flow_decline_pct, 1)}%</dd>
+            <dt>Salt passage rise</dt>
+            <dd>{fmtNumber(membraneHealth.data.membrane.normalized_salt_passage_rise_pct, 1)}%</dd>
+            <dt>Differential pressure rise</dt>
+            <dd>{fmtNumber(membraneHealth.data.membrane.normalized_dp_rise_pct, 1)}%</dd>
+            <dt>Fouling (org/coll/bio)</dt>
+            <dd>
+              {fmtNumber(membraneHealth.data.membrane.fouling.organic * 100, 0)}% /{' '}
+              {fmtNumber(membraneHealth.data.membrane.fouling.colloidal * 100, 0)}% /{' '}
+              {fmtNumber(membraneHealth.data.membrane.fouling.biological * 100, 0)}%
+            </dd>
+            <dt>Scaling severity</dt>
+            <dd>{fmtNumber(membraneHealth.data.membrane.fouling.scaling * 100, 0)}%</dd>
+            <dt>CIP required</dt>
+            <dd>
+              {membraneHealth.data.membrane.cleaning_required
+                ? `Yes — ${membraneHealth.data.membrane.cleaning_reason ?? ''}`
+                : 'No'}
+            </dd>
+            <dt>Underperforming vessel</dt>
+            <dd>{membraneHealth.data.membrane.underperforming_vessel ?? '—'}</dd>
+          </dl>
+        </div>
+      ) : null}
+
+      <div className="card" data-testid="maintenance-history">
+        <h3>Maintenance History &amp; Degradation Basis</h3>
+        {rul.data && rul.data.rul.basis.length ? (
+          <ul className="muted">
+            {rul.data.rul.basis.map((b) => (
+              <li key={b}>{b}</li>
+            ))}
+          </ul>
+        ) : (
+          <div className="empty">No maintenance history on record.</div>
+        )}
       </div>
 
       <div className="card">

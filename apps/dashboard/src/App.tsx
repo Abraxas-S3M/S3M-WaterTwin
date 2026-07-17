@@ -4,6 +4,7 @@ import { ProcessTwin } from './pages/ProcessTwin';
 import { AssetTwin } from './pages/AssetTwin';
 import { SimulationCenter } from './pages/SimulationCenter';
 import { WaterQuality } from './pages/WaterQuality';
+import { PredictiveMaintenance } from './pages/PredictiveMaintenance';
 import { useDashboardStore, type PageId } from './state/store';
 
 interface NavEntry {
@@ -19,6 +20,7 @@ const NAV: NavEntry[] = [
   { id: 'process', label: 'Process Twin', page: 2 },
   { id: 'asset', label: 'Asset Twin', page: 4 },
   { id: 'water-quality', label: 'Water Quality', page: 5 },
+  { id: 'predictive-maintenance', label: 'Predictive Maintenance', page: 6 },
   { id: 'simulation', label: 'Simulation Center', page: 8, note: 'Phase 8–9' },
 ];
 
@@ -61,6 +63,8 @@ function CurrentPage() {
       return <AssetTwin />;
     case 'water-quality':
       return <WaterQuality />;
+    case 'predictive-maintenance':
+      return <PredictiveMaintenance />;
     case 'simulation':
       return <SimulationCenter />;
     default:

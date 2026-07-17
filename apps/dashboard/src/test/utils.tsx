@@ -58,6 +58,21 @@ export function installFetchMock(overrides: Record<string, unknown> = {}): Fetch
     if (path.startsWith('/water-quality/forecast')) return json(overrides.wqForecast ?? fx.wqForecast);
     if (path.startsWith('/water-quality/alerts')) return json(overrides.wqAlerts ?? fx.wqAlerts);
     if (path.startsWith('/overview')) return json(overrides.overview ?? fx.overview);
+    if (path.startsWith('/maintenance/ranking'))
+      return json(overrides.maintenanceRanking ?? fx.maintenanceRanking);
+    if (path.startsWith('/maintenance/recommendations'))
+      return json(overrides.maintenanceRecommendations ?? fx.maintenanceRecommendations);
+    if (/\/equipment\/.+\/health/.test(path))
+      return json(overrides.equipmentHealth ?? fx.equipmentHealth);
+    if (/\/equipment\/.+\/rul/.test(path)) return json(overrides.equipmentRul ?? fx.equipmentRul);
+    if (/\/equipment\/.+\/failure-probability/.test(path))
+      return json(overrides.equipmentFailureProbability ?? fx.equipmentFailureProbability);
+    if (/\/equipment\/.+\/envelope/.test(path))
+      return json(overrides.equipmentEnvelope ?? fx.equipmentEnvelope);
+    if (/\/equipment\/.+\/root-cause/.test(path))
+      return json(overrides.equipmentRootCause ?? fx.equipmentRootCause);
+    if (/\/membrane\/.+\/health/.test(path))
+      return json(overrides.membraneHealth ?? fx.membraneHealth);
     if (path.startsWith('/assets/')) return json(fx.hpAsset);
     if (path.startsWith('/assets')) return json(fx.assets);
     if (path.startsWith('/streams')) return json([]);
