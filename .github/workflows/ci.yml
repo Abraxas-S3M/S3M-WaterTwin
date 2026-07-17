@@ -83,6 +83,12 @@ jobs:
               # Read-only telemetry store-and-forward edge gateway.
               pip install -r services/edge-gateway/requirements.txt
               ;;
+            edge-gateway)
+              # Outbound-only edge collector: reuses the shared read-only OT
+              # sources (packages/ot_ingestion) + an encrypted store-and-forward
+              # buffer. Install its pinned deps.
+              pip install -r services/edge-gateway/requirements.txt
+              ;;
           esac
 
       - name: Ruff (lint)
@@ -182,7 +188,7 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p docs/licensing/sbom
-          for svc in watertwin-api hydraulic-sim treatment-sim; do
+          for svc in watertwin-api hydraulic-sim treatment-sim edge-gateway; do
             python -m cyclonedx_py requirements "services/$svc/requirements.txt" \
               -o "docs/licensing/sbom/sbom-$svc.cdx.json"
           done
@@ -248,7 +254,7 @@ jobs:
             done < security/pip-audit-ignore.txt
           fi
           status=0
-          for svc in watertwin-api hydraulic-sim treatment-sim; do
+          for svc in watertwin-api hydraulic-sim treatment-sim edge-gateway; do
             echo "::group::pip-audit $svc"
             pip-audit -r "services/$svc/requirements.txt" "${ignore_args[@]}" || status=1
             echo "::endgroup::"

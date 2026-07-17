@@ -7,6 +7,7 @@ with the run's ``simulation_id`` attached to ``evidence.simulation_ids``.
 
 from __future__ import annotations
 
+import math
 import os
 import threading
 from contextlib import asynccontextmanager
@@ -17,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
+from canonical_water_model import ControlBoundary, DataProvenance, WQAlert, now_iso
 from canonical_water_model import ControlBoundary, DataProvenance, TelemetryReading, WQAlert
 
 from simulation_contracts import ScenarioType, SimulationResult
@@ -124,6 +126,15 @@ store = Store(config.DATABASE_URL, event_sink=events.audit_event_sink)
 # regenerated on demand. Advisory, read-only what-if data only.
 _runs: dict[str, dict[str, Any]] = {}
 _runs_lock = threading.RLock()
+
+# Latest telemetry pushed in by edge gateways, keyed by (asset_id, metric). This
+# is an observability mirror of the newest reading per signal (advisory data
+# only); it is never a control-write path. Bounded by the number of distinct
+# signals, cleared by the demo reset.
+_latest_telemetry: dict[tuple[str, str], dict[str, Any]] = {}
+_latest_telemetry_lock = threading.RLock()
+# Last-seen state per gateway (source health + counters) for observability.
+_gateway_state: dict[str, dict[str, Any]] = {}
 
 
 def _cache_run(run: dict[str, Any]) -> None:
@@ -531,6 +542,114 @@ def ingestion_normalize_preview(body: NormalizePreviewRequest) -> dict:
             "mapped": len(result.readings),
             "rejected": len(result.rejected),
         },
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Telemetry ingest (inbound sink for the outbound-only edge-gateway)
+#
+# The edge-gateway is an OUTBOUND-ONLY collector: it reads real OT feeds behind
+# the plant firewall (strictly read-only), validates + normalizes them, buffers
+# them in an encrypted local store-and-forward queue, and PUSHES canonical
+# readings here. This endpoint is the API-side sink. Ingesting telemetry is an
+# advisory data write only -- it records the newest reading per signal and
+# audits the batch; it is NEVER a control-write path.
+# ---------------------------------------------------------------------------
+
+
+class TelemetryReadingInput(BaseModel):
+    asset_id: str
+    metric: str
+    value: float
+    unit: str
+    timestamp: str
+    provenance: str = "measured"
+    #: Data-quality flag assigned by the gateway (e.g. ``good`` / ``stale`` /
+    #: ``out_of_range`` / ``frozen``). Advisory only.
+    quality: Optional[str] = None
+
+
+class TelemetryIngestBatch(BaseModel):
+    #: Stable identifier of the pushing gateway (for source-health tracking).
+    gateway_id: str = Field(min_length=1, max_length=128)
+    #: The active OT source the gateway is reading (synthetic/opcua/modbus/...).
+    source: Optional[str] = None
+    #: Whether the gateway is running on its synthetic fallback source.
+    fallback: bool = False
+    #: Gateway-reported source-health snapshot (advisory, opaque).
+    source_health: Optional[dict[str, Any]] = None
+    #: The gateway's send timestamp (ISO-8601).
+    sent_at: Optional[str] = None
+    readings: list[TelemetryReadingInput] = Field(default_factory=list)
+
+
+@app.post("/api/v1/ingestion/telemetry")
+def ingest_telemetry(
+    batch: TelemetryIngestBatch,
+    user: Principal = Depends(get_current_user),
+) -> dict:
+    """Accept a pushed batch of canonical telemetry from an edge gateway.
+
+    Stores the newest reading per ``(asset_id, metric)`` for observability,
+    records the gateway's source-health snapshot, and audits the ingest. This is
+    advisory data only and never writes to any control system.
+    """
+    accepted = 0
+    rejected: list[dict[str, Any]] = []
+    now = now_iso()
+    with _latest_telemetry_lock:
+        for reading in batch.readings:
+            if not math.isfinite(reading.value):
+                rejected.append({"asset_id": reading.asset_id, "metric": reading.metric,
+                                 "reason": "non-finite value"})
+                continue
+            _latest_telemetry[(reading.asset_id, reading.metric)] = {
+                **reading.model_dump(mode="json"),
+                "gateway_id": batch.gateway_id,
+                "ingested_at": now,
+            }
+            accepted += 1
+        _gateway_state[batch.gateway_id] = {
+            "gateway_id": batch.gateway_id,
+            "source": batch.source,
+            "fallback": batch.fallback,
+            "source_health": batch.source_health,
+            "sent_at": batch.sent_at,
+            "last_ingest_at": now,
+            "last_batch_size": len(batch.readings),
+            "last_accepted": accepted,
+        }
+    store.audit(
+        "telemetry.ingested",
+        payload={
+            "gateway_id": batch.gateway_id,
+            "source": batch.source,
+            "fallback": batch.fallback,
+            "accepted": accepted,
+            "rejected": len(rejected),
+        },
+        actor=_actor(user, batch.gateway_id),
+        subject=batch.gateway_id,
+    )
+    return {
+        "status": "accepted",
+        "accepted": accepted,
+        "rejected": rejected,
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+@app.get("/api/v1/ingestion/telemetry/latest", dependencies=AUTHENTICATED)
+def latest_telemetry() -> dict:
+    """Return the newest pushed reading per signal + per-gateway source health."""
+    with _latest_telemetry_lock:
+        readings = list(_latest_telemetry.values())
+        gateways = list(_gateway_state.values())
+    return {
+        "readings": readings,
+        "gateways": gateways,
+        "count": len(readings),
         "control_boundary": ControlBoundary().model_dump(),
     }
 
@@ -1090,6 +1209,9 @@ def reset(user: Principal = Depends(require_role("engineer"))) -> dict:
     """
     with _runs_lock:
         _runs.clear()
+    with _latest_telemetry_lock:
+        _latest_telemetry.clear()
+        _gateway_state.clear()
     reco_store.clear()
     store.reset()
     store.audit("system.reset", actor=_actor(user), subject="watertwin-api")

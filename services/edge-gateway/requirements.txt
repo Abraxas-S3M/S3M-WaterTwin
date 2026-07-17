@@ -1,4 +1,27 @@
 # edge-gateway service dependencies (pinned).
+# An outbound-only, read-only OT edge collector: reads real OT feeds (reusing
+# the shared read-only ot_ingestion.sources adapters), validates data quality,
+# buffers to a local ENCRYPTED store-and-forward queue, and pushes canonical
+# telemetry OUTBOUND to the watertwin-api ingest endpoint. It never binds an
+# inbound listener.
+pydantic==2.10.4
+# Outbound HTTP client for the push path (no server component).
+httpx==0.28.1
+# Encrypt-at-rest for the local SQLite store-and-forward buffer (Fernet:
+# AES-128-CBC + HMAC-SHA256 authenticated encryption). Pinned to 49.0.0: earlier
+# 44.x carries advisories flagged by pip-audit (PYSEC-2026-35 / -2141 /
+# GHSA-537c-gmf6-5ccf); 49.0.0 resolves them.
+cryptography==49.0.0
+# Read-only OT connectors (shared, from packages/ot_ingestion). Used strictly as
+# read-only clients; no control-write path is ever exercised (enforced by the
+# read-only boundary-guard test that scans the shared source package).
+#   asyncua  -- OPC UA CLIENT only (LGPL-3.0; consumed unmodified via its wheel).
+#   pymodbus -- Modbus client using read function codes only (BSD-3-Clause).
+asyncua==1.1.6
+pymodbus==3.7.4
+
+# Test-only (kept here so the container image can self-test):
+pytest==9.1.1
 # Read-only telemetry store-and-forward edge gateway: reads/synthesizes plant
 # telemetry and forwards it to the central watertwin-api ingest endpoint via a
 # durable on-disk spool. No control-write path exists anywhere in this service.

@@ -3,6 +3,7 @@ SHELL := /bin/bash
 API_URL ?= http://localhost:8000
 PYTHON ?= python3
 SBOM_DIR := docs/licensing/sbom
+SERVICES := watertwin-api hydraulic-sim treatment-sim edge-gateway
 # Services with CycloneDX SBOMs generated + reconciled (see the `sbom` target).
 SERVICES := watertwin-api hydraulic-sim treatment-sim
 # All Python services with lint + pytest suites (superset of SERVICES).

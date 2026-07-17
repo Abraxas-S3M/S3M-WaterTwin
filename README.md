@@ -128,6 +128,11 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
   open-source **WaterTAP/IDAES** stack (analytical reference model when the
   ipopt solver is not present); baseline, optimize, sensitivity, and
   membrane-degradation what-ifs.
+- `services/edge-gateway` — **outbound-only, read-only** OT edge collector. Reads
+  the plant OT feed (reusing the shared read-only source adapters), validates
+  data quality (range/staleness/frozen/deadband), buffers to a local
+  **encrypted store-and-forward** queue, and **pushes** canonical telemetry to
+  the `watertwin-api` ingest endpoint. It binds no inbound listener.
 - `services/edge-gateway` — **read-only** telemetry **store-and-forward** edge
   gateway; reads/synthesizes plant telemetry and forwards it to the
   `watertwin-api` ingest endpoint over a durable on-disk spool, so a gateway
@@ -135,6 +140,10 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
   replays). No control-write path.
 - `apps/dashboard` — React + TypeScript + Vite operator Simulation Center,
   built and served by nginx (which proxies `/api` to `watertwin-api`).
+- `packages/ot_ingestion` — the shared, importable **read-only** OT source
+  adapters (OPC UA / Modbus / historian / synthetic) + the tag-normalization /
+  tag-map schema. Used by both `watertwin-api` and `edge-gateway` (no duplicated
+  logic); a boundary-guard test scans it for forbidden control-write paths.
 - `packages/watertwin_engineering` — the single canonical physics package
   (osmotic pressure, NDP, flux, recovery, salt rejection/passage, concentration
   factor, TCF, specific energy, whole-train evaluation, and the lumped
@@ -150,6 +159,7 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
 | `watertwin-api` | http://localhost:8000 | Orchestration, recommendations, reports; persists to TimescaleDB |
 | `hydraulic-sim` | http://localhost:8100 | EPANET/WNTR hydraulic what-if |
 | `treatment-sim` | http://localhost:8081 | WaterTAP/IDAES RO process what-if |
+| `edge-gateway` | _(no port; outbound-only)_ | Read-only OT edge collector; pushes telemetry to `watertwin-api` |
 | `edge-gateway` | http://localhost:8200 | Read-only telemetry store-and-forward gateway |
 | `timescaledb` | localhost:5432 | Persistent store (`WATERTWIN_DATABASE_URL`) |
 | `nats` | localhost:4222 (monitor :8222) | Advisory service-event bus (`NATS_URL`); notification-only |
@@ -231,10 +241,12 @@ packages/
   canonical_water_model/   Shared canonical Pydantic model (single source)
   simulation_contracts/    Shared what-if simulation request/result contracts
   watertwin_engineering/   Single canonical physics package (all RO math)
+  ot_ingestion/            Shared read-only OT source adapters + tag normalization
 services/
   watertwin-api/           Orchestration API (Simulation Center, recommendations)
   hydraulic-sim/           Read-only EPANET/WNTR hydraulic what-if
   treatment-sim/           Read-only WaterTAP/IDAES RO process what-if
+  edge-gateway/            Outbound-only read-only OT edge collector
 apps/
   dashboard/               React + TypeScript + Vite operator dashboard
 docs/ infrastructure/ .github/
