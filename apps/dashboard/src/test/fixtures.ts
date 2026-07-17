@@ -26,6 +26,8 @@ import type {
   RecommendationCard,
   ResilienceCriticalityResponse,
   ResilienceGeneratorResponse,
+  SecurityOverviewResponse,
+  SiemExportResponse,
   TelemetryReading,
   WQAlertsResponse,
   WQContaminantMatrixResponse,
@@ -916,4 +918,120 @@ export const overview: PlantOverview = {
   ],
   active_recommendations: [recommendation],
   service_continuity_risk: { score: 34, band: 'elevated', provenance: 'preliminary' },
+};
+
+// --- Cyber-Physical Security ---
+
+export const securityOverview: SecurityOverviewResponse = {
+  status: 'attention',
+  facility_id: 'S3M-DESAL-01',
+  train_id: 'RO-TRAIN-001',
+  provenance: 'preliminary',
+  control_boundary: controlBoundary,
+  audit_integrity: {
+    ok: true,
+    count: 7,
+    head: 'a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718',
+  },
+  source_health: {
+    status: 'healthy',
+    active_source: 'synthetic',
+    requested_source: 'synthetic',
+    fallback: false,
+    fallback_reason: null,
+    available_sources: ['synthetic', 'opcua', 'modbus', 'historian'],
+    detail: { kind: 'synthetic', name: 'synthetic', asset_count: 5 },
+    reading_count: 12,
+  },
+  sensor_confidence: [
+    {
+      asset_id: 'AST-HPP-01',
+      asset_name: 'High-Pressure Pump A',
+      confidence: 0.72,
+      band: 'medium',
+      cross_sensor_consistency: 0.95,
+      physical_plausibility: 0.4,
+      calibration_days: 90,
+    },
+    {
+      asset_id: 'AST-HPP-02',
+      asset_name: 'High-Pressure Pump B (standby)',
+      confidence: 0.99,
+      band: 'high',
+      cross_sensor_consistency: 0.99,
+      physical_plausibility: 1,
+      calibration_days: 0,
+    },
+  ],
+  cyber_physical_consistency: [
+    {
+      asset_id: 'AST-HPP-01',
+      asset_name: 'High-Pressure Pump A',
+      consistency_score: 0.68,
+      status: 'inconsistent',
+      inconsistent_metrics: ['vibration_mm_s', 'bearing_temp_c'],
+      checks: [
+        {
+          metric: 'vibration_mm_s',
+          observed: 6.4,
+          expected_bound: 4.5,
+          bound: 'max',
+          residual_pct: 42.22,
+          consistent: false,
+          basis: 'ISO 10816 vibration design limit',
+        },
+      ],
+    },
+    {
+      asset_id: 'AST-HPP-02',
+      asset_name: 'High-Pressure Pump B (standby)',
+      consistency_score: 1,
+      status: 'consistent',
+      inconsistent_metrics: [],
+      checks: [],
+    },
+  ],
+};
+
+export const siemExport: SiemExportResponse = {
+  export_format: 'json',
+  source: 's3m-watertwin',
+  generated_at: '2026-07-17T07:05:00Z',
+  append_only: true,
+  record_count: 2,
+  chain: {
+    verified: true,
+    head: 'a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718',
+    verify: { ok: true, count: 2, head: 'a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718' },
+  },
+  records: [
+    {
+      seq: 1,
+      id: 'evt-1',
+      ts: '2026-07-17T07:00:00Z',
+      kind: 'system.reset',
+      actor: 'dev-admin',
+      subject: 'watertwin-api',
+      payload: {},
+      prev_hash: '0000000000000000000000000000000000000000000000000000000000000000',
+      hash: 'deadbeef0000000000000000000000000000000000000000000000000000beef',
+    },
+    {
+      seq: 2,
+      id: 'evt-2',
+      ts: '2026-07-17T07:01:00Z',
+      kind: 'scenario.run',
+      actor: 'erin-engineer',
+      subject: 'sim-1',
+      payload: { scenario: 'pump_outage' },
+      prev_hash: 'deadbeef0000000000000000000000000000000000000000000000000000beef',
+      hash: 'a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718',
+    },
+  ],
+  signature: {
+    alg: 'HMAC-SHA256',
+    value: 'f00dcafef00dcafef00dcafef00dcafef00dcafef00dcafef00dcafef00dcafe',
+    signed_fields: ['id', 'ts', 'kind', 'actor', 'subject', 'payload', 'prev_hash', 'hash', 'seq'],
+    detail: 'HMAC-SHA256 over canonical({records, head})',
+  },
 };

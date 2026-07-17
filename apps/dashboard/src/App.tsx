@@ -15,6 +15,7 @@ import { EnergyOptimization } from './pages/EnergyOptimization';
 import { ResilienceCommand } from './pages/ResilienceCommand';
 import { ExecutiveValue } from './pages/ExecutiveValue';
 import { OperationsAssistant } from './pages/OperationsAssistant';
+import { Security } from './pages/Security';
 import { useDashboardStore, type PageId } from './state/store';
 
 interface NavEntry {
@@ -23,6 +24,7 @@ interface NavEntry {
   page: number;
   disabled?: boolean;
   note?: string;
+  requiresSecurity?: boolean;
 }
 
 const NAV: NavEntry[] = [
@@ -35,19 +37,22 @@ const NAV: NavEntry[] = [
   { id: 'resilience', label: 'Resilience Command', page: 9 },
   { id: 'executive', label: 'Executive Value / ROI', page: 10 },
   { id: 'assistant', label: 'Operations Assistant', page: 11 },
+  { id: 'security', label: 'Cyber-Physical Security', page: 12, requiresSecurity: true },
   { id: 'simulation', label: 'Simulation Center', page: 8, note: 'Phase 8–9' },
 ];
 
 function Nav() {
   const page = useDashboardStore((s) => s.page);
   const navigate = useDashboardStore((s) => s.navigate);
+  const { capabilities } = useAuth();
+  const entries = NAV.filter((item) => !item.requiresSecurity || capabilities.readSecurity);
   return (
     <nav className="app-nav" aria-label="Primary">
       <div className="brand">
         <h1>S3M-WaterTwin</h1>
         <div className="sub">Operator Console</div>
       </div>
-      {NAV.map((item) => (
+      {entries.map((item) => (
         <button
           key={item.id}
           className={`nav-item${page === item.id ? ' active' : ''}`}
@@ -88,6 +93,8 @@ function CurrentPage() {
       return <ExecutiveValue />;
     case 'assistant':
       return <OperationsAssistant />;
+    case 'security':
+      return <Security />;
     case 'simulation':
       return <SimulationCenter />;
     default:

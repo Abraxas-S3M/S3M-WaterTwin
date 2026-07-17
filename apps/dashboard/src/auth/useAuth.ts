@@ -1,13 +1,14 @@
 // React hook exposing the current session + role-derived capabilities.
 
 import { useAuthStore } from './store';
-import { canApprove, canReadAudit, canReset, canRunScenario } from './roles';
+import { canApprove, canReadAudit, canReadSecurity, canReset, canRunScenario } from './roles';
 
 export interface Capabilities {
   approve: boolean;
   runScenario: boolean;
   reset: boolean;
   readAudit: boolean;
+  readSecurity: boolean;
 }
 
 export function useAuth() {
@@ -21,6 +22,7 @@ export function useAuth() {
     runScenario: canRunScenario(roles),
     reset: canReset(roles),
     readAudit: canReadAudit(roles),
+    readSecurity: canReadSecurity(roles),
   };
 
   return {
@@ -41,5 +43,6 @@ export function useCapabilities(): Capabilities {
     runScenario: canRunScenario(roles),
     reset: canReset(roles),
     readAudit: canReadAudit(roles),
+    readSecurity: canReadSecurity(roles),
   };
 }
