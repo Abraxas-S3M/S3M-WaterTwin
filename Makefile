@@ -10,6 +10,11 @@ SERVICES := watertwin-api hydraulic-sim treatment-sim
 TEST_SERVICES := watertwin-api hydraulic-sim treatment-sim edge-gateway
 LOAD_PROFILE ?= smoke
 
+HELM_CHART := infrastructure/helm/watertwin
+HELM_ENV ?= dev
+
+.PHONY: up down logs ps test lint sbom reconcile backup scenario-degrade reset demo help \
+	helm-deps helm-lint helm-template
 .PHONY: up down logs ps test lint sbom reconcile backup scenario-degrade reset \
         demo load-smoke chaos dr-drill help
 
@@ -26,6 +31,9 @@ help:
 	@echo "  scenario-degrade Inject an HPP/pump-outage degradation what-if (end-to-end)"
 	@echo "  reset            Clear cached runs, recommendations, and audit trail"
 	@echo "  demo             scenario-degrade then reset (smoke test the demo path)"
+	@echo "  helm-deps        Vendor Helm chart dependencies (watertwin-common)"
+	@echo "  helm-lint        helm lint the umbrella chart (HELM_ENV=dev|staging|prod)"
+	@echo "  helm-template    Render the umbrella chart for HELM_ENV"
 	@echo "  load-smoke       Run the k6 load smoke profile (boots a local in-memory API)"
 	@echo "  chaos            Kill the edge-gateway mid-stream; assert store-and-forward recovery"
 	@echo "  dr-drill         pg_dump backup + restore + audit-chain integrity check"
@@ -99,6 +107,19 @@ reset:
 demo: scenario-degrade reset
 	@echo "Demo smoke path complete."
 
+# --- Kubernetes / Helm ------------------------------------------------------
+# Vendor the watertwin-common library into every component subchart.
+helm-deps:
+	@bash infrastructure/helm/build-deps.sh
+
+# Lint the umbrella chart for a given environment (HELM_ENV=dev|staging|prod).
+helm-lint: helm-deps
+	@helm lint $(HELM_CHART) -f $(HELM_CHART)/values-$(HELM_ENV).yaml
+
+# Render the umbrella chart for a given environment.
+helm-template: helm-deps
+	@helm template watertwin $(HELM_CHART) -n watertwin \
+		-f $(HELM_CHART)/values-$(HELM_ENV).yaml
 # Run the k6 load smoke profile. Boots a self-contained in-memory API unless
 # BASE_URL is set. Requires k6 (https://k6.io/docs/get-started/installation/).
 load-smoke:
