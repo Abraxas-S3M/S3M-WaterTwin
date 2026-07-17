@@ -33,6 +33,7 @@ from simulation_contracts import ScenarioType, SimulationResult
 
 from . import auth
 from . import config
+from . import configuration
 from . import events
 from .auth import (
     WILDCARD,
@@ -256,6 +257,12 @@ config_store = ConfigStore()
 # read-only, synthetic coordinates only.
 network_store = NetworkStore(config.DATABASE_URL)
 network_twin = NetworkTwin(network_store)
+
+# Versioned, approval-gated customer configuration service. It shares the single
+# ``store`` instance so every configuration state change is appended to the same
+# tamper-evident audit hash chain surfaced by /api/v1/audit. Configuration is
+# declarative data only and never touches a control path.
+config_service = configuration.init_app(app, store)
 
 # Completed runs cached by simulation job id so a downloadable report can be
 # regenerated on demand. Advisory, read-only what-if data only.

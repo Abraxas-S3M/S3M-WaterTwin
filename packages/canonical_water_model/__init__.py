@@ -1042,6 +1042,18 @@ class AssistantResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Customer configuration entity models
+#
+# Imported at the end of the module (after the enums/models above are defined)
+# because ``configuration`` depends on them. These are the shared *content*
+# models for the versioned, approval-gated customer configuration store; the
+# versioning + approval wrapper lives in the watertwin-api service.
+# ---------------------------------------------------------------------------
+
+from . import configuration  # noqa: E402
+from .configuration import *  # noqa: E402, F403
+
+__all__ += configuration.__all__
 # Regulatory compliance models (A1 config store)
 #
 # Configurable, per-parameter regulatory limits (e.g. turbidity, conductivity,

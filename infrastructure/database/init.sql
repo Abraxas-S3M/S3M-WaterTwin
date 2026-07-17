@@ -139,6 +139,39 @@ UPDATE recommendation SET facility_id = 'S3M-DESAL-01' WHERE facility_id IS NULL
 CREATE INDEX IF NOT EXISTS recommendation_status_idx ON recommendation (status);
 CREATE INDEX IF NOT EXISTS recommendation_ts_idx ON recommendation (ts DESC);
 
+-- 5. Configuration versions ------------------------------------------------
+-- Versioned, approval-gated customer configuration (asset hierarchy, tag
+-- discovery/mapping, engineering units, alarm thresholds, rated equipment,
+-- pump curves, membrane models, process stages, sampling points, lab methods,
+-- compliance limits, role assignments). Each row is one immutable version of a
+-- logical configuration (entity_type + config_id). The lifecycle
+-- (draft -> submitted -> approved -> active -> superseded) is enforced by the
+-- configuration service; a version's payload is frozen once it leaves draft and
+-- every state change is recorded in the append-only audit_event chain. This is
+-- declarative configuration data only -- there is no control-write path here.
+CREATE TABLE IF NOT EXISTS config_version (
+    version_id    UUID        PRIMARY KEY,
+    entity_type   TEXT        NOT NULL,
+    config_id     TEXT        NOT NULL,
+    version       INTEGER     NOT NULL,
+    status        TEXT        NOT NULL DEFAULT 'draft',
+    payload       JSONB       NOT NULL DEFAULT '{}'::jsonb,
+    created_by    TEXT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    submitted_by  TEXT,
+    submitted_at  TIMESTAMPTZ,
+    approved_by   TEXT,
+    approved_at   TIMESTAMPTZ,
+    activated_at  TIMESTAMPTZ,
+    superseded_by UUID,
+    UNIQUE (entity_type, config_id, version)
+);
+
+CREATE INDEX IF NOT EXISTS config_version_lookup_idx
+    ON config_version (entity_type, config_id, version DESC);
+CREATE INDEX IF NOT EXISTS config_version_status_idx
+    ON config_version (entity_type, status);
 -- 5. Geospatial network twin ----------------------------------------------
 -- Geo-referenced network elements (nodes + links) of the water-distribution
 -- twin, imported from the same EPANET model the hydraulic simulation runs so
