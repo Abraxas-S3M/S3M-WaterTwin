@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactECharts from 'echarts-for-react';
 import type { EChartsOption } from 'echarts';
 import type { PumpCurve as PumpCurveData } from '../api/types';
@@ -15,6 +16,7 @@ interface Props {
  * running from its BEP.
  */
 export function PumpCurve({ data, loading }: Props) {
+  const { t } = useTranslation();
   const option = useMemo<EChartsOption | null>(() => {
     if (!data || !data.supported || !data.curve) return null;
     const curvePoints = data.curve.map((p) => [p.flow_m3h, p.head_m]);
@@ -35,11 +37,11 @@ export function PumpCurve({ data, loading }: Props) {
       legend: {
         top: 0,
         textStyle: { color: '#8b95a5' },
-        data: ['H–Q curve', 'BEP', 'Operating point'],
+        data: [t('pumpCurve.hqCurve'), t('pumpCurve.bep'), t('pumpCurve.operatingPoint')],
       },
       xAxis: {
         type: 'value',
-        name: 'Flow (m³/h)',
+        name: t('pumpCurve.flowAxis', { unit: t('units.flow_m3h') }),
         nameLocation: 'middle',
         nameGap: 26,
         nameTextStyle: { color: '#8b95a5' },
@@ -49,7 +51,7 @@ export function PumpCurve({ data, loading }: Props) {
       },
       yAxis: {
         type: 'value',
-        name: 'Head (m)',
+        name: t('pumpCurve.headAxis', { unit: t('units.head_m') }),
         nameTextStyle: { color: '#8b95a5' },
         axisLine: { lineStyle: { color: '#26303f' } },
         axisLabel: { color: '#8b95a5' },
@@ -57,7 +59,7 @@ export function PumpCurve({ data, loading }: Props) {
       },
       series: [
         {
-          name: 'H–Q curve',
+          name: t('pumpCurve.hqCurve'),
           type: 'line',
           smooth: true,
           showSymbol: false,
@@ -66,7 +68,7 @@ export function PumpCurve({ data, loading }: Props) {
           areaStyle: { color: 'rgba(56,189,248,0.08)' },
         },
         {
-          name: 'BEP',
+          name: t('pumpCurve.bep'),
           type: 'scatter',
           symbol: 'diamond',
           symbolSize: 14,
@@ -74,7 +76,7 @@ export function PumpCurve({ data, loading }: Props) {
           itemStyle: { color: '#2ecc71' },
         },
         {
-          name: 'Operating point',
+          name: t('pumpCurve.operatingPoint'),
           type: 'scatter',
           symbolSize: 16,
           data: op,
@@ -82,19 +84,17 @@ export function PumpCurve({ data, loading }: Props) {
         },
       ],
     };
-  }, [data]);
+  }, [data, t]);
 
-  if (loading) return <div className="spinner">Loading pump curve…</div>;
+  if (loading) return <div className="spinner">{t('pumpCurve.loading')}</div>;
   if (!data || !data.supported || !option) {
-    return <div className="empty">No pump curve available for this asset type.</div>;
+    return <div className="empty">{t('pumpCurve.unavailable')}</div>;
   }
 
   return (
     <div data-testid="pump-curve">
       <div className="spread" style={{ marginBottom: 8 }}>
-        <span className="card-sub">
-          Operating point vs best-efficiency point (BEP)
-        </span>
+        <span className="card-sub">{t('pumpCurve.caption')}</span>
         <ProvenanceBadge provenance={data.provenance} />
       </div>
       <ReactECharts
