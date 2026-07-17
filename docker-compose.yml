@@ -1,0 +1,48 @@
+# S3M-WaterTwin local stack.
+# `docker compose up` starts the hydraulic-sim what-if service (healthy), the
+# watertwin-api orchestrator, and the dashboard Simulation Center.
+services:
+  hydraulic-sim:
+    build:
+      context: .
+      dockerfile: services/hydraulic-sim/Dockerfile
+    image: s3m-watertwin/hydraulic-sim:latest
+    ports:
+      - "8100:8100"
+    environment:
+      HYDRAULIC_SIM_JOB_STORE: /data/jobs.json
+      HYDRAULIC_SIM_CONTROL_MODE: advisory
+    volumes:
+      - hydraulic_sim_data:/data
+
+  watertwin-api:
+    build:
+      context: .
+      dockerfile: services/watertwin-api/Dockerfile
+    image: s3m-watertwin/watertwin-api:latest
+    ports:
+      - "8000:8000"
+    environment:
+      HYDRAULIC_SIM_URL: http://hydraulic-sim:8100
+      WATERTWIN_RECO_STORE: /data/recommendations.json
+      WATERTWIN_CORS_ORIGINS: "*"
+    volumes:
+      - watertwin_api_data:/data
+    depends_on:
+      hydraulic-sim:
+        condition: service_healthy
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    image: s3m-watertwin/dashboard:latest
+    ports:
+      - "8080:80"
+    depends_on:
+      watertwin-api:
+        condition: service_healthy
+
+volumes:
+  hydraulic_sim_data:
+  watertwin_api_data:
