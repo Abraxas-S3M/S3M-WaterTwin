@@ -21,8 +21,11 @@ from canonical_water_model import ControlBoundary, DataProvenance, WQAlert
 from simulation_contracts import ScenarioType, SimulationResult
 
 from . import config
+from . import energy
+from . import executive
 from . import membrane
 from . import predictive_maintenance as pdm
+from . import resilience as resil
 from . import water_quality as wq
 from .hydraulic_client import HydraulicSimClient, HydraulicSimError
 from .recommendations import RecommendationStore, build_recommendation
@@ -509,6 +512,160 @@ def maintenance_recommendations(fouling: Optional[float] = None) -> dict:
                 and reco_store.get(rec.recommendation_id) is not None
             ],
         }
+    )
+
+
+# ---------------------------------------------------------------------------
+# Value layer: Energy Optimization, Resilience & Generator Command, Executive
+# ROI (advisory, read-only).
+#
+# Energy optimisation reuses the single canonical RO model + specific-energy;
+# resilience assesses the grid-outage scenario (generator start probability, fuel
+# endurance, load-shed order keeping the HP pump last, service continuity, asset
+# criticality) and routes a recommendation through the EXISTING recommendation +
+# audit path (pending, no control write); executive AGGREGATES ESTIMATED benefits
+# from the existing layers into a value summary + pilot ROI. Every saving / ROI /
+# avoided-cost figure is ESTIMATED and preliminary on a SYNTHETIC basis -- never a
+# validated saving or guaranteed outcome; the executive responses carry an
+# explicit disclaimer. Nothing here writes to any control system.
+# ---------------------------------------------------------------------------
+
+
+def _value_envelope(payload: dict, provenance: DataProvenance) -> dict:
+    """Attach the read-only control boundary + provenance to a value response."""
+    return {
+        **payload,
+        "facility_id": wq.FACILITY_ID,
+        "train_id": wq.TRAIN_ID,
+        "provenance": provenance.value,
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+class EnergyOptimizeRequest(BaseModel):
+    fouling: Optional[float] = None
+
+
+class GridOutageRequest(BaseModel):
+    fuel_level_fraction: Optional[float] = None
+    battery_bridge_minutes: Optional[float] = None
+
+
+@app.get("/api/v1/energy/summary")
+def energy_summary(fouling: Optional[float] = None) -> dict:
+    """Energy-by-asset + current-vs-optimal specific-energy summary (estimated)."""
+    return _value_envelope(
+        energy.energy_summary(_wq_fouling(fouling)), DataProvenance.estimated
+    )
+
+
+@app.post("/api/v1/energy/optimize")
+def energy_optimize(body: EnergyOptimizeRequest | None = None) -> dict:
+    """Optimal HP-pump setpoint + ESTIMATED savings (constrained RO optimisation)."""
+    fouling = _wq_fouling(body.fouling if body else None)
+    result = energy.optimization_result(fouling)
+    return _value_envelope(
+        {"optimization": result.model_dump(mode="json")}, DataProvenance.estimated
+    )
+
+
+@app.get("/api/v1/energy/losses")
+def energy_losses(fouling: Optional[float] = None) -> dict:
+    """Avoidable specific-energy losses (estimated, synthetic basis)."""
+    losses = energy.losses(_wq_fouling(fouling))
+    return _value_envelope(
+        {"losses": [loss.model_dump(mode="json") for loss in losses]},
+        DataProvenance.estimated,
+    )
+
+
+@app.get("/api/v1/resilience/criticality")
+def resilience_criticality() -> dict:
+    """Resilience-criticality ranking of assets (highest impact/risk first)."""
+    ranking = resil.criticality_ranking()
+    return _value_envelope(
+        {"criticality": [c.model_dump(mode="json") for c in ranking]},
+        DataProvenance.preliminary,
+    )
+
+
+@app.get("/api/v1/resilience/generator")
+def resilience_generator() -> dict:
+    """Preliminary standby-generator start probability + fuel endurance."""
+    gen = resil.generator_status()
+    return _value_envelope(
+        {"generator": gen.model_dump(mode="json")}, DataProvenance.preliminary
+    )
+
+
+def _route_resilience_recommendation(card) -> None:
+    """Route the grid-outage recommendation through the existing recommendation +
+    audit path (pending, operator approval required, no control write). Idempotent
+    by its deterministic id so repeated assessments do not duplicate the card or
+    reset an operator's decision."""
+    if reco_store.get(card.recommendation_id) is not None:
+        return
+    reco_store.put(card)
+    store.save_recommendation(
+        card.recommendation_id,
+        card.model_dump(mode="json"),
+        facility_id=card.facility_id,
+        train_id=card.train_id,
+        status=card.approval_status.value,
+    )
+    store.audit(
+        "resilience.recommendation.created",
+        payload={"recommendation_id": card.recommendation_id, "asset_id": card.asset_id},
+        subject=card.recommendation_id,
+    )
+
+
+@app.post("/api/v1/resilience/grid-outage")
+def resilience_grid_outage(body: GridOutageRequest | None = None) -> dict:
+    """Assess the grid-outage scenario: generator, shed plan, continuity, ranking.
+
+    Routes the resulting generator-priority recommendation through the existing
+    recommendation + audit path (pending, operator approval required, no control
+    write).
+    """
+    fuel = body.fuel_level_fraction if body else None
+    bridge = body.battery_bridge_minutes if body else None
+    assessment = resil.assess_grid_outage(
+        fuel_level_fraction=fuel, battery_bridge_minutes=bridge
+    )
+    card = assessment["recommendation"]
+    _route_resilience_recommendation(card)
+    stored = reco_store.get(card.recommendation_id)
+    return _value_envelope(
+        {
+            "scenario": assessment["scenario"],
+            "generator": assessment["generator"].model_dump(mode="json"),
+            "load_shed_plan": assessment["load_shed_plan"].model_dump(mode="json"),
+            "service_continuity": assessment["service_continuity"].model_dump(mode="json"),
+            "criticality": [c.model_dump(mode="json") for c in assessment["criticality"]],
+            "recommendation": (stored or card).model_dump(mode="json"),
+        },
+        DataProvenance.preliminary,
+    )
+
+
+@app.get("/api/v1/executive/value-summary")
+def executive_value_summary(fouling: Optional[float] = None) -> dict:
+    """Aggregated ESTIMATED value summary (illustrative, synthetic basis)."""
+    summary = executive.value_summary(_wq_fouling(fouling))
+    return _value_envelope(
+        {"value_summary": summary.model_dump(mode="json"), "disclaimer": summary.disclaimer},
+        DataProvenance.estimated,
+    )
+
+
+@app.get("/api/v1/executive/roi")
+def executive_roi(fouling: Optional[float] = None) -> dict:
+    """Illustrative pilot ROI, annualized benefit + payback (ESTIMATED)."""
+    estimate = executive.roi(_wq_fouling(fouling))
+    return _value_envelope(
+        {"roi": estimate.model_dump(mode="json"), "disclaimer": estimate.disclaimer},
+        DataProvenance.estimated,
     )
 
 

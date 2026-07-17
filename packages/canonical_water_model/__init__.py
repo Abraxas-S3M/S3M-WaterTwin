@@ -51,8 +51,27 @@ __all__ = [
     "FoulingSeverity",
     "MembraneHealth",
     "PdMRecommendation",
+    "EnergyOptimizationResult",
+    "EnergyLoss",
+    "ResilienceCriticality",
+    "GeneratorStatus",
+    "LoadShedItem",
+    "LoadShedPlan",
+    "ServiceContinuity",
+    "ValueComponent",
+    "ExecutiveValueSummary",
+    "ROIEstimate",
+    "VALUE_DISCLAIMER",
     "now_iso",
 ]
+
+#: Standard disclaimer stamped on every value/ROI artifact. These figures are
+#: illustrative estimates on synthetic pilot data -- not validated savings or
+#: guaranteed outcomes.
+VALUE_DISCLAIMER = (
+    "Illustrative estimates on synthetic pilot data — not validated savings or "
+    "guaranteed outcomes. Every figure is preliminary and advisory only."
+)
 
 
 def now_iso() -> str:
@@ -149,6 +168,10 @@ class DataProvenance(str, Enum):
     synthetic = "synthetic"
     simulated = "simulated"
     preliminary = "preliminary"
+    #: Illustrative value/ROI figures derived from synthetic pilot data. NOT a
+    #: validated or guaranteed saving/benefit -- always presented with a
+    #: disclaimer (used by the energy / resilience / executive value layer).
+    estimated = "estimated"
     measured = "measured"
 
 
@@ -553,3 +576,205 @@ class PdMRecommendation(BaseModel):
     control_boundary: ControlBoundary = Field(default_factory=ControlBoundary)
     approval_status: ApprovalStatus = ApprovalStatus.pending
     provenance: DataProvenance = DataProvenance.preliminary
+
+
+# ---------------------------------------------------------------------------
+# Value layer: Energy Optimization, Resilience & Generator Command, Executive
+# ROI.
+#
+# Advisory, read-only artifacts for the value layer. Every saving / ROI /
+# avoided-cost figure is an ESTIMATED, preliminary number derived from SYNTHETIC
+# pilot data -- never a validated saving or a guaranteed outcome. Value figures
+# default to ``provenance = estimated`` and executive artifacts carry an explicit
+# :data:`VALUE_DISCLAIMER`. Nothing here writes to any control system; resilience
+# recommendations route through the operator-approval + audit path.
+# ---------------------------------------------------------------------------
+
+
+class EnergyOptimizationResult(BaseModel):
+    """Constrained RO operating-point optimization result (advisory).
+
+    Reports the optimal high-pressure-pump discharge pressure + recovery that
+    minimize specific energy consumption (SEC) subject to flow/quality/pressure/
+    cavitation/flux constraints, together with baseline-vs-optimized SEC and the
+    ESTIMATED energy + cost deltas. The optimizer never violates a constraint;
+    ``binding_constraints`` lists any active bounds. Savings are illustrative
+    estimates on synthetic data, not validated or guaranteed.
+    """
+
+    asset_id: Optional[str] = None
+    optimal_feed_pressure_bar: float
+    optimal_recovery: float = Field(ge=0, le=1)
+    baseline_sec_kwh_m3: float
+    optimized_sec_kwh_m3: float
+    sec_reduction_kwh_m3: float
+    sec_reduction_pct: float
+    permeate_flow_m3h: float
+    permeate_tds_mg_l: float
+    permeate_boron_mg_l: float
+    estimated_energy_saving_kwh_day: float
+    estimated_cost_saving_per_day: float
+    currency: str = "USD"
+    constraints_respected: bool = True
+    binding_constraints: list[str] = Field(default_factory=list)
+    method: str = "scipy.optimize bounded minimize over the deterministic RO model"
+    provenance: DataProvenance = DataProvenance.estimated
+
+
+class EnergyLoss(BaseModel):
+    """Avoidable specific-energy loss vs a best-achievable SEC (ESTIMATED)."""
+
+    label: str
+    current_sec_kwh_m3: float
+    best_achievable_sec_kwh_m3: float
+    avoidable_loss_kwh_m3: float
+    avoidable_loss_pct: float
+    estimated_avoidable_kwh_day: float
+    estimated_avoidable_cost_per_day: float
+    currency: str = "USD"
+    provenance: DataProvenance = DataProvenance.estimated
+
+
+class ResilienceCriticality(BaseModel):
+    """Preliminary resilience-criticality rank score for an asset.
+
+    Higher ``criticality_score`` means the asset is more important to sustain
+    under a grid loss (higher impact / failure probability / recovery time /
+    dependency centrality / backup deficiency). Preliminary, not validated.
+    """
+
+    asset_id: str
+    asset_name: Optional[str] = None
+    criticality_score: float
+    customer_or_production_impact: float = Field(ge=0, le=1)
+    failure_probability: float = Field(ge=0, le=1)
+    recovery_time_hours: float
+    dependency_centrality: float = Field(ge=0, le=1)
+    backup_deficiency: float = Field(ge=0, le=1)
+    rank: Optional[int] = None
+    provenance: DataProvenance = DataProvenance.preliminary
+
+
+class GeneratorStatus(BaseModel):
+    """Preliminary standby-generator readiness + fuel endurance.
+
+    ``start_probability`` is a preliminary reliability estimate in [0, 1] from
+    battery state, time since last test and maintenance status. ``fuel_endurance_
+    hours`` is how long the generator can carry the current load fraction on its
+    remaining fuel. Preliminary, not a guaranteed availability figure.
+    """
+
+    generator_id: str
+    name: Optional[str] = None
+    start_probability: float = Field(ge=0, le=1)
+    battery_fraction: float = Field(ge=0, le=1)
+    days_since_last_test: float
+    maintenance_due: bool = False
+    fuel_level_fraction: float = Field(ge=0, le=1)
+    consumption_rate_l_per_h: float
+    load_fraction: float = Field(ge=0, le=1)
+    fuel_endurance_hours: float
+    rated_power_kw: Optional[float] = None
+    provenance: DataProvenance = DataProvenance.preliminary
+
+
+class LoadShedItem(BaseModel):
+    """One load in the shed plan (retained or shed to protect critical loads)."""
+
+    asset_id: str
+    asset_name: Optional[str] = None
+    load_kw: float
+    priority: str  # "critical" | "essential" | "non_essential"
+    shed_order: int  # 1 = shed first; higher = shed later (critical loads last)
+    retained: bool
+
+
+class LoadShedPlan(BaseModel):
+    """Preliminary load-shed order to sustain critical loads under limited generation.
+
+    Loads are shed lowest-priority first so the HP pump and essential loads are
+    kept last. Preliminary, advisory only -- no control write is issued.
+    """
+
+    available_generation_kw: float
+    total_load_kw: float
+    retained_load_kw: float
+    shed_load_kw: float
+    items: list[LoadShedItem] = Field(default_factory=list)
+    critical_loads_sustained: bool
+    provenance: DataProvenance = DataProvenance.preliminary
+
+
+class ServiceContinuity(BaseModel):
+    """Preliminary service-continuity duration under a grid-loss scenario.
+
+    ``service_continuity_hours`` is how long the train can hold product-water
+    service under grid loss given generator start probability, fuel endurance
+    and the load-shed plan. Preliminary estimate, not a guaranteed duration.
+    """
+
+    scenario: str
+    service_continuity_hours: float
+    limiting_factor: str
+    generator_available: bool
+    generator_start_probability: float = Field(ge=0, le=1)
+    fuel_endurance_hours: float
+    battery_bridge_minutes: float
+    critical_loads_sustained: bool
+    provenance: DataProvenance = DataProvenance.preliminary
+
+
+class ValueComponent(BaseModel):
+    """One ESTIMATED benefit component aggregated into the executive summary."""
+
+    category: str
+    annualized_benefit: float
+    basis: str
+    currency: str = "USD"
+    provenance: DataProvenance = DataProvenance.estimated
+
+
+class ExecutiveValueSummary(BaseModel):
+    """Aggregated ESTIMATED benefits across the platform layers (illustrative).
+
+    Aggregates estimated benefits from existing layers (downtime avoided, energy
+    savings, chemical savings, water-loss avoided, maintenance savings, capex
+    deferred). CRITICAL HONESTY: every figure is an ESTIMATED, preliminary number
+    derived from SYNTHETIC pilot data -- not a validated saving or guaranteed
+    outcome. The ``disclaimer`` must be surfaced wherever these figures appear.
+    """
+
+    facility_id: str
+    train_id: str
+    currency: str = "USD"
+    downtime_avoided: float
+    energy_savings: float
+    chemical_savings: float
+    water_loss_avoided: float
+    maintenance_savings: float
+    capex_deferred: float
+    total_annualized_benefit: float
+    components: list[ValueComponent] = Field(default_factory=list)
+    synthetic_basis: bool = True
+    disclaimer: str = VALUE_DISCLAIMER
+    provenance: DataProvenance = DataProvenance.estimated
+
+
+class ROIEstimate(BaseModel):
+    """Illustrative pilot ROI, annualized benefit and payback (ESTIMATED).
+
+    CRITICAL HONESTY: derived from SYNTHETIC pilot data; not validated ROI or a
+    guaranteed payback. The ``disclaimer`` must be surfaced wherever it appears.
+    """
+
+    facility_id: str
+    train_id: str
+    currency: str = "USD"
+    pilot_investment: float
+    pilot_benefit: float
+    pilot_roi_pct: float
+    annualized_benefit: float
+    payback_period_months: float
+    synthetic_basis: bool = True
+    disclaimer: str = VALUE_DISCLAIMER
+    provenance: DataProvenance = DataProvenance.estimated

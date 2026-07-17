@@ -47,7 +47,18 @@ export const provenanceMeta: Record<
     validated: false,
     title: 'Preliminary model output — pending calibration/validation.',
   },
+  estimated: {
+    label: 'Estimated',
+    validated: false,
+    title:
+      'Illustrative estimate on synthetic pilot data — not a validated saving or guaranteed outcome.',
+  },
 };
+
+export function fmtMoney(value: number | null | undefined, digits = 0): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—';
+  return `$${fmtNumber(value, digits)}`;
+}
 
 export function riskColor(band: string): string {
   switch (band) {

@@ -13,11 +13,16 @@ import type {
   AuditResponse,
   ControlBoundary,
   DecisionRequest,
+  EnergyLossesResponse,
+  EnergySummaryResponse,
   EquipmentEnvelopeResponse,
   EquipmentFailureProbabilityResponse,
   EquipmentHealthResponse,
   EquipmentRootCauseResponse,
   EquipmentRulResponse,
+  ExecutiveROIResponse,
+  ExecutiveValueSummaryResponse,
+  GridOutageResponse,
   HealthScore,
   MaintenanceRankingResponse,
   MaintenanceRecommendationsResponse,
@@ -25,6 +30,8 @@ import type {
   PlantOverview,
   PumpCurve,
   RecommendationCard,
+  ResilienceCriticalityResponse,
+  ResilienceGeneratorResponse,
   TelemetryReading,
   WaterStream,
   WQAlertsResponse,
@@ -65,6 +72,12 @@ export const queryKeys = {
   membraneHealth: (id: string) => ['membrane-health', id] as const,
   maintenanceRanking: ['maintenance-ranking'] as const,
   maintenanceRecommendations: ['maintenance-recommendations'] as const,
+  energySummary: ['energy-summary'] as const,
+  energyLosses: ['energy-losses'] as const,
+  resilienceCriticality: ['resilience-criticality'] as const,
+  resilienceGenerator: ['resilience-generator'] as const,
+  executiveValueSummary: ['executive-value-summary'] as const,
+  executiveRoi: ['executive-roi'] as const,
 };
 
 // Control boundary rarely changes; poll slowly but keep it fresh.
@@ -298,6 +311,75 @@ export function useMaintenanceRecommendations(): UseQueryResult<MaintenanceRecom
   return useQuery({
     queryKey: queryKeys.maintenanceRecommendations,
     queryFn: api.getMaintenanceRecommendations,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+// --- Energy Optimization hooks (advisory, estimated) ---
+
+export function useEnergySummary(): UseQueryResult<EnergySummaryResponse> {
+  return useQuery({
+    queryKey: queryKeys.energySummary,
+    queryFn: api.getEnergySummary,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useEnergyLosses(): UseQueryResult<EnergyLossesResponse> {
+  return useQuery({
+    queryKey: queryKeys.energyLosses,
+    queryFn: api.getEnergyLosses,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useOptimizeEnergy() {
+  return useMutation({ mutationFn: () => api.optimizeEnergy() });
+}
+
+// --- Resilience & Generator Command hooks (advisory, preliminary) ---
+
+export function useResilienceCriticality(): UseQueryResult<ResilienceCriticalityResponse> {
+  return useQuery({
+    queryKey: queryKeys.resilienceCriticality,
+    queryFn: api.getResilienceCriticality,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useResilienceGenerator(): UseQueryResult<ResilienceGeneratorResponse> {
+  return useQuery({
+    queryKey: queryKeys.resilienceGenerator,
+    queryFn: api.getResilienceGenerator,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useRunGridOutage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (): Promise<GridOutageResponse> => api.runGridOutage(),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['recommendations'] });
+      void qc.invalidateQueries({ queryKey: ['audit'] });
+    },
+  });
+}
+
+// --- Executive Value / ROI hooks (advisory, estimated — illustrative) ---
+
+export function useExecutiveValueSummary(): UseQueryResult<ExecutiveValueSummaryResponse> {
+  return useQuery({
+    queryKey: queryKeys.executiveValueSummary,
+    queryFn: api.getExecutiveValueSummary,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+export function useExecutiveRoi(): UseQueryResult<ExecutiveROIResponse> {
+  return useQuery({
+    queryKey: queryKeys.executiveRoi,
+    queryFn: api.getExecutiveRoi,
     refetchInterval: POLL_INTERVAL_MS,
   });
 }

@@ -56,7 +56,7 @@ components are enumerated in full inside those SBOMs.
 | httpx | 0.28.1 | `BSD-3-Clause` | PyPI | api clients / tests |
 | psycopg[binary] | 3.2.3 | `LGPL-3.0-or-later` | PyPI | `services/watertwin-api` (DB driver) |
 | numpy | 2.4.4 | `BSD-3-Clause` | PyPI | `services/hydraulic-sim`, `treatment-sim` |
-| scipy | 1.18.0 | `BSD-3-Clause` | PyPI | `services/hydraulic-sim` |
+| scipy | 1.18.0 | `BSD-3-Clause` | PyPI | `services/hydraulic-sim`, `services/watertwin-api`, `packages/watertwin_engineering` |
 | pandas | 3.0.3 | `BSD-3-Clause` | PyPI | `services/hydraulic-sim` |
 | networkx | 3.6.1 | `BSD-3-Clause` | PyPI | `services/hydraulic-sim` |
 | wntr | 1.5.0 | `BSD-3-Clause` | PyPI | `services/hydraulic-sim` (see WNTR/EPANET above) |

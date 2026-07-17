@@ -10,12 +10,20 @@ import type {
   EquipmentFailureProbabilityResponse,
   EquipmentHealthResponse,
   EquipmentRootCauseResponse,
+  EnergyLossesResponse,
+  EnergyOptimizeResponse,
+  EnergySummaryResponse,
   EquipmentRulResponse,
+  ExecutiveROIResponse,
+  ExecutiveValueSummaryResponse,
+  GridOutageResponse,
   HealthScore,
   MaintenanceRankingResponse,
   MaintenanceRecommendationsResponse,
   MembraneHealthResponse,
   PlantOverview,
+  ResilienceCriticalityResponse,
+  ResilienceGeneratorResponse,
   PumpCurve,
   RecommendationCard,
   TelemetryReading,
@@ -127,6 +135,30 @@ export const api = {
   getMaintenanceRanking: () => request<MaintenanceRankingResponse>('/maintenance/ranking'),
   getMaintenanceRecommendations: () =>
     request<MaintenanceRecommendationsResponse>('/maintenance/recommendations'),
+
+  // Energy Optimization (advisory, estimated)
+  getEnergySummary: () => request<EnergySummaryResponse>('/energy/summary'),
+  optimizeEnergy: () =>
+    request<EnergyOptimizeResponse>('/energy/optimize', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+  getEnergyLosses: () => request<EnergyLossesResponse>('/energy/losses'),
+
+  // Resilience & Generator Command (advisory, preliminary)
+  getResilienceCriticality: () =>
+    request<ResilienceCriticalityResponse>('/resilience/criticality'),
+  getResilienceGenerator: () => request<ResilienceGeneratorResponse>('/resilience/generator'),
+  runGridOutage: () =>
+    request<GridOutageResponse>('/resilience/grid-outage', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+
+  // Executive Value / ROI (advisory, estimated — illustrative)
+  getExecutiveValueSummary: () =>
+    request<ExecutiveValueSummaryResponse>('/executive/value-summary'),
+  getExecutiveRoi: () => request<ExecutiveROIResponse>('/executive/roi'),
 };
 
 export type ApiClient = typeof api;

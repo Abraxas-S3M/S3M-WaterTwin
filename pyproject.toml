@@ -16,6 +16,7 @@ keywords = ["reverse-osmosis", "digital-twin", "advisory", "seawater", "desalina
 dependencies = [
     "fastapi==0.115.6",
     "pydantic==2.10.4",
+    "scipy==1.18.0",
     "uvicorn[standard]==0.34.0",
 ]
 

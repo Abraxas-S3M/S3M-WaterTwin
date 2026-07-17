@@ -110,7 +110,7 @@ jobs:
         run: |
           set -euxo pipefail
           python -m pip install --upgrade pip
-          pip install pytest pydantic
+          pip install pytest pydantic scipy==1.18.0
 
       - name: Pytest
         working-directory: packages

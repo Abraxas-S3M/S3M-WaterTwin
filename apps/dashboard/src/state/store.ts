@@ -42,7 +42,10 @@ export type PageId =
   | 'asset'
   | 'simulation'
   | 'water-quality'
-  | 'predictive-maintenance';
+  | 'predictive-maintenance'
+  | 'energy'
+  | 'resilience'
+  | 'executive';
 
 interface DashboardState {
   page: PageId;
