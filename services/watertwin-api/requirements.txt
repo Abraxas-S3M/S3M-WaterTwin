@@ -14,3 +14,11 @@ scipy==1.18.0
 # Identity / RBAC: JWT bearer validation against Keycloak (JWKS, RS256).
 # Pinned to 2.13.0: 2.10.1 carries multiple advisories flagged by pip-audit.
 pyjwt[crypto]==2.13.0
+pyjwt[crypto]==2.10.1
+# Read-only OT connectors (app/sources/). Both are used strictly as read-only
+# clients; no control-write path is ever exercised (enforced by a boundary test).
+#   asyncua  -- OPC UA CLIENT only (LGPL-3.0; consumed unmodified via its wheel,
+#               dynamically linked -- see docs/licensing/open-source-register.md).
+#   pymodbus -- Modbus client using read function codes only (BSD-3-Clause).
+asyncua==1.1.6
+pymodbus==3.7.4

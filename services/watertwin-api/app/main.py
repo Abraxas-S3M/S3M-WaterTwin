@@ -35,7 +35,9 @@ from . import executive
 from . import membrane
 from . import predictive_maintenance as pdm
 from . import resilience as resil
+from . import sources
 from . import water_quality as wq
+from .tag_normalization import RawReading, TagMap, TagMapError, load_tag_map, normalize
 from .hydraulic_client import HydraulicSimClient, HydraulicSimError
 from .recommendations import RecommendationStore, build_recommendation
 from .reports import build_scenario_report
@@ -114,6 +116,22 @@ def get_hydraulic_client() -> HydraulicSimClient:
     return client
 
 
+# Active telemetry source, resolved lazily from OT_SOURCE with graceful fallback
+# to synthetic. Cached process-wide; tests may inject via ``app.state``.
+_source_resolution: Optional[sources.SourceResolution] = None
+
+
+def get_source_resolution() -> sources.SourceResolution:
+    """Return the active telemetry-source resolution (injected in tests, else cached)."""
+    override = getattr(app.state, "source_resolution", None)
+    if override is not None:
+        return override
+    global _source_resolution
+    if _source_resolution is None:
+        _source_resolution = sources.resolve_source(config)
+    return _source_resolution
+
+
 class SimulationCenterRequest(BaseModel):
     scenario: ScenarioType
     parameters: dict[str, Any] = Field(default_factory=dict)
@@ -147,6 +165,11 @@ def health() -> dict:
     except Exception as exc:  # pragma: no cover - depends on env
         sim_health = {"error": str(exc)}
         sim_ok = False
+    try:
+        resolution = get_source_resolution()
+        telemetry = resolution.describe()
+    except Exception as exc:  # pragma: no cover - defensive; resolver never raises
+        telemetry = {"error": str(exc)}
     return {
         "service": config.SERVICE_NAME,
         "version": config.SERVICE_VERSION,
@@ -154,6 +177,10 @@ def health() -> dict:
         "hydraulic_sim_reachable": sim_ok,
         "hydraulic_sim": sim_health,
         "db_connected": store.db_connected,
+        "telemetry_source": telemetry.get("active_source"),
+        "telemetry_source_requested": telemetry.get("requested_source"),
+        "telemetry_source_fallback": telemetry.get("fallback"),
+        "telemetry": telemetry,
         "control_mode": cb.control_mode,
         "operator_approval_required": cb.operator_approval_required,
         "control_write_enabled": cb.control_write_enabled,
@@ -317,6 +344,85 @@ def audit_verify() -> dict:
     payload that was altered after the fact).
     """
     return store.verify_chain()
+
+
+# ---------------------------------------------------------------------------
+# Ingestion: telemetry source status + tag-normalization preview (read-only)
+#
+# Telemetry is a pluggable, strictly read-only source (synthetic default; real
+# OT feed via OPC UA / Modbus / historian). ``GET .../ingestion/source`` reports
+# the active source + fallback state. ``POST .../ingestion/normalize/preview``
+# dry-runs a customer tag map against sample raw values (mapping onto the
+# canonical model, with unmapped/invalid tags rejected) -- a pure read transform
+# that persists nothing and touches no control system.
+# ---------------------------------------------------------------------------
+
+
+class RawReadingInput(BaseModel):
+    customer_tag: str
+    value: Any = None
+    timestamp: Optional[str] = None
+    quality: Optional[str] = None
+
+
+class NormalizePreviewRequest(BaseModel):
+    readings: list[RawReadingInput] = Field(default_factory=list)
+    #: A tag-map name (under data/tag-maps/) or a path. Ignored if inline given.
+    tag_map: Optional[str] = None
+    #: An inline tag map ({"tags": {...}}) to dry-run without a config file.
+    tag_map_inline: Optional[dict] = None
+
+
+@app.get("/api/v1/ingestion/source", dependencies=AUTHENTICATED)
+def ingestion_source() -> dict:
+    """Report the active telemetry source and any fallback to synthetic."""
+    resolution = get_source_resolution()
+    return {
+        **resolution.describe(),
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+@app.post("/api/v1/ingestion/normalize/preview", dependencies=AUTHENTICATED)
+def ingestion_normalize_preview(body: NormalizePreviewRequest) -> dict:
+    """Dry-run a tag map against sample raw values (read-only, no persistence)."""
+    try:
+        if body.tag_map_inline is not None:
+            tag_map = TagMap.from_dict(body.tag_map_inline)
+        elif body.tag_map:
+            tag_map = load_tag_map(body.tag_map)
+        else:
+            raise HTTPException(
+                status_code=422,
+                detail="provide either 'tag_map' (name/path) or 'tag_map_inline'",
+            )
+    except TagMapError as exc:
+        raise HTTPException(status_code=422, detail=f"invalid tag map: {exc}")
+
+    raw = [
+        RawReading(
+            customer_tag=r.customer_tag,
+            value=r.value,
+            timestamp=r.timestamp,
+            quality=r.quality,
+        )
+        for r in body.readings
+    ]
+    result = normalize(raw, tag_map)
+    return {
+        "tag_map": tag_map.map_id,
+        "readings": [reading.model_dump(mode="json") for reading in result.readings],
+        "rejected": [
+            {"customer_tag": rej.customer_tag, "value": rej.value, "reason": rej.reason}
+            for rej in result.rejected
+        ],
+        "summary": {
+            "total": len(raw),
+            "mapped": len(result.readings),
+            "rejected": len(result.rejected),
+        },
+        "control_boundary": ControlBoundary().model_dump(),
+    }
 
 
 # ---------------------------------------------------------------------------

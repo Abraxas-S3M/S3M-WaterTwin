@@ -1,0 +1,28 @@
+{
+  "map_id": "modbus-example-v1",
+  "description": "Sample Modbus tag map for the reference RO train. Keys are the customer tag emitted by the Modbus source (\"<kind>:<address>\", e.g. holding:0). Values map onto the canonical asset_id.metric model. Read-only function codes only.",
+  "provenance": "measured",
+  "tags": {
+    "holding:0": {
+      "asset_id": "AST-HPP-01",
+      "metric": "winding_temp_c",
+      "unit": "degC",
+      "scale": 0.1,
+      "offset": 0.0
+    },
+    "holding:1": {
+      "asset_id": "AST-HPP-01",
+      "metric": "vibration_mm_s",
+      "unit": "mm/s",
+      "scale": 0.01,
+      "offset": 0.0
+    },
+    "input:0": {
+      "asset_id": "AST-CF-01",
+      "metric": "dp_bar",
+      "unit": "bar",
+      "scale": 0.001,
+      "offset": 0.0
+    }
+  }
+}
