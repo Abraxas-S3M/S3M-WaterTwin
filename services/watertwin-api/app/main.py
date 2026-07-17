@@ -38,6 +38,7 @@ from . import assistant
 from . import documents
 from . import energy
 from . import executive
+from . import facilities as facilities_mod
 from . import membrane
 from . import models as d1_models
 from . import predictive_maintenance as pdm
@@ -552,6 +553,28 @@ def audit_log(
     )
     events = [e for e in events if _can_see(user, e.get("tenant_id"), e.get("facility_id"))]
     return {"events": events}
+
+
+# ---------------------------------------------------------------------------
+# Multi-facility administration + fleet roll-up (advisory, read-only).
+#
+# Every response is scoped to the caller's tenant/entitlement so cross-tenant
+# data is never returned. tenant-admins/admins see every facility in their
+# tenant; facility-operators see only the facility (or facilities) assigned to
+# them. No control-write path is introduced.
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/v1/facilities")
+def facilities_list(user: Principal = Depends(get_current_user)) -> dict:
+    """List the facilities visible to the caller (tenant-scoped)."""
+    return facilities_mod.list_facilities(user)
+
+
+@app.get("/api/v1/fleet/overview")
+def fleet_overview(user: Principal = Depends(get_current_user)) -> dict:
+    """Fleet roll-up (health/energy/alerts) across the caller's facilities."""
+    return facilities_mod.fleet_overview(user)
 
 
 @app.get("/api/v1/audit/verify", dependencies=[Depends(require_role("auditor"))])
