@@ -1,8 +1,8 @@
 {
   "components": [
     {
-      "bom-ref": "requirements-L11",
-      "description": "requirements line 11: fastapi==0.115.14",
+      "bom-ref": "requirements-L13",
+      "description": "requirements line 13: fastapi==0.139.2",
       "externalReferences": [
         {
           "comment": "implicit dist url",
@@ -11,13 +11,13 @@
         }
       ],
       "name": "fastapi",
-      "purl": "pkg:pypi/fastapi@0.115.14",
+      "purl": "pkg:pypi/fastapi@0.139.2",
       "type": "library",
-      "version": "0.115.14"
+      "version": "0.139.2"
     },
     {
-      "bom-ref": "requirements-L14",
-      "description": "requirements line 14: httpx==0.28.1",
+      "bom-ref": "requirements-L16",
+      "description": "requirements line 16: httpx==0.28.1",
       "externalReferences": [
         {
           "comment": "implicit dist url",
@@ -46,8 +46,8 @@
       "version": "2.12.0"
     },
     {
-      "bom-ref": "requirements-L13",
-      "description": "requirements line 13: pydantic==2.11.7",
+      "bom-ref": "requirements-L15",
+      "description": "requirements line 15: pydantic==2.11.7",
       "externalReferences": [
         {
           "comment": "implicit dist url",
@@ -76,8 +76,8 @@
       "version": "6.10.1"
     },
     {
-      "bom-ref": "requirements-L12",
-      "description": "requirements line 12: uvicorn[standard]==0.34.0",
+      "bom-ref": "requirements-L14",
+      "description": "requirements line 14: uvicorn[standard]==0.34.0",
       "externalReferences": [
         {
           "comment": "implicit dist url",
@@ -114,16 +114,16 @@
   ],
   "dependencies": [
     {
-      "ref": "requirements-L11"
-    },
-    {
-      "ref": "requirements-L12"
-    },
-    {
       "ref": "requirements-L13"
     },
     {
       "ref": "requirements-L14"
+    },
+    {
+      "ref": "requirements-L15"
+    },
+    {
+      "ref": "requirements-L16"
     },
     {
       "ref": "requirements-L6"
@@ -136,7 +136,7 @@
     }
   ],
   "metadata": {
-    "timestamp": "2026-07-17T08:16:41.181782+00:00",
+    "timestamp": "2026-07-17T13:56:03.329916+00:00",
     "tools": {
       "components": [
         {
@@ -240,7 +240,7 @@
       ]
     }
   },
-  "serialNumber": "urn:uuid:2de1dd99-fdd6-4fef-a73b-b7065ee98625",
+  "serialNumber": "urn:uuid:8bf0544d-8cd7-4c50-9a86-8b43aac022ad",
   "version": 1,
   "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
   "bomFormat": "CycloneDX",

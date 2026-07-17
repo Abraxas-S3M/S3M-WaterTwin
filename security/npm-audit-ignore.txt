@@ -1,0 +1,16 @@
+# Accepted npm vulnerability advisories (npm audit).
+#
+# The CI `vuln-scan` job runs `npm audit` for apps/dashboard and FAILS the build
+# on any finding at or above the configured severity threshold. To accept a
+# specific, reviewed advisory, add its GitHub advisory ID (GHSA) or npm advisory
+# URL/id here (one per line). Comments (`#`) and blank lines are ignored.
+#
+# Matching is by the advisory `url`, `source` id, or GHSA id reported by
+# `npm audit --json`. Every accepted advisory MUST also be documented in
+# docs/security/accepted-advisories.md with a justification and review date.
+#
+# Format: one advisory id/GHSA/url per line, e.g.
+#   GHSA-xxxx-xxxx-xxxx
+#   1234567
+#
+# (No advisories are currently accepted.)

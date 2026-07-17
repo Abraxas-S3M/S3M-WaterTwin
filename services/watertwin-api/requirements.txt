@@ -2,7 +2,9 @@
 # Orchestration API for the Simulation Center: drives hydraulic-sim (read-only
 # what-if), builds recommendation cards, generates scenario reports, and
 # persists audit + recommendations to TimescaleDB (with in-memory fallback).
-fastapi==0.115.6
+# Pinned to 0.139.2: earlier fastapi pulls a starlette (<0.42) with advisories
+# flagged by pip-audit; 0.139.2 resolves a fixed starlette (>=1.3.1).
+fastapi==0.139.2
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
 httpx==0.28.1
@@ -10,4 +12,5 @@ psycopg[binary]==3.2.3
 # Bounded RO energy-optimization solver (watertwin_engineering.energy).
 scipy==1.18.0
 # Identity / RBAC: JWT bearer validation against Keycloak (JWKS, RS256).
-pyjwt[crypto]==2.10.1
+# Pinned to 2.13.0: 2.10.1 carries multiple advisories flagged by pip-audit.
+pyjwt[crypto]==2.13.0

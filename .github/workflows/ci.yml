@@ -140,10 +140,12 @@ jobs:
         run: npm test
 
   # ---------------------------------------------------------------------------
-  # Supply chain: CycloneDX SBOMs + dependency & secret scanning.
+  # Supply chain: generate CycloneDX SBOMs and reconcile them against the
+  # open-source register. Reconciliation is a build gate: any direct dependency
+  # missing from docs/licensing/open-source-register.md fails the build.
   # ---------------------------------------------------------------------------
-  security:
-    name: sbom + scanning
+  sbom:
+    name: sbom + reconcile
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -157,11 +159,11 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install SBOM + scanning tools
+      - name: Install SBOM tools + pytest
         run: |
           set -euxo pipefail
           python -m pip install --upgrade pip
-          pip install cyclonedx-bom pip-audit detect-secrets
+          pip install cyclonedx-bom pytest
 
       - name: Generate CycloneDX SBOMs (Python)
         run: |
@@ -186,29 +188,111 @@ jobs:
           name: sboms
           path: docs/licensing/sbom/*.cdx.json
 
-      - name: Dependency scan (pip-audit, non-blocking)
-        continue-on-error: true
+      - name: Reconcile tool unit tests
+        run: python -m pytest scripts/tests -q
+
+      - name: Reconcile SBOMs against the open-source register (gate)
+        run: python scripts/reconcile_sbom.py
+
+  # ---------------------------------------------------------------------------
+  # Dependency vulnerability scan (BUILD GATE).
+  # pip-audit for the Python services + npm audit for the dashboard. Findings
+  # fail the build; accepted advisories are documented in security/*-ignore.txt
+  # (see docs/security/accepted-advisories.md).
+  # ---------------------------------------------------------------------------
+  vuln-scan:
+    name: vuln-scan (pip-audit + npm audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/dashboard/package-lock.json
+
+      - name: Install pip-audit
         run: |
           set -euxo pipefail
+          python -m pip install --upgrade pip
+          pip install pip-audit
+
+      - name: pip-audit (Python services, gated)
+        run: |
+          set -euo pipefail
+          # Build --ignore-vuln args from the documented accepted-advisory file.
+          ignore_args=()
+          if [[ -f security/pip-audit-ignore.txt ]]; then
+            while IFS= read -r line; do
+              line="${line%%#*}"; line="$(echo "$line" | xargs || true)"
+              [[ -n "$line" ]] && ignore_args+=("--ignore-vuln" "$line")
+            done < security/pip-audit-ignore.txt
+          fi
+          status=0
           for svc in watertwin-api hydraulic-sim treatment-sim; do
             echo "::group::pip-audit $svc"
-            pip-audit -r "services/$svc/requirements.txt" || true
+            pip-audit -r "services/$svc/requirements.txt" "${ignore_args[@]}" || status=1
             echo "::endgroup::"
           done
+          if [[ "$status" -ne 0 ]]; then
+            echo "::error::pip-audit found unaccepted vulnerabilities."
+            exit 1
+          fi
 
-      - name: Secret scan (detect-secrets, non-blocking)
-        continue-on-error: true
+      - name: npm audit (dashboard, gated)
+        working-directory: apps/dashboard
+        run: |
+          set -euo pipefail
+          npm audit --json > npm-audit.json || true
+          python ../../scripts/npm_audit_gate.py \
+            --input npm-audit.json \
+            --ignore-file ../../security/npm-audit-ignore.txt \
+            --min-severity high
+
+  # ---------------------------------------------------------------------------
+  # Secret scan (BUILD GATE) via gitleaks. Any finding outside the documented
+  # allowlist in .gitleaks.toml fails the build.
+  # ---------------------------------------------------------------------------
+  secret-scan:
+    name: secret-scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
         run: |
           set -euxo pipefail
-          detect-secrets scan --all-files > detect-secrets.report.json
-          python - <<'PY'
-          import json
-          data = json.load(open("detect-secrets.report.json"))
-          results = data.get("results", {})
-          if results:
-              print(f"::warning::detect-secrets flagged {len(results)} file(s); review the report.")
-              for path in results:
-                  print(f"  potential secret in: {path}")
-          else:
-              print("OK: no secrets detected.")
-          PY
+          GITLEAKS_VERSION=8.30.1
+          curl -sSL -o /tmp/gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: gitleaks (secret scan, gate)
+        run: |
+          set -euo pipefail
+          gitleaks detect \
+            --source . \
+            --config .gitleaks.toml \
+            --redact \
+            --no-banner \
+            --exit-code 1 \
+            --report-format sarif \
+            --report-path gitleaks.sarif
+
+      - name: Upload gitleaks report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: gitleaks.sarif
+          if-no-files-found: ignore

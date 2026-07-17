@@ -55,7 +55,7 @@ components are enumerated in full inside those SBOMs.
 | pydantic | 2.10–2.13 | `MIT` | PyPI | all services + shared packages |
 | httpx | 0.28.1 | `BSD-3-Clause` | PyPI | api clients / tests |
 | pytest | 9.x | `MIT` | PyPI | test dependency (`services/hydraulic-sim` requirements) |
-| pyjwt[crypto] | 2.10.1 | `MIT` | PyPI | `services/watertwin-api` (JWT/JWKS validation) |
+| pyjwt[crypto] | 2.13.0 | `MIT` | PyPI | `services/watertwin-api` (JWT/JWKS validation) |
 | psycopg[binary] | 3.2.3 | `LGPL-3.0-or-later` | PyPI | `services/watertwin-api` (DB driver) |
 | numpy | 2.4.4 | `BSD-3-Clause` | PyPI | `services/hydraulic-sim`, `treatment-sim` |
 | scipy | 1.18.0 | `BSD-3-Clause` | PyPI | `services/hydraulic-sim`, `services/watertwin-api`, `packages/watertwin_engineering` |
@@ -143,13 +143,14 @@ in an SBOM but missing here):
 make reconcile               # or: python scripts/reconcile_sbom.py
 ```
 
-The CI `security` job regenerates the SBOMs on every run, reconciles them
-against this register, and runs dependency (`pip-audit` + `npm audit`) and
-secret (`gitleaks`) scanning as **build gates**. Vulnerability and secret
-findings fail the build; accepted advisories must be documented in the ignore
-files under `security/` (see `docs/security/accepted-advisories.md`). Drift
-between the register, the SBOMs, and the pinned dependency files is therefore
-caught automatically.
+The CI `sbom` job regenerates the SBOMs on every run and reconciles them against
+this register (a build gate). Separate CI jobs run dependency (`vuln-scan`:
+`pip-audit` + `npm audit`) and secret (`secret-scan`: `gitleaks`) scanning as
+**build gates**. Vulnerability and secret findings fail the build; accepted
+advisories must be documented in the ignore files under `security/` and
+`.gitleaks.toml` (see `docs/security/accepted-advisories.md`). Drift between the
+register, the SBOMs, and the pinned dependency files is therefore caught
+automatically.
 
 ## Compliance notes
 

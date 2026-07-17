@@ -1,8 +1,8 @@
 {
   "components": [
     {
-      "bom-ref": "requirements-L5",
-      "description": "requirements line 5: fastapi==0.115.6",
+      "bom-ref": "requirements-L7",
+      "description": "requirements line 7: fastapi==0.139.2",
       "externalReferences": [
         {
           "comment": "implicit dist url",
@@ -11,13 +11,13 @@
         }
       ],
       "name": "fastapi",
-      "purl": "pkg:pypi/fastapi@0.115.6",
+      "purl": "pkg:pypi/fastapi@0.139.2",
       "type": "library",
-      "version": "0.115.6"
+      "version": "0.139.2"
     },
     {
-      "bom-ref": "requirements-L8",
-      "description": "requirements line 8: httpx==0.28.1",
+      "bom-ref": "requirements-L10",
+      "description": "requirements line 10: httpx==0.28.1",
       "externalReferences": [
         {
           "comment": "implicit dist url",
@@ -31,8 +31,8 @@
       "version": "0.28.1"
     },
     {
-      "bom-ref": "requirements-L9",
-      "description": "requirements line 9: psycopg[binary]==3.2.3",
+      "bom-ref": "requirements-L11",
+      "description": "requirements line 11: psycopg[binary]==3.2.3",
       "externalReferences": [
         {
           "comment": "implicit dist url",
@@ -52,8 +52,8 @@
       "version": "3.2.3"
     },
     {
-      "bom-ref": "requirements-L7",
-      "description": "requirements line 7: pydantic==2.10.4",
+      "bom-ref": "requirements-L9",
+      "description": "requirements line 9: pydantic==2.10.4",
       "externalReferences": [
         {
           "comment": "implicit dist url",
@@ -67,8 +67,44 @@
       "version": "2.10.4"
     },
     {
-      "bom-ref": "requirements-L6",
-      "description": "requirements line 6: uvicorn[standard]==0.34.0",
+      "bom-ref": "requirements-L16",
+      "description": "requirements line 16: pyjwt[crypto]==2.13.0",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/pyjwt/"
+        }
+      ],
+      "name": "pyjwt",
+      "properties": [
+        {
+          "name": "cdx:python:package:required-extra",
+          "value": "crypto"
+        }
+      ],
+      "purl": "pkg:pypi/pyjwt@2.13.0",
+      "type": "library",
+      "version": "2.13.0"
+    },
+    {
+      "bom-ref": "requirements-L13",
+      "description": "requirements line 13: scipy==1.18.0",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/scipy/"
+        }
+      ],
+      "name": "scipy",
+      "purl": "pkg:pypi/scipy@1.18.0",
+      "type": "library",
+      "version": "1.18.0"
+    },
+    {
+      "bom-ref": "requirements-L8",
+      "description": "requirements line 8: uvicorn[standard]==0.34.0",
       "externalReferences": [
         {
           "comment": "implicit dist url",
@@ -90,10 +126,16 @@
   ],
   "dependencies": [
     {
-      "ref": "requirements-L5"
+      "ref": "requirements-L10"
     },
     {
-      "ref": "requirements-L6"
+      "ref": "requirements-L11"
+    },
+    {
+      "ref": "requirements-L13"
+    },
+    {
+      "ref": "requirements-L16"
     },
     {
       "ref": "requirements-L7"
@@ -106,7 +148,7 @@
     }
   ],
   "metadata": {
-    "timestamp": "2026-07-17T08:16:38.825009+00:00",
+    "timestamp": "2026-07-17T13:56:02.123918+00:00",
     "tools": {
       "components": [
         {
@@ -210,7 +252,7 @@
       ]
     }
   },
-  "serialNumber": "urn:uuid:76efebcb-0175-4f59-be5c-f61b7cfa7365",
+  "serialNumber": "urn:uuid:7b4bcc92-7bec-4b11-8fe5-488fb7c5dfe5",
   "version": 1,
   "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
   "bomFormat": "CycloneDX",
