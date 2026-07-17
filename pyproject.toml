@@ -32,7 +32,12 @@ Repository = "https://github.com/Abraxas-S3M/S3M-WaterTwin"
 
 [tool.setuptools.packages.find]
 where = ["packages"]
-include = ["canonical_water_model*", "simulation_contracts*", "watertwin_engineering*"]
+include = [
+    "canonical_water_model*",
+    "simulation_contracts*",
+    "watertwin_engineering*",
+    "watertwin_events*",
+]
 
 [tool.ruff]
 line-length = 100
