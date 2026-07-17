@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
-from canonical_water_model import ControlBoundary, DataProvenance, WQAlert
+from canonical_water_model import ControlBoundary, DataProvenance, TelemetryReading, WQAlert
 
 from simulation_contracts import ScenarioType, SimulationResult
 
@@ -26,6 +26,7 @@ from . import config
 from .auth import (
     Principal,
     get_current_user,
+    require_ingest,
     require_role,
 )
 from . import assistant
@@ -373,6 +374,20 @@ class NormalizePreviewRequest(BaseModel):
     tag_map_inline: Optional[dict] = None
 
 
+class TelemetryIngestRequest(BaseModel):
+    """A batch of canonical telemetry readings forwarded by an edge gateway.
+
+    ``batch_id`` is the gateway's stable store-and-forward key; ingest is
+    idempotent on it so replaying a durable spool after a crash never
+    double-writes telemetry or the audit trail.
+    """
+
+    batch_id: str = Field(min_length=1, max_length=200)
+    readings: list[TelemetryReading] = Field(default_factory=list)
+    #: Optional producer label (e.g. gateway id / source), recorded for audit.
+    source: Optional[str] = None
+
+
 @app.get("/api/v1/ingestion/source", dependencies=AUTHENTICATED)
 def ingestion_source() -> dict:
     """Report the active telemetry source and any fallback to synthetic."""
@@ -381,6 +396,37 @@ def ingestion_source() -> dict:
         **resolution.describe(),
         "control_boundary": ControlBoundary().model_dump(),
     }
+
+
+@app.post("/api/v1/ingestion/telemetry")
+def ingest_telemetry(
+    body: TelemetryIngestRequest,
+    user: Principal = Depends(require_ingest),
+) -> dict:
+    """Ingest a batch of telemetry readings (edge store-and-forward destination).
+
+    Persists the readings and appends a single ``telemetry.ingested`` event to
+    the tamper-evident audit chain. Idempotent on ``batch_id`` (a replayed batch
+    is a no-op), so an edge gateway that resends its durable spool after a crash
+    recovers with no data loss and no duplication while the audit chain stays
+    valid. This reads telemetry *into* the platform; it is never a control write.
+    """
+    if not body.readings:
+        raise HTTPException(status_code=422, detail="a telemetry batch must contain readings")
+    readings = [r.model_dump(mode="json") for r in body.readings]
+    result = store.ingest_telemetry(
+        body.batch_id,
+        readings,
+        actor=_actor(user, "edge-gateway"),
+        source=body.source,
+    )
+    return {**result, "control_boundary": ControlBoundary().model_dump()}
+
+
+@app.get("/api/v1/ingestion/telemetry/stats", dependencies=AUTHENTICATED)
+def ingestion_telemetry_stats() -> dict:
+    """Report telemetry ingest counters (distinct batches + total readings)."""
+    return {**store.telemetry_stats(), "control_boundary": ControlBoundary().model_dump()}
 
 
 @app.post("/api/v1/ingestion/normalize/preview", dependencies=AUTHENTICATED)

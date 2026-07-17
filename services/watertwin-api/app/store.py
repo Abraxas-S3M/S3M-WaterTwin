@@ -13,6 +13,7 @@ artifacts (recommendations, approvals, audit trail) only.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import threading
 import uuid
@@ -80,6 +81,41 @@ CREATE TABLE IF NOT EXISTS recommendation (
 );
 """
 
+# Telemetry hypertable (created by infrastructure/database/init.sql; ensured here
+# idempotently so the ingest path also works against a plain Postgres). One row
+# per (asset, metric, time) reading forwarded by an edge gateway. This holds
+# advisory synthetic/simulated (or provenance-tagged) readings only -- never a
+# control-write path.
+_CREATE_TELEMETRY = """
+CREATE TABLE IF NOT EXISTS telemetry (
+    time        TIMESTAMPTZ      NOT NULL DEFAULT now(),
+    asset_id    TEXT             NOT NULL,
+    metric      TEXT             NOT NULL,
+    value       DOUBLE PRECISION NOT NULL,
+    unit        TEXT,
+    facility_id TEXT,
+    train_id    TEXT,
+    provenance  TEXT             NOT NULL DEFAULT 'synthetic',
+    quality     TEXT             NOT NULL DEFAULT 'good'
+);
+"""
+
+# Idempotency ledger for telemetry ingest. Each forwarded batch is recorded by
+# its stable ``batch_id`` (the edge gateway's store-and-forward key). A second
+# delivery of the same batch_id is a no-op, so an edge gateway that replays its
+# on-disk spool after a crash/restart never double-writes telemetry or the audit
+# trail -- this is what makes store-and-forward recovery lossless *and*
+# duplicate-free. ``digest`` binds the recorded batch to its content.
+_CREATE_TELEMETRY_BATCH = """
+CREATE TABLE IF NOT EXISTS telemetry_batch (
+    batch_id      TEXT        PRIMARY KEY,
+    ts            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    reading_count INTEGER     NOT NULL DEFAULT 0,
+    digest        TEXT        NOT NULL DEFAULT '',
+    source        TEXT
+);
+"""
+
 
 class Store:
     """Audit + recommendation persistence with graceful in-memory fallback."""
@@ -93,6 +129,9 @@ class Store:
         # In-memory mirrors used whenever the database is unavailable.
         self._audit_mem: list[dict[str, Any]] = []
         self._rec_mem: dict[str, dict[str, Any]] = {}
+        self._telemetry_mem: list[dict[str, Any]] = []
+        # Idempotency ledger: batch_id -> {"count", "digest", "source"}.
+        self._batch_mem: dict[str, dict[str, Any]] = {}
 
         # Running head of the in-memory audit hash chain (genesis when empty).
         self._chain_head: str = audit_chain.GENESIS_HASH
@@ -113,6 +152,8 @@ class Store:
                     cur.execute(stmt)
                 cur.execute(_APPEND_ONLY_GUARD)
                 cur.execute(_CREATE_RECOMMENDATION)
+                cur.execute(_CREATE_TELEMETRY)
+                cur.execute(_CREATE_TELEMETRY_BATCH)
             self.db_connected = True
             logger.info("store connected to database", extra={"db_connected": True})
         except Exception as exc:  # pragma: no cover - exercised only with a real DB
@@ -264,6 +305,203 @@ class Store:
                     logger.warning("audit read failed; using memory", extra={"error": str(exc)})
             return list(reversed(self._audit_mem))[:n]
 
+    # -- telemetry ingest (store-and-forward destination) ---------------------
+
+    @staticmethod
+    def _batch_digest(readings: list[dict[str, Any]]) -> str:
+        """Content digest of a batch, bound into its audit event.
+
+        Uses the same canonical (sorted-key, compact) JSON encoding as the audit
+        chain so the same readings always yield the same digest.
+        """
+        return hashlib.sha256(audit_chain.canonical(readings).encode("utf-8")).hexdigest()
+
+    def ingest_telemetry(
+        self,
+        batch_id: str,
+        readings: list[dict[str, Any]],
+        *,
+        actor: str = "edge-gateway",
+        source: str | None = None,
+    ) -> dict[str, Any]:
+        """Idempotently ingest a batch of telemetry readings.
+
+        Readings are appended to the ``telemetry`` store and a single
+        ``telemetry.ingested`` event is appended to the tamper-evident audit
+        chain (its payload binds the ``batch_id``, count and content digest).
+
+        Ingest is idempotent on ``batch_id``: a repeat delivery of an already
+        recorded batch is a no-op that returns ``{"duplicate": True}`` without
+        re-inserting readings or appending a second audit event. This is what
+        lets an edge gateway replay its durable spool after a crash with no data
+        loss *and* no duplication, while the audit chain stays valid.
+
+        This is a telemetry *read into* the platform, not a control write.
+        """
+        digest = self._batch_digest(readings)
+        with self._lock:
+            if self.db_connected:
+                try:  # pragma: no cover - real DB only
+                    return self._ingest_telemetry_db(
+                        batch_id, readings, digest, actor=actor, source=source
+                    )
+                except Exception as exc:  # pragma: no cover - real DB only
+                    logger.warning(
+                        "telemetry ingest failed; mirroring to memory",
+                        extra={"error": str(exc)},
+                    )
+            return self._ingest_telemetry_mem(
+                batch_id, readings, digest, actor=actor, source=source
+            )
+
+    def _ingest_telemetry_mem(
+        self,
+        batch_id: str,
+        readings: list[dict[str, Any]],
+        digest: str,
+        *,
+        actor: str,
+        source: str | None,
+    ) -> dict[str, Any]:
+        prior = self._batch_mem.get(batch_id)
+        if prior is not None:
+            return {
+                "batch_id": batch_id,
+                "duplicate": True,
+                "accepted": 0,
+                "reading_count": prior["count"],
+                "audit_id": None,
+            }
+        self._telemetry_mem.extend(readings)
+        self._batch_mem[batch_id] = {
+            "count": len(readings),
+            "digest": digest,
+            "source": source,
+        }
+        event = self.audit(
+            "telemetry.ingested",
+            payload={
+                "batch_id": batch_id,
+                "reading_count": len(readings),
+                "digest": digest,
+                "source": source,
+            },
+            actor=actor,
+            subject=batch_id,
+        )
+        return {
+            "batch_id": batch_id,
+            "duplicate": False,
+            "accepted": len(readings),
+            "reading_count": len(readings),
+            "audit_id": event["id"],
+        }
+
+    def _ingest_telemetry_db(  # pragma: no cover - exercised only with a real DB
+        self,
+        batch_id: str,
+        readings: list[dict[str, Any]],
+        digest: str,
+        *,
+        actor: str,
+        source: str | None,
+    ) -> dict[str, Any]:
+        from psycopg.types.json import Jsonb
+
+        with self._conn.cursor() as cur:
+            cur.execute("SELECT reading_count FROM telemetry_batch WHERE batch_id = %s", (batch_id,))
+            existing = cur.fetchone()
+        if existing is not None:
+            return {
+                "batch_id": batch_id,
+                "duplicate": True,
+                "accepted": 0,
+                "reading_count": existing[0],
+                "audit_id": None,
+            }
+
+        event = {
+            "id": str(uuid.uuid4()),
+            "ts": _utcnow_iso(),
+            "kind": "telemetry.ingested",
+            "actor": actor,
+            "subject": batch_id,
+            "payload": {
+                "batch_id": batch_id,
+                "reading_count": len(readings),
+                "digest": digest,
+                "source": source,
+            },
+        }
+
+        # Telemetry rows + idempotency marker + audit event committed atomically,
+        # so a crash mid-ingest leaves the batch either fully recorded or not at
+        # all (a partial batch would let a replay double-count).
+        with self._conn.transaction():
+            with self._conn.cursor() as cur:
+                if readings:
+                    cur.executemany(
+                        "INSERT INTO telemetry "
+                        "(time, asset_id, metric, value, unit, provenance, quality) "
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                        [
+                            (
+                                r.get("timestamp"),
+                                r.get("asset_id"),
+                                r.get("metric"),
+                                r.get("value"),
+                                r.get("unit"),
+                                r.get("provenance", "synthetic"),
+                                r.get("quality") or "good",
+                            )
+                            for r in readings
+                        ],
+                    )
+                cur.execute(
+                    "INSERT INTO telemetry_batch (batch_id, reading_count, digest, source) "
+                    "VALUES (%s, %s, %s, %s)",
+                    (batch_id, len(readings), digest, source),
+                )
+                prev_hash = self._db_chain_head()
+                audit_chain.link_event(event, prev_hash)
+                cur.execute(
+                    "INSERT INTO audit_event "
+                    "(id, ts, kind, actor, subject, payload, prev_hash, hash) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                    (
+                        event["id"],
+                        event["ts"],
+                        event["kind"],
+                        event["actor"],
+                        event["subject"],
+                        Jsonb(event["payload"]),
+                        event["prev_hash"],
+                        event["hash"],
+                    ),
+                )
+        return {
+            "batch_id": batch_id,
+            "duplicate": False,
+            "accepted": len(readings),
+            "reading_count": len(readings),
+            "audit_id": event["id"],
+        }
+
+    def telemetry_stats(self) -> dict[str, Any]:
+        """Return ingest counters: distinct batches and total readings ingested."""
+        with self._lock:
+            if self.db_connected:
+                try:  # pragma: no cover - real DB only
+                    with self._conn.cursor() as cur:
+                        cur.execute(
+                            "SELECT count(*), COALESCE(sum(reading_count), 0) FROM telemetry_batch"
+                        )
+                        row = cur.fetchone()
+                    return {"batches": int(row[0]), "readings": int(row[1])}
+                except Exception as exc:  # pragma: no cover - real DB only
+                    logger.warning("telemetry stats read failed; using memory", extra={"error": str(exc)})
+            return {"batches": len(self._batch_mem), "readings": len(self._telemetry_mem)}
+
     # -- recommendations ------------------------------------------------------
 
     def save_recommendation(
@@ -326,11 +564,15 @@ class Store:
         with self._lock:
             self._audit_mem.clear()
             self._rec_mem.clear()
+            self._telemetry_mem.clear()
+            self._batch_mem.clear()
             self._chain_head = audit_chain.GENESIS_HASH
             if self.db_connected:
                 try:
                     with self._conn.cursor() as cur:
                         cur.execute("TRUNCATE audit_event")
                         cur.execute("TRUNCATE recommendation")
+                        cur.execute("TRUNCATE telemetry")
+                        cur.execute("TRUNCATE telemetry_batch")
                 except Exception as exc:  # pragma: no cover - real DB only
                     logger.warning("reset truncate failed", extra={"error": str(exc)})
