@@ -1,3 +1,4 @@
+import { Trans, useTranslation } from 'react-i18next';
 import { KpiCard } from '../components/KpiCard';
 import { ProvenanceBadge } from '../components/ProvenanceBadge';
 import { RecommendationCard } from '../components/RecommendationCard';
@@ -11,6 +12,7 @@ import { useDashboardStore } from '../state/store';
 import { fmtNumber } from '../lib/format';
 
 export function ResilienceCommand() {
+  const { t } = useTranslation();
   const generator = useResilienceGenerator();
   const criticality = useResilienceCriticality();
   const gridOutage = useRunGridOutage();
@@ -30,12 +32,14 @@ export function ResilienceCommand() {
     <div className="stack" data-testid="resilience-command">
       <div className="page-header">
         <div>
-          <h2>Resilience Command</h2>
+          <h2>{t('resilience.title')}</h2>
           <div className="context">
-            Grid-outage resilience & generator command (advisory). Generator start probability, fuel
-            endurance and service-continuity duration are <strong>preliminary</strong> estimates on
-            synthetic data — not guaranteed availability or run-time. Any recommendation requires
-            operator approval; no control write is issued.
+            <Trans i18nKey="resilience.context">
+              Grid-outage resilience & generator command (advisory). Generator start probability, fuel
+              endurance and service-continuity duration are <strong>preliminary</strong> estimates on
+              synthetic data — not guaranteed availability or run-time. Any recommendation requires
+              operator approval; no control write is issued.
+            </Trans>
           </div>
         </div>
         <ProvenanceBadge provenance="preliminary" />
@@ -43,53 +47,50 @@ export function ResilienceCommand() {
 
       <div className="card">
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3>Grid-Outage Scenario</h3>
+          <h3>{t('resilience.scenarioTitle')}</h3>
           <button
             className="btn"
             data-testid="run-grid-outage"
             disabled={gridOutage.isPending}
             onClick={() => gridOutage.mutate()}
           >
-            {gridOutage.isPending ? 'Assessing…' : 'Run grid-outage scenario'}
+            {gridOutage.isPending ? t('resilience.assessing') : t('resilience.runScenario')}
           </button>
         </div>
-        <p className="muted">
-          Assess generator readiness, load-shed order, service continuity and asset criticality
-          under a total grid loss. Read-only what-if only.
-        </p>
+        <p className="muted">{t('resilience.scenarioBody')}</p>
       </div>
 
       {gen ? (
         <div className="grid kpis" data-testid="generator-status">
           <KpiCard
-            label="Generator Start Probability"
+            label={t('resilience.kpi.startProbability')}
             value={fmtNumber(gen.start_probability * 100, 0)}
-            unit="%"
+            unit={t('units.percent')}
             provenance="preliminary"
           />
           <KpiCard
-            label="Fuel Endurance"
+            label={t('resilience.kpi.fuelEndurance')}
             value={fmtNumber(gen.fuel_endurance_hours, 1)}
-            unit="h"
+            unit={t('units.hoursShort')}
             provenance="preliminary"
           />
           <KpiCard
-            label="Fuel Level"
+            label={t('resilience.kpi.fuelLevel')}
             value={fmtNumber(gen.fuel_level_fraction * 100, 0)}
-            unit="%"
+            unit={t('units.percent')}
             provenance="synthetic"
           />
           <KpiCard
-            label="Load Fraction"
+            label={t('resilience.kpi.loadFraction')}
             value={fmtNumber(gen.load_fraction * 100, 0)}
-            unit="%"
+            unit={t('units.percent')}
             provenance="preliminary"
           />
           {continuity ? (
             <KpiCard
-              label="Service Continuity"
+              label={t('resilience.kpi.serviceContinuity')}
               value={fmtNumber(continuity.service_continuity_hours, 1)}
-              unit="h"
+              unit={t('units.hoursShort')}
               provenance="preliminary"
               accent="var(--accent)"
               footer={continuity.limiting_factor}
@@ -101,22 +102,26 @@ export function ResilienceCommand() {
       {plan ? (
         <div className="card" data-testid="load-shed-plan">
           <h3>
-            Load-Shed Priority
+            {t('resilience.loadShed')}
             <ProvenanceBadge provenance="preliminary" className="prov-inline" />
           </h3>
           <p className="muted">
-            Loads are shed lowest-priority first so the HP pump + essential loads are kept last.
-            Retained load {fmtNumber(plan.retained_load_kw, 0)} kW of {fmtNumber(plan.total_load_kw, 0)}{' '}
-            kW; critical loads sustained: {plan.critical_loads_sustained ? 'yes' : 'no'}.
+            {t('resilience.loadShedBody', {
+              retained: fmtNumber(plan.retained_load_kw, 0),
+              total: fmtNumber(plan.total_load_kw, 0),
+              sustained: plan.critical_loads_sustained ? t('common.yes') : t('common.no'),
+            })}
           </p>
           <table className="data">
             <thead>
               <tr>
-                <th>Shed order</th>
-                <th>Asset</th>
-                <th>Priority</th>
-                <th style={{ textAlign: 'right' }}>Load (kW)</th>
-                <th>Status</th>
+                <th>{t('resilience.loadShedTable.shedOrder')}</th>
+                <th>{t('resilience.loadShedTable.asset')}</th>
+                <th>{t('resilience.loadShedTable.priority')}</th>
+                <th style={{ textAlign: 'right' }}>
+                  {t('resilience.loadShedTable.load', { unit: t('units.power_kw') })}
+                </th>
+                <th>{t('resilience.loadShedTable.status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -128,7 +133,7 @@ export function ResilienceCommand() {
                   <td style={{ textAlign: 'right' }}>{fmtNumber(item.load_kw, 0)}</td>
                   <td>
                     <span className={`status-chip ${item.retained ? 'approved' : 'rejected'}`}>
-                      {item.retained ? 'retained' : 'shed'}
+                      {item.retained ? t('resilience.retained') : t('resilience.shed')}
                     </span>
                   </td>
                 </tr>
@@ -140,21 +145,23 @@ export function ResilienceCommand() {
 
       <div className="card" data-testid="criticality-ranking">
         <h3>
-          Asset Criticality Ranking
+          {t('resilience.criticality')}
           <ProvenanceBadge provenance="preliminary" className="prov-inline" />
         </h3>
         {ranking.length === 0 ? (
-          <div className="empty">No criticality ranking available.</div>
+          <div className="empty">{t('resilience.noCriticality')}</div>
         ) : (
           <table className="data">
             <thead>
               <tr>
-                <th>Rank</th>
-                <th>Asset</th>
-                <th style={{ textAlign: 'right' }}>Score</th>
-                <th style={{ textAlign: 'right' }}>Impact</th>
-                <th style={{ textAlign: 'right' }}>Failure prob</th>
-                <th style={{ textAlign: 'right' }}>Recovery (h)</th>
+                <th>{t('resilience.criticalityTable.rank')}</th>
+                <th>{t('resilience.criticalityTable.asset')}</th>
+                <th style={{ textAlign: 'right' }}>{t('resilience.criticalityTable.score')}</th>
+                <th style={{ textAlign: 'right' }}>{t('resilience.criticalityTable.impact')}</th>
+                <th style={{ textAlign: 'right' }}>{t('resilience.criticalityTable.failureProb')}</th>
+                <th style={{ textAlign: 'right' }}>
+                  {t('resilience.criticalityTable.recovery', { unit: t('units.hoursShort') })}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -181,7 +188,7 @@ export function ResilienceCommand() {
 
       {recommendation ? (
         <div className="card" data-testid="resilience-recommendation">
-          <h3>Recommended Generator Priority</h3>
+          <h3>{t('resilience.recommendedPriority')}</h3>
           <RecommendationCard
             rec={recommendation}
             busy={decision.isPending}

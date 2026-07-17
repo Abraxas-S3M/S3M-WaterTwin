@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { HealthContribution } from '../api/types';
 import { fmtNumber } from '../lib/format';
 
@@ -11,8 +12,9 @@ interface Props {
  * render green extending right, around a shared center baseline.
  */
 export function ContributionBreakdown({ contributions }: Props) {
+  const { t } = useTranslation();
   if (!contributions.length) {
-    return <div className="empty">No contribution factors reported.</div>;
+    return <div className="empty">{t('contribution.empty')}</div>;
   }
   const maxAbs = Math.max(...contributions.map((c) => Math.abs(c.delta)), 1);
 

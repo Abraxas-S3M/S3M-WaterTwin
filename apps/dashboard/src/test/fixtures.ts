@@ -20,16 +20,27 @@ import type {
   ExecutiveValueSummaryResponse,
   GridOutageResponse,
   HealthScore,
+  CmmsAssetHistoryResponse,
+  CmmsStatusResponse,
+  CmmsWorkOrdersResponse,
   MaintenanceRankingResponse,
   MaintenanceRecommendationsResponse,
+  MaintenanceWorkOrder,
   MembraneHealthResponse,
   ModelsResponse,
   PlantOverview,
+  WorkOrdersResponse,
   PumpCurve,
   RecommendationCard,
   ResilienceCriticalityResponse,
   ResilienceGeneratorResponse,
+  SecurityOverviewResponse,
+  SiemExportResponse,
   TelemetryReading,
+  TrainingRecordResponse,
+  TrainingRecordsResponse,
+  TrainingScenariosResponse,
+  TrainingSessionResponse,
   WQAlertsResponse,
   WQContaminantMatrixResponse,
   WQForecastResponse,
@@ -37,6 +48,7 @@ import type {
   WQScalingResponse,
   WQStatusResponse,
 } from '../api/types';
+import type { Facility, FacilitiesResponse, FleetOverview } from '../facilities/types';
 
 export const controlBoundary: ControlBoundary = {
   control_mode: 'advisory',
@@ -580,6 +592,145 @@ export const maintenanceRecommendations: MaintenanceRecommendationsResponse = {
   cards: [pdmCardHpp],
 };
 
+// --- Work orders / Maintenance Center ---
+
+export const workOrderHpp: MaintenanceWorkOrder = {
+  work_order_id: 'wo-ast-hpp-01',
+  asset_id: 'AST-HPP-01',
+  asset_name: 'High-Pressure Pump A',
+  title: 'High-Pressure Pump A: Progressive hydraulic-efficiency loss / bearing wear',
+  description:
+    'Proposed maintenance derived from a predictive-maintenance alert. Advisory only — ' +
+    'operator approval required, no control write.',
+  priority: 'urgent',
+  status: 'proposed',
+  source: 'predictive_maintenance',
+  originating_model: 'predictive-maintenance',
+  source_recommendation_id: 'rec-pdm-ast-hpp-01',
+  source_alert_code: 'PDM-AST-HPP-01',
+  predicted_failure_mode: 'Progressive hydraulic-efficiency loss / bearing wear',
+  failure_probability_30d: 0.48,
+  rul_days: 96.0,
+  recommended_window: 'Next low-demand window in ~34 d (overnight 02:00-06:00, off-peak demand)',
+  spares_required: ['Drive-end bearing set', 'Mechanical seal cartridge'],
+  estimated_downtime_hours: 10.0,
+  estimated_cost: 28000.0,
+  ranked_causes: [
+    {
+      cause: 'Membrane fouling',
+      probability: 0.44,
+      evidence: 'WQ signal: normalized dP +12% and salt passage +8% vs baseline.',
+    },
+    {
+      cause: 'Pump efficiency loss',
+      probability: 0.23,
+      evidence: 'Curve deviation: operating point 3% below pump efficiency curve.',
+    },
+  ],
+  evidence: {
+    telemetry_window: 'live synthetic equipment telemetry (preliminary)',
+    assets_reviewed: ['AST-HPP-01'],
+    documents_reviewed: [],
+    simulation_ids: [],
+    assumptions: ['Work order derived from a preliminary predictive-maintenance alert.'],
+    data_timestamp: '2026-07-17T07:00:00Z',
+  },
+  approval_status: 'pending',
+  approved_by: null,
+  decided_at: null,
+  cmms_system: null,
+  cmms_external_id: null,
+  cmms_sync_status: 'not_synced',
+  control_boundary: controlBoundary,
+  provenance: 'preliminary',
+  created_at: '2026-07-17T07:00:00Z',
+};
+
+export const workOrderMemb: MaintenanceWorkOrder = {
+  ...workOrderHpp,
+  work_order_id: 'wo-ast-memb-01',
+  asset_id: 'AST-MEMB-01',
+  asset_name: 'RO Membrane Array (Train 1)',
+  title: 'RO Membrane Array (Train 1): Irreversible fouling / salt-passage breakthrough',
+  priority: 'medium',
+  source_recommendation_id: 'rec-pdm-ast-memb-01',
+  source_alert_code: 'PDM-AST-MEMB-01',
+  predicted_failure_mode: 'Irreversible fouling / salt-passage breakthrough',
+  failure_probability_30d: 0.31,
+  rul_days: 210.0,
+  spares_required: ['RO elements (tail vessels)', 'CIP chemicals'],
+  estimated_downtime_hours: 16.0,
+  estimated_cost: 42000.0,
+};
+
+export const workOrders: WorkOrdersResponse = {
+  ...pdmEnvelope,
+  work_orders: [workOrderHpp, workOrderMemb],
+};
+
+const cmmsDescription = {
+  kind: 'synthetic',
+  name: 'synthetic-cmms',
+  write_enabled: false,
+  read_only: true,
+  write_back_is_control_path: false,
+  operator_approval_required: true,
+};
+
+export const cmmsStatus: CmmsStatusResponse = {
+  ...pdmEnvelope,
+  provenance: 'synthetic',
+  cmms: cmmsDescription,
+};
+
+export const cmmsWorkOrders: CmmsWorkOrdersResponse = {
+  ...pdmEnvelope,
+  provenance: 'synthetic',
+  cmms: cmmsDescription,
+  work_orders: [
+    {
+      ...workOrderHpp,
+      work_order_id: 'CMMS-1042',
+      asset_id: 'AST-CF-01',
+      asset_name: 'Cartridge Filter Bank',
+      title: 'Replace 5 µm cartridge filter set',
+      source: 'cmms',
+      status: 'open',
+      originating_model: null,
+      source_recommendation_id: null,
+      source_alert_code: null,
+      ranked_causes: [],
+      evidence: null,
+      cmms_system: 'synthetic-cmms',
+      cmms_external_id: 'CMMS-1042',
+      cmms_sync_status: 'synced',
+      provenance: 'synthetic',
+    },
+  ],
+};
+
+export const cmmsAssetHistory: CmmsAssetHistoryResponse = {
+  ...pdmEnvelope,
+  provenance: 'synthetic',
+  cmms: cmmsDescription,
+  asset_id: 'AST-HPP-01',
+  history: [
+    {
+      work_order_id: 'CMMS-0912',
+      asset_id: 'AST-HPP-01',
+      title: 'Drive-end bearing replacement',
+      status: 'completed',
+      performed_at: '2026-01-01T00:00:00Z',
+      performed_by: 'mechanical-crew',
+      labor_hours: 9.5,
+      cost: 26000.0,
+      notes: 'Bearings replaced; vibration returned to baseline.',
+      cmms_system: 'synthetic-cmms',
+      provenance: 'synthetic',
+    },
+  ],
+};
+
 // --- Value layer: Energy / Resilience / Executive ---
 
 const valueEnvelope = {
@@ -880,6 +1031,151 @@ export const documentsList: DocumentsResponse = {
   ],
 };
 
+// --- Multi-facility administration -----------------------------------------
+
+// Two tenants exist in the raw catalog. A signed-in ACME identity must only ever
+// see ACME facilities; the Globex facility is included in some fixtures purely to
+// prove the client-side scope guard drops cross-tenant rows (no leak).
+export const TENANT_ACME = 'TEN-ACME';
+export const TENANT_GLOBEX = 'TEN-GLOBEX';
+
+export const facilityAlpha: Facility = {
+  facility_id: 'FAC-ALPHA',
+  tenant_id: TENANT_ACME,
+  tenant_name: 'Acme Water Co',
+  name: 'SWRO Alpha',
+  region: 'Gulf Coast',
+  status: 'online',
+  config: {
+    train_count: 3,
+    capacity_m3_day: 12000,
+    currency: 'USD',
+    commissioned: '2021-03-15',
+    timezone: 'America/Chicago',
+  },
+  roles: [
+    { role: 'facility-operator', subject: 'ola-operator', display_name: 'Ola Operator' },
+    { role: 'engineer', subject: 'erin-engineer', display_name: 'Erin Engineer' },
+    { role: 'viewer', subject: 'val-viewer', display_name: 'Val Viewer' },
+  ],
+};
+
+export const facilityBeta: Facility = {
+  facility_id: 'FAC-BETA',
+  tenant_id: TENANT_ACME,
+  tenant_name: 'Acme Water Co',
+  name: 'SWRO Beta',
+  region: 'Adriatic',
+  status: 'maintenance',
+  config: {
+    train_count: 2,
+    capacity_m3_day: 8000,
+    currency: 'EUR',
+    commissioned: '2022-09-01',
+    timezone: 'Europe/Rome',
+  },
+  roles: [
+    { role: 'facility-operator', subject: 'bo-operator', display_name: 'Bo Operator' },
+  ],
+};
+
+export const facilityGamma: Facility = {
+  facility_id: 'FAC-GAMMA',
+  tenant_id: TENANT_ACME,
+  tenant_name: 'Acme Water Co',
+  name: 'SWRO Gamma',
+  region: 'Red Sea',
+  status: 'online',
+  config: {
+    train_count: 4,
+    capacity_m3_day: 14000,
+    currency: 'USD',
+    commissioned: '2020-01-20',
+    timezone: 'Asia/Riyadh',
+  },
+  roles: [
+    { role: 'engineer', subject: 'gia-engineer', display_name: 'Gia Engineer' },
+  ],
+};
+
+// Foreign tenant — must never surface for an ACME identity.
+export const facilityOmegaForeign: Facility = {
+  facility_id: 'FAC-OMEGA',
+  tenant_id: TENANT_GLOBEX,
+  tenant_name: 'Globex Desal',
+  name: 'SWRO Omega',
+  region: 'Pacific',
+  status: 'online',
+  config: {
+    train_count: 5,
+    capacity_m3_day: 20000,
+    currency: 'USD',
+    commissioned: '2019-06-10',
+    timezone: 'Australia/Perth',
+  },
+  roles: [
+    { role: 'facility-operator', subject: 'omar-operator', display_name: 'Omar Operator' },
+  ],
+};
+
+export const acmeFacilities: Facility[] = [facilityAlpha, facilityBeta, facilityGamma];
+
+// What the (tenant-scoped) API returns to an ACME identity.
+export const facilitiesResponse: FacilitiesResponse = {
+  tenant_id: TENANT_ACME,
+  facilities: acmeFacilities,
+  provenance: 'preliminary',
+};
+
+export const fleetOverview: FleetOverview = {
+  tenant_id: TENANT_ACME,
+  provenance: 'preliminary',
+  facilities: [
+    {
+      facility_id: 'FAC-ALPHA',
+      tenant_id: TENANT_ACME,
+      name: 'SWRO Alpha',
+      status: 'online',
+      health: { score: 79.5, band: 'Monitor' },
+      energy: { total_power_kw: 1520, specific_energy_kwh_m3: 3.05 },
+      active_alarms: 1,
+      production_m3_day: 11952,
+      provenance: 'preliminary',
+    },
+    {
+      facility_id: 'FAC-BETA',
+      tenant_id: TENANT_ACME,
+      name: 'SWRO Beta',
+      status: 'maintenance',
+      health: { score: 62.0, band: 'Degraded' },
+      energy: { total_power_kw: 980, specific_energy_kwh_m3: 3.4 },
+      active_alarms: 3,
+      production_m3_day: 8000,
+      provenance: 'preliminary',
+    },
+    {
+      facility_id: 'FAC-GAMMA',
+      tenant_id: TENANT_ACME,
+      name: 'SWRO Gamma',
+      status: 'online',
+      health: { score: 91.0, band: 'Healthy' },
+      energy: { total_power_kw: 1750, specific_energy_kwh_m3: 2.8 },
+      active_alarms: 0,
+      production_m3_day: 14000,
+      provenance: 'preliminary',
+    },
+  ],
+  totals: {
+    facility_count: 3,
+    online_count: 2,
+    avg_health: 77.5,
+    worst_band: 'Degraded',
+    total_power_kw: 4250,
+    total_production_m3_day: 33952,
+    total_active_alarms: 4,
+  },
+};
+
 export const overview: PlantOverview = {
   facility_id: 'SWRO-ALPHA',
   train_id: 'TRAIN-01',
@@ -1071,4 +1367,252 @@ export const complianceStatus: ComplianceStatusResponse = {
       basis: 'EU Drinking Water Directive — plant target',
     },
   ],
+};
+// --- Cyber-Physical Security ---
+
+export const securityOverview: SecurityOverviewResponse = {
+  status: 'attention',
+  facility_id: 'S3M-DESAL-01',
+  train_id: 'RO-TRAIN-001',
+  provenance: 'preliminary',
+  control_boundary: controlBoundary,
+  audit_integrity: {
+    ok: true,
+    count: 7,
+    head: 'a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718',
+  },
+  source_health: {
+    status: 'healthy',
+    active_source: 'synthetic',
+    requested_source: 'synthetic',
+    fallback: false,
+    fallback_reason: null,
+    available_sources: ['synthetic', 'opcua', 'modbus', 'historian'],
+    detail: { kind: 'synthetic', name: 'synthetic', asset_count: 5 },
+    reading_count: 12,
+  },
+  sensor_confidence: [
+    {
+      asset_id: 'AST-HPP-01',
+      asset_name: 'High-Pressure Pump A',
+      confidence: 0.72,
+      band: 'medium',
+      cross_sensor_consistency: 0.95,
+      physical_plausibility: 0.4,
+      calibration_days: 90,
+    },
+    {
+      asset_id: 'AST-HPP-02',
+      asset_name: 'High-Pressure Pump B (standby)',
+      confidence: 0.99,
+      band: 'high',
+      cross_sensor_consistency: 0.99,
+      physical_plausibility: 1,
+      calibration_days: 0,
+    },
+  ],
+  cyber_physical_consistency: [
+    {
+      asset_id: 'AST-HPP-01',
+      asset_name: 'High-Pressure Pump A',
+      consistency_score: 0.68,
+      status: 'inconsistent',
+      inconsistent_metrics: ['vibration_mm_s', 'bearing_temp_c'],
+      checks: [
+        {
+          metric: 'vibration_mm_s',
+          observed: 6.4,
+          expected_bound: 4.5,
+          bound: 'max',
+          residual_pct: 42.22,
+          consistent: false,
+          basis: 'ISO 10816 vibration design limit',
+        },
+      ],
+    },
+    {
+      asset_id: 'AST-HPP-02',
+      asset_name: 'High-Pressure Pump B (standby)',
+      consistency_score: 1,
+      status: 'consistent',
+      inconsistent_metrics: [],
+      checks: [],
+    },
+  ],
+};
+
+export const siemExport: SiemExportResponse = {
+  export_format: 'json',
+  source: 's3m-watertwin',
+  generated_at: '2026-07-17T07:05:00Z',
+  append_only: true,
+  record_count: 2,
+  chain: {
+    verified: true,
+    head: 'a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718',
+    verify: { ok: true, count: 2, head: 'a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718' },
+  },
+  records: [
+    {
+      seq: 1,
+      id: 'evt-1',
+      ts: '2026-07-17T07:00:00Z',
+      kind: 'system.reset',
+      actor: 'dev-admin',
+      subject: 'watertwin-api',
+      payload: {},
+      prev_hash: '0000000000000000000000000000000000000000000000000000000000000000',
+      hash: 'deadbeef0000000000000000000000000000000000000000000000000000beef',
+    },
+    {
+      seq: 2,
+      id: 'evt-2',
+      ts: '2026-07-17T07:01:00Z',
+      kind: 'scenario.run',
+      actor: 'erin-engineer',
+      subject: 'sim-1',
+      payload: { scenario: 'pump_outage' },
+      prev_hash: 'deadbeef0000000000000000000000000000000000000000000000000000beef',
+      hash: 'a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718',
+    },
+  ],
+  signature: {
+    alg: 'HMAC-SHA256',
+    value: 'f00dcafef00dcafef00dcafef00dcafef00dcafef00dcafef00dcafef00dcafe',
+    signed_fields: ['id', 'ts', 'kind', 'actor', 'subject', 'payload', 'prev_hash', 'hash', 'seq'],
+    detail: 'HMAC-SHA256 over canonical({records, head})',
+  },
+};
+// --- Operator Training Simulator (SIMULATION, sandboxed) ---
+
+const trainingEnvelope = {
+  facility_id: 'S3M-DESAL-01',
+  train_id: 'RO-TRAIN-001',
+  provenance: 'simulated' as const,
+  simulation: true,
+  disclaimer:
+    'SIMULATION — operator training drill on synthetic data. This is a sandboxed rehearsal only: no real control action is taken, no command is emitted.',
+  control_boundary: controlBoundary,
+};
+
+const pumpDegradationScenario: TrainingScenariosResponse['scenarios'][number] = {
+  scenario_id: 'pump-degradation',
+  scenario_type: 'pump_degradation',
+  title: 'High-Pressure Pump Degradation',
+  category: 'Rotating equipment',
+  difficulty: 'foundational',
+  briefing: 'The high-pressure feed pump shows a rising vibration trend and falling efficiency.',
+  derived_from: 'synthetic PdM telemetry (AST-HPP-01) + hydraulic pump_outage what-if',
+  learning_objectives: ['Recognise degradation from telemetry.'],
+  rubric: [
+    {
+      key: 'diagnose_vibration',
+      prompt: 'Identify the rising vibration / bearing-wear signature.',
+      guidance: 'Call out the vibration trend against the ISO alarm limit.',
+      weight: 2.0,
+    },
+    {
+      key: 'plan_maintenance',
+      prompt: 'Schedule a diagnostic / maintenance in a low-demand window.',
+      guidance: 'Plan an inspection rather than tripping the pump immediately.',
+      weight: 2.0,
+    },
+  ],
+};
+
+export const trainingScenarios: TrainingScenariosResponse = {
+  ...trainingEnvelope,
+  scenarios: [
+    pumpDegradationScenario,
+    {
+      ...pumpDegradationScenario,
+      scenario_id: 'leak',
+      scenario_type: 'leak',
+      title: 'Product-Water Leak',
+      category: 'Hydraulics',
+      difficulty: 'intermediate',
+    },
+  ],
+};
+
+export const trainingSession: TrainingSessionResponse = {
+  ...trainingEnvelope,
+  session: {
+    session_id: 'train-abc123',
+    scenario_id: 'pump-degradation',
+    scenario: pumpDegradationScenario,
+    operator: 'operator',
+    status: 'in_progress',
+    simulation: true,
+    twin_summary: {
+      headline: 'High-Pressure Pump A: rising vibration and bearing temperature.',
+      observed: { vibration_mm_s: 6.4, vibration_limit_mm_s: 4.5, efficiency_drift_pct: 6.0 },
+      affected_asset: 'AST-HPP-01',
+      reused_scenario: 'pump_outage',
+    },
+    injected_telemetry: [
+      {
+        asset_id: 'AST-HPP-01',
+        metric: 'vibration_mm_s',
+        value: 6.4,
+        unit: 'mm/s',
+        timestamp: '2026-07-17T07:00:00Z',
+        provenance: 'simulated',
+      },
+    ],
+    actions: [],
+    started_at: '2026-07-17T07:00:00Z',
+    provenance: 'simulated',
+    control_boundary: controlBoundary,
+    disclaimer: trainingEnvelope.disclaimer,
+  },
+};
+
+export const trainingRecord: TrainingRecordResponse = {
+  ...trainingEnvelope,
+  record: {
+    record_id: 'trec-abc123',
+    session_id: 'train-abc123',
+    scenario_id: 'pump-degradation',
+    scenario_title: 'High-Pressure Pump Degradation',
+    operator: 'operator',
+    score: {
+      total_score: 4.0,
+      max_score: 4.0,
+      percentage: 100.0,
+      band: 'Exemplary',
+      passed: true,
+      provenance: 'simulated',
+      items: [
+        {
+          key: 'diagnose_vibration',
+          prompt: 'Identify the rising vibration / bearing-wear signature.',
+          weight: 2.0,
+          matched: true,
+          awarded: 2.0,
+          feedback: 'Addressed.',
+        },
+        {
+          key: 'plan_maintenance',
+          prompt: 'Schedule a diagnostic / maintenance in a low-demand window.',
+          weight: 2.0,
+          matched: true,
+          awarded: 2.0,
+          feedback: 'Addressed.',
+        },
+      ],
+    },
+    actions: [],
+    started_at: '2026-07-17T07:00:00Z',
+    completed_at: '2026-07-17T07:05:00Z',
+    simulation: true,
+    provenance: 'simulated',
+    control_boundary: controlBoundary,
+    disclaimer: trainingEnvelope.disclaimer,
+  },
+};
+
+export const trainingRecords: TrainingRecordsResponse = {
+  ...trainingEnvelope,
+  records: [trainingRecord.record],
 };

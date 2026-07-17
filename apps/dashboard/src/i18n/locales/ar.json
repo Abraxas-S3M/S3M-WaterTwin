@@ -1,0 +1,567 @@
+{
+  "app": {
+    "title": "S3M-WaterTwin",
+    "subtitle": "وحدة تحكم المشغّل"
+  },
+  "common": {
+    "dash": "—",
+    "yes": "نعم",
+    "no": "لا",
+    "none": "لا يوجد",
+    "noneCap": "لا يوجد",
+    "signingIn": "جارٍ تسجيل الدخول…"
+  },
+  "nav": {
+    "ariaLabel": "التنقل الأساسي",
+    "footerNote": "الصفحات 1 و2 و4 مفعّلة · والبقية في مراحل لاحقة",
+    "items": {
+      "command": "نظرة عامة على القيادة",
+      "process": "التوأم الرقمي للعملية",
+      "asset": "التوأم الرقمي للأصل",
+      "water-quality": "جودة المياه",
+      "predictive-maintenance": "الصيانة التنبؤية",
+      "energy": "تحسين الطاقة",
+      "resilience": "قيادة المرونة",
+      "executive": "القيمة التنفيذية / العائد على الاستثمار",
+      "assistant": "مساعد العمليات",
+      "simulation": "مركز المحاكاة"
+    },
+    "notes": {
+      "simulation": "المرحلة 8–9"
+    }
+  },
+  "settings": {
+    "language": "اللغة",
+    "languageNames": {
+      "en": "English",
+      "ar": "العربية"
+    },
+    "units": "الوحدات",
+    "unitNames": {
+      "metric": "متري",
+      "imperial": "إمبراطوري"
+    }
+  },
+  "safety": {
+    "writeEnabledBadge": "الكتابة مُفعّلة",
+    "noWriteBadge": "لا كتابة للتحكم",
+    "writeEnabledMessage": "تحذير: الكتابة إلى التحكم مُفعّلة — هذا ينتهك حدود الوضع الاستشاري.",
+    "advisoryMessage": "وضع استشاري ({{mode}}). لا يكتب هذا النظام إلى عناصر تحكم المنشأة؛ وتتطلب جميع الإجراءات موافقة المشغّل وتُسجَّل للتدقيق."
+  },
+  "provenance": {
+    "measured": {
+      "label": "مقيس",
+      "title": "بيانات مقيسة مباشرة من الأجهزة."
+    },
+    "synthetic": {
+      "label": "اصطناعي",
+      "title": "بيانات اصطناعية — مُولَّدة وليست من أجهزة المنشأة الحية."
+    },
+    "simulated": {
+      "label": "محاكى",
+      "title": "مخرجات محاكاة النموذج — غير مُتحقّق منها مقابل المنشأة."
+    },
+    "preliminary": {
+      "label": "أولي",
+      "title": "مخرجات نموذج أولية — بانتظار المعايرة/التحقق."
+    },
+    "estimated": {
+      "label": "مُقدَّر",
+      "title": "تقدير توضيحي على بيانات تجريبية اصطناعية — ليس توفيرًا مُتحقّقًا أو نتيجة مضمونة."
+    }
+  },
+  "units": {
+    "flow_m3h": "م³/س",
+    "flow_gpm": "غالون/د",
+    "pressure_bar": "بار",
+    "pressure_psi": "psi",
+    "temp_c": "°م",
+    "temp_f": "°ف",
+    "productPerDay_m3": "م³/يوم",
+    "productPerDay_gal": "غالون/يوم",
+    "power_kw": "ك.و",
+    "sec_kwh_m3": "ك.و.س/م³",
+    "sec_kwh_kgal": "ك.و.س/ألف غالون",
+    "conductivity_us_cm": "µS/cm",
+    "concentration_mg_l": "مغ/ل",
+    "head_m": "م",
+    "head_ft": "قدم",
+    "days": "يوم",
+    "daysShort": "ي",
+    "hoursShort": "س",
+    "percent": "%"
+  },
+  "healthBar": {
+    "outOf100": "/ 100"
+  },
+  "contribution": {
+    "empty": "لا توجد عوامل مساهمة مُبلَّغ عنها."
+  },
+  "recommendation": {
+    "confidence": "الثقة:",
+    "asset": "الأصل: {{id}}",
+    "mode": "الوضع: {{mode}}",
+    "rankedCauses": "الأسباب المحتملة مرتَّبة",
+    "recommendedAction": "الإجراء الموصى به:",
+    "evidenceAssumptions": "الأدلة والافتراضات",
+    "telemetryWindow": "نافذة القياس عن بُعد: {{window}}",
+    "approve": "موافقة",
+    "reject": "رفض",
+    "advisoryOnly": "استشاري فقط — لا يتم إصدار أي كتابة للتحكم.",
+    "roleGate": "تتطلب الموافقة أو الرفض دور <1>المشغّل</1>.",
+    "status": {
+      "pending": "قيد الانتظار",
+      "approved": "مُعتمَد",
+      "rejected": "مرفوض"
+    }
+  },
+  "audit": {
+    "immutableRecord": "سجل غير قابل للتغيير للقرارات الاستشارية",
+    "loading": "جارٍ تحميل سجل التدقيق…",
+    "empty": "لا توجد إدخالات تدقيق بعد.",
+    "note": "ملاحظة: {{note}}"
+  },
+  "pumpCurve": {
+    "hqCurve": "منحنى الضاغط–التدفق",
+    "bep": "نقطة أفضل كفاءة",
+    "operatingPoint": "نقطة التشغيل",
+    "flowAxis": "التدفق ({{unit}})",
+    "headAxis": "الرفع ({{unit}})",
+    "loading": "جارٍ تحميل منحنى المضخة…",
+    "unavailable": "لا يتوفر منحنى مضخة لهذا النوع من الأصول.",
+    "caption": "نقطة التشغيل مقابل نقطة أفضل كفاءة (BEP)"
+  },
+  "scenarios": {
+    "roleGateTitle": "يتطلب دور المهندس لتشغيل سيناريوهات ماذا-لو",
+    "roleGate": "يتطلب تشغيل سيناريوهات ماذا-لو دور <1>المهندس</1>.",
+    "notActive": "خدمات المحاكاة تتصل في مرحلة لاحقة؛ يتم عرض البيانات الحية الأساسية.",
+    "items": {
+      "baseline": {
+        "label": "الأساس",
+        "description": "ظروف تشغيل اسمية من التوأم الحي."
+      },
+      "peak_demand": {
+        "label": "ذروة الطلب",
+        "description": "ملف طلب مياه منتَج أعلى (محاكاة، مرحلة لاحقة)."
+      },
+      "fouling_event": {
+        "label": "انسداد الأغشية",
+        "description": "مُجهِد انسداد تدريجي (محاكاة، مرحلة لاحقة)."
+      },
+      "energy_saver": {
+        "label": "موفّر الطاقة",
+        "description": "تقليل الطاقة النوعية ضمن الحدود (محاكاة، مرحلة لاحقة)."
+      }
+    }
+  },
+  "auth": {
+    "loginPrompt": "سجّل الدخول بهوية المشغّل الخاصة بك للوصول إلى وحدة التحكم الاستشارية. جميع الإجراءات للقراءة فقط فيما يتعلق بتحكم المنشأة وتُسجَّل في سجل التدقيق.",
+    "signInKeycloak": "تسجيل الدخول عبر Keycloak",
+    "unknownUser": "غير معروف",
+    "signOut": "تسجيل الخروج",
+    "devMode": "المصادقة مُعطّلة (تطوير)"
+  },
+  "command": {
+    "title": "نظرة عامة على القيادة",
+    "loading": "جارٍ تحميل نظرة القيادة العامة…",
+    "unavailableTitle": "نظرة القيادة العامة غير متاحة",
+    "unavailableBody": "تعذّر تحميل بيانات النظرة العامة.",
+    "kpi": {
+      "plantHealth": "صحة المحطة",
+      "production": "الإنتاج",
+      "productionFoot": "{{value}} م³/يوم منتَج",
+      "recovery": "الاستخلاص",
+      "permeateConductivity": "توصيلية المُرشَّح",
+      "energy": "الطاقة",
+      "energyFoot": "الطاقة النوعية {{value}} ك.و.س/م³",
+      "serviceContinuityRisk": "مخاطر استمرارية الخدمة",
+      "riskFoot": "مخاطر {{band}}"
+    },
+    "hpPumpStatus": "حالة مضخة الضغط العالي",
+    "membraneStatus": "حالة الأغشية",
+    "noStatus": "لا توجد حالة.",
+    "anomalyScore": "درجة الشذوذ:",
+    "normSaltPassage": "مرور الملح المُطبَّع:",
+    "activeAlarms": "الإنذارات النشطة",
+    "noActiveAlarms": "لا توجد إنذارات نشطة.",
+    "activeRecommendations": "التوصيات النشطة",
+    "noPendingRecommendations": "لا توجد توصيات معلّقة.",
+    "table": {
+      "severity": "الخطورة",
+      "asset": "الأصل",
+      "message": "الرسالة"
+    }
+  },
+  "process": {
+    "title": "التوأم الرقمي للعملية",
+    "loading": "جارٍ تحميل التوأم الرقمي للعملية…",
+    "context": "اختر مرحلة للفحص؛ وانقر على أصل لفتح توأمه.",
+    "productTrain": "خط المنتَج — المأخذ ← المنتَج",
+    "concentrate": "المركّز — رفض التناضح ← استرداد الطاقة ← الأجاج",
+    "noInstrumentedAsset": "لا يوجد أصل مزوَّد بأجهزة",
+    "openAssetTitle": "فتح توأم {{name}}",
+    "stageAssets": "{{stage}} — الأصول",
+    "noStageAssets": "لا توجد أصول مزوَّدة بأجهزة في هذه المرحلة.",
+    "openTwin": "فتح التوأم ←",
+    "streams": "التدفقات",
+    "table": {
+      "asset": "الأصل",
+      "type": "النوع",
+      "criticality": "الحرجية",
+      "health": "الصحة",
+      "stream": "التدفق",
+      "from": "من",
+      "to": "إلى",
+      "description": "الوصف"
+    }
+  },
+  "asset": {
+    "loading": "جارٍ تحميل التوأم الرقمي للأصل…",
+    "unavailableTitle": "الأصل غير متاح",
+    "unavailableBody": "تعذّر تحميل الأصل.",
+    "unassignedStage": "مرحلة غير مُعيَّنة",
+    "askS3M": "اسأل S3M",
+    "askingS3M": "جارٍ سؤال S3M…",
+    "picker": {
+      "title": "اختر أصلًا",
+      "help": "اختر أصلًا لفتح توأمه، أو انقر على أحدها من التوأم الرقمي للعملية.",
+      "asset": "الأصل",
+      "type": "النوع",
+      "stage": "المرحلة",
+      "criticality": "الحرجية"
+    },
+    "identity": "الهوية",
+    "identityFields": {
+      "manufacturer": "الشركة المصنّعة",
+      "model": "الطراز",
+      "serial": "الرقم التسلسلي",
+      "facilityTrain": "المنشأة / الخط",
+      "location": "الموقع",
+      "criticality": "الحرجية",
+      "installed": "تاريخ التركيب"
+    },
+    "ratedLimits": "الحدود المُقنَّنة",
+    "noRatedData": "لا توجد بيانات مُقنَّنة مسجَّلة.",
+    "rated": {
+      "rated_flow_m3h": "التدفق المُقنَّن",
+      "rated_head_m": "الرفع المُقنَّن",
+      "rated_power_kw": "القدرة المُقنَّنة",
+      "rated_speed_rpm": "السرعة المُقنَّنة",
+      "bep_flow_m3h": "تدفق أفضل كفاءة",
+      "min_flow_m3h": "أدنى تدفق",
+      "max_flow_m3h": "أقصى تدفق",
+      "temp_limit_c": "حد الحرارة",
+      "vibration_limit_mm_s": "حد الاهتزاز"
+    },
+    "healthScore": "درجة الصحة",
+    "contributionBreakdown": "تفصيل المساهمة",
+    "loadingHealth": "جارٍ تحميل الصحة…",
+    "anomalyScore": "درجة الشذوذ",
+    "outOf1": "/ 1.0",
+    "rankedDomains": "المجالات مرتَّبة",
+    "loadingAnomaly": "جارٍ تحميل الشذوذ…",
+    "liveState": "الحالة الحية",
+    "noTelemetry": "لا يوجد قياس عن بُعد حي لهذا الأصل.",
+    "telemetryTable": {
+      "metric": "المقياس",
+      "value": "القيمة",
+      "unit": "الوحدة",
+      "quality": "الجودة",
+      "provenance": "المصدر"
+    },
+    "pumpCurve": "منحنى المضخة",
+    "componentHealth": "صحة المكوّن",
+    "componentHealthTag": "(الصيانة التنبؤية)",
+    "rul": "العمر التشغيلي المتبقي",
+    "rulDays": " يوم",
+    "rulBand": "النطاق: {{lower}}–{{upper}} يوم (أولي، غير مضمون)",
+    "noRul": "لا يوجد تقدير للعمر التشغيلي المتبقي لهذا الأصل.",
+    "failureProbability": "احتمال الفشل",
+    "predictedMode": "الوضع المتوقَّع: {{mode}}",
+    "horizon": "الأفق",
+    "pFailure": "احتمال(الفشل)",
+    "noFailureProbability": "لا يوجد تقدير لاحتمال الفشل لهذا الأصل.",
+    "operatingEnvelope": "مغلّف التشغيل",
+    "envelopeHelp": "نسبة الخدمة المرصودة ({{samples}} عيّنة) المقضاة في كل نظام. الابتعاد عن نقطة أفضل كفاءة يُسرّع التآكل.",
+    "envelopeRegimes": {
+      "at_bep_fraction": "عند نقطة أفضل كفاءة",
+      "low_flow_fraction": "تدفق منخفض",
+      "high_pressure_fraction": "ضغط عالٍ",
+      "excess_temperature_fraction": "حرارة زائدة",
+      "cavitation_risk_fraction": "مخاطر التكهّف"
+    },
+    "observedDuty": "{{pct}}% من الخدمة المرصودة",
+    "rootCause": "ترتيب الأسباب الجذرية",
+    "rootCauseTable": {
+      "cause": "السبب",
+      "probability": "الاحتمال",
+      "evidence": "الدليل"
+    },
+    "membrane": "ذكاء الأغشية",
+    "membraneFields": {
+      "permeateFlowDecline": "انخفاض تدفق المُرشَّح",
+      "saltPassageRise": "ارتفاع مرور الملح",
+      "dpRise": "ارتفاع فرق الضغط",
+      "fouling": "الانسداد (عضوي/غرواني/حيوي)",
+      "scalingSeverity": "شدة الترسّب",
+      "cipRequired": "تنظيف موضعي مطلوب",
+      "underperformingVessel": "وعاء ضعيف الأداء"
+    },
+    "cipYes": "نعم — {{reason}}",
+    "cipNo": "لا",
+    "maintenanceHistory": "سجل الصيانة وأساس التدهور",
+    "noMaintenanceHistory": "لا يوجد سجل صيانة مسجَّل.",
+    "recommendations": "توصيات S3M",
+    "noRecommendations": "لا توجد توصيات بعد. استخدم ”اسأل S3M“ لطلب تحليل استشاري.",
+    "auditTrail": "سجل تدقيق الأصل"
+  },
+  "simulation": {
+    "title": "مركز المحاكاة",
+    "context": "سيناريوهات ماذا-لو ومحاكاة التوأم الرقمي",
+    "cardTitle": "خدمات المحاكاة تتصل في مرحلة لاحقة",
+    "body1": "يتم تفعيل مركز المحاكاة في المرحلتين 8–9. ستظهر هنا عمليات تشغيل السيناريوهات ومقارنات ماذا-لو والمخرجات المحاكاة بمجرد ربط خدمات المحاكاة. حتى ذلك الحين، تعرض لوحة المعلومات بيانات أساسية حية من واجهة WaterTwin البرمجية.",
+    "body2": "يمكنك معاينة مُحدِّد السيناريو أدناه؛ الاختيارات نية واجهة فقط ولا تُشغّل محاكاة بعد."
+  },
+  "waterQuality": {
+    "title": "ذكاء جودة المياه",
+    "loading": "جارٍ تحميل جودة المياه…",
+    "context": "تحليلات جودة مياه استشارية. التنبؤات ومخاطر الترسّب/الانسداد/البورون هي تقديرات هندسية <1>أولية</1> ذات عدم يقين — وليست تنبؤات إنتاج مُتحقّقة أو امتثالًا مضمونًا.",
+    "kpi": {
+      "recovery": "الاستخلاص",
+      "saltRejection": "رفض الملح",
+      "permeateTds": "المواد الصلبة الذائبة في المُرشَّح",
+      "permeateBoron": "البورون في المُرشَّح",
+      "normSaltPassage": "مرور الملح المُطبَّع",
+      "normDp": "فرق الضغط المُطبَّع"
+    },
+    "liveByStage": "جودة المياه الحية حسب المرحلة",
+    "stageTable": {
+      "stage": "المرحلة",
+      "compliance": "الامتثال",
+      "recovery": "الاستخلاص",
+      "saltRejection": "رفض الملح"
+    },
+    "withinLimits": "ضمن الحدود",
+    "overLimit": "{{count}} تجاوزت الحد",
+    "contaminantMatrix": "مصفوفة الملوّثات — المأخذ ← الأجاج",
+    "matrixColumns": {
+      "intake": "المأخذ",
+      "post_pretreatment": "بعد المعالجة الأولية",
+      "ro_feed": "تغذية التناضح",
+      "permeate": "المُرشَّح",
+      "finished": "المُنتَه",
+      "brine": "الأجاج"
+    },
+    "matrixTable": {
+      "contaminant": "الملوّث",
+      "unit": "الوحدة",
+      "removalPct": "نسبة الإزالة %"
+    },
+    "treatmentRemoval": "إزالة المعالجة — الحالية مقابل التصميم مقابل المتوقَّع",
+    "removalTable": {
+      "contaminant": "الملوّث",
+      "current": "الحالي",
+      "design": "التصميم",
+      "predicted": "المتوقَّع",
+      "confidence": "الثقة"
+    },
+    "scalingRisk": "مخاطر الترسّب (لكل مركّب)",
+    "scalingTable": {
+      "compound": "المركّب",
+      "saturation": "التشبّع",
+      "probability": "الاحتمال",
+      "maxSafeRecovery": "أقصى استخلاص آمن"
+    },
+    "forecasts": "التنبؤات — الملوحة · البورون · الترسّب · الانسداد",
+    "forecastsHelp": "تقديرات فيزيائية/اتجاهية أولية بحدود عدم يقين (أدنى–أعلى). الآفاق: ساعة · وردية · 24س · 7أيام.",
+    "forecastFamilies": {
+      "permeate_salinity": "ملوحة المُرشَّح",
+      "permeate_boron": "اختراق البورون",
+      "scaling_time_to_critical": "زمن الترسّب حتى الحرِج",
+      "fouling_risk": "مخاطر الانسداد العضوي/الغرواني/الحيوي"
+    },
+    "forecastTable": {
+      "horizon": "الأفق",
+      "predicted": "المتوقَّع",
+      "range": "النطاق (أدنى–أعلى)",
+      "unit": "الوحدة",
+      "confidence": "الثقة"
+    },
+    "alerts": "تنبيهات جودة المياه",
+    "alertsHelp": "يتطلب كل تنبيه موافقة المشغّل ولا يُصدر أي كتابة للتحكم.",
+    "noAlerts": "لا توجد تنبيهات جودة مياه نشطة."
+  },
+  "predictiveMaintenance": {
+    "title": "الصيانة التنبؤية",
+    "context": "ذكاء المعدّات والأغشية مرتَّب حسب المخاطر · استشاري فقط",
+    "riskRankedAssets": "الأصول مرتَّبة حسب المخاطر",
+    "disclaimer": "العمر التشغيلي المتبقي واحتمال الفشل والتكلفة المتجنَّبة هي تقديرات هندسية <1>أولية</1> ذات عدم يقين — غير مُتحقّقة أو مضمونة. جميع الإجراءات تتطلب موافقة المشغّل؛ ولا يتم إصدار أي كتابة للتحكم.",
+    "loadingRanking": "جارٍ تحميل الترتيب…",
+    "noAssetsRanked": "لا توجد أصول مرتَّبة.",
+    "table": {
+      "asset": "الأصل",
+      "health": "الصحة",
+      "predictedFailureMode": "وضع الفشل المتوقَّع",
+      "failProb30d": "احتمال الفشل (30ي)",
+      "rulD": "العمر المتبقي (ي)",
+      "timeToInterv": "زمن التدخّل (ي)",
+      "window": "النافذة",
+      "spares": "قطع الغيار",
+      "downtimeH": "التوقف (س)",
+      "maintCost": "تكلفة الصيانة",
+      "avoidedCost": "التكلفة المتجنَّبة"
+    },
+    "openAssetTwin": "فتح التوأم الرقمي للأصل",
+    "detail": {
+      "predictedFailureMode": "وضع الفشل المتوقَّع",
+      "failureProbability30d": "احتمال الفشل (30ي)",
+      "preliminaryRul": "العمر التشغيلي المتبقي الأولي",
+      "rulValue": "{{value}} ي ({{lower}}–{{upper}} ي)",
+      "timeToIntervention": "زمن التدخّل",
+      "timeToInterventionValue": "{{value}} ي",
+      "recommendedWindow": "النافذة الموصى بها",
+      "sparesRequired": "قطع الغيار المطلوبة",
+      "expectedDowntime": "التوقف المتوقَّع",
+      "expectedDowntimeValue": "{{value}} س",
+      "maintenanceCost": "تكلفة الصيانة",
+      "maintenanceCostValue": "{{value}} (أولي)",
+      "avoidedFailureCost": "تكلفة الفشل المتجنَّبة",
+      "avoidedFailureCostValue": "{{value}} (أولي)"
+    },
+    "advisoryRecommendation": "توصية استشارية",
+    "noRoutedCard": "لا توجد بطاقة توصية موجَّهة لهذا الأصل بعد.",
+    "selectRow": "اختر صف أصل لعرض تفاصيل الصيانة التنبؤية والتوصية الخاصة به."
+  },
+  "energy": {
+    "title": "تحسين الطاقة",
+    "loading": "جارٍ تحميل تحسين الطاقة…",
+    "context": "تحسين الطاقة النوعية للتناضح العكسي مقيَّد (استشاري). نقطة الضبط المثلى والوفورات <1>مُقدَّرة</1> وأولية على أساس اصطناعي — وليست وفورات مُتحقّقة. لا يتم إصدار أي كتابة للتحكم؛ وتتطلب نقاط الضبط إجراء المشغّل.",
+    "kpi": {
+      "totalPower": "إجمالي القدرة",
+      "currentSec": "الطاقة النوعية الحالية",
+      "optimalSec": "الطاقة النوعية المثلى",
+      "secReduction": "خفض الطاقة النوعية",
+      "estSaving": "التوفير المُقدَّر",
+      "perDay": "/يوم"
+    },
+    "byAsset": "الطاقة حسب الأصل",
+    "byAssetTable": {
+      "asset": "الأصل",
+      "power": "القدرة ({{unit}})"
+    },
+    "setpointTitle": "نقطة الضبط الحالية مقابل المثلى",
+    "optimizing": "جارٍ التحسين…",
+    "runOptimization": "تشغيل التحسين",
+    "setpointCurrent": "الحالية (أساس)",
+    "setpointOptimal": "المثلى (مُقدَّرة)",
+    "setpointFields": {
+      "hpPressure": "ضغط مضخة الضغط العالي",
+      "recovery": "الاستخلاص",
+      "specificEnergy": "الطاقة النوعية",
+      "permeateFlow": "تدفق المُرشَّح"
+    },
+    "optimizeResult": "المُحسِّن: الضغط الأمثل <1>{{pressure}} بار</1> عند استخلاص <3>{{recovery}}%</3> ← <5>{{sec}} ك.و.س/م³</5> (من {{baseline}}). القيود مُحترَمة: {{respected}}.",
+    "losses": "خسارة الطاقة القابلة للتجنّب",
+    "lossesTable": {
+      "item": "البند",
+      "currentSec": "الطاقة النوعية الحالية",
+      "bestAchievable": "أفضل ما يمكن تحقيقه",
+      "avoidable": "قابل للتجنّب",
+      "estSavingPerDay": "توفير مُقدَّر/يوم"
+    }
+  },
+  "resilience": {
+    "title": "قيادة المرونة",
+    "context": "مرونة انقطاع الشبكة وقيادة المولّد (استشاري). احتمال بدء المولّد وتحمّل الوقود ومدة استمرارية الخدمة هي تقديرات <1>أولية</1> على بيانات اصطناعية — وليست توافرًا أو زمن تشغيل مضمونًا. أي توصية تتطلب موافقة المشغّل؛ ولا يتم إصدار أي كتابة للتحكم.",
+    "scenarioTitle": "سيناريو انقطاع الشبكة",
+    "assessing": "جارٍ التقييم…",
+    "runScenario": "تشغيل سيناريو انقطاع الشبكة",
+    "scenarioBody": "قيّم جاهزية المولّد وترتيب طرح الأحمال واستمرارية الخدمة وحرجية الأصول في ظل فقد كامل للشبكة. ماذا-لو للقراءة فقط.",
+    "kpi": {
+      "startProbability": "احتمال بدء المولّد",
+      "fuelEndurance": "تحمّل الوقود",
+      "fuelLevel": "مستوى الوقود",
+      "loadFraction": "نسبة الحمل",
+      "serviceContinuity": "استمرارية الخدمة"
+    },
+    "loadShed": "أولوية طرح الأحمال",
+    "loadShedBody": "تُطرح الأحمال الأدنى أولوية أولًا للإبقاء على مضخة الضغط العالي + الأحمال الأساسية أخيرًا. الحمل المُبقى {{retained}} ك.و من {{total}} ك.و؛ الأحمال الحرجة مُستدامة: {{sustained}}.",
+    "loadShedTable": {
+      "shedOrder": "ترتيب الطرح",
+      "asset": "الأصل",
+      "priority": "الأولوية",
+      "load": "الحمل ({{unit}})",
+      "status": "الحالة"
+    },
+    "retained": "مُبقى",
+    "shed": "مطروح",
+    "criticality": "ترتيب حرجية الأصول",
+    "noCriticality": "لا يتوفر ترتيب حرجية.",
+    "criticalityTable": {
+      "rank": "الرتبة",
+      "asset": "الأصل",
+      "score": "الدرجة",
+      "impact": "الأثر",
+      "failureProb": "احتمال الفشل",
+      "recovery": "الاسترداد ({{unit}})"
+    },
+    "recommendedPriority": "أولوية المولّد الموصى بها"
+  },
+  "executive": {
+    "title": "القيمة التنفيذية / العائد على الاستثمار",
+    "loading": "جارٍ تحميل القيمة التنفيذية…",
+    "context": "قيمة مُجمَّعة عبر طبقات المنصّة (استشاري). كل رقم <1>مُقدَّر</1> وأولي.",
+    "disclaimerBadge": "مُقدَّر · اصطناعي",
+    "defaultDisclaimer": "تقديرات توضيحية على بيانات تجريبية اصطناعية — ليست وفورات مُتحقّقة أو نتائج مضمونة.",
+    "kpi": {
+      "pilotRoi": "عائد الاستثمار التجريبي",
+      "annualizedBenefit": "الفائدة السنوية",
+      "paybackPeriod": "فترة الاسترداد",
+      "paybackUnit": "شهر",
+      "pilotInvestment": "الاستثمار التجريبي"
+    },
+    "annualizedBenefits": "الفوائد السنوية المُقدَّرة",
+    "benefitTable": {
+      "category": "فئة الفائدة",
+      "annualized": "سنوية (تقديري)",
+      "provenance": "المصدر"
+    },
+    "benefitRows": {
+      "downtime_avoided": "توقف مُتجنَّب",
+      "energy_savings": "وفورات الطاقة",
+      "chemical_savings": "وفورات المواد الكيميائية",
+      "water_loss_avoided": "فقد مياه مُتجنَّب",
+      "maintenance_savings": "وفورات الصيانة",
+      "capex_deferred": "نفقات رأسمالية مؤجَّلة"
+    },
+    "totalBenefit": "إجمالي الفائدة السنوية",
+    "basis": "أساس التقديرات",
+    "basisBody": "تُجمِّع كل فائدة مخرجات مُقدَّرة من طبقة قائمة؛ ولا تُدخَل فيزياء جديدة. هذه أرقام توضيحية على بيانات تجريبية اصطناعية، وليست وفورات مُتحقّقة.",
+    "basisItem": "{{value}}/سنة"
+  },
+  "assistant": {
+    "title": "مساعد العمليات",
+    "context": "اسأل عن أي شيء تحسبه المنصّة. كل إجابة <1>مُستندة</1> إلى بيانات المنصّة + المستندات المُسترجَعة (وليست معرفة نموذج عامة) وتُظهر بالضبط ما استُخدم. استشاري / للقراءة فقط — أي إجراء موصى به يتطلب موافقة المشغّل؛ ولا يتم إصدار أي كتابة للتحكم.",
+    "engineLocal": "احتياطي محلي",
+    "engineQuad": "المحرك الرباعي",
+    "engineLocalTitle": "المحرك الرباعي S3M-Core غير قابل للوصول — استُخدم احتياطي محلي مُستنِد.",
+    "engineQuadTitle": "الإجابة منسّقة بواسطة المحرك الرباعي S3M-Core.",
+    "evidence": "الأدلة",
+    "dataTimestamp": "الطابع الزمني للبيانات",
+    "confidence": "الثقة",
+    "sourceEngine": "محرك المصدر",
+    "assetsReviewed": "الأصول المراجَعة",
+    "documentsReviewed": "المستندات المراجَعة",
+    "simulationsUsed": "المحاكاة المستخدَمة",
+    "assumptions": "الافتراضات",
+    "questionPlaceholder": "مثال: لماذا يتدهور HPP-001؟",
+    "questionLabel": "السؤال",
+    "asking": "جارٍ السؤال…",
+    "ask": "اسأل",
+    "error": "تعذّر الوصول إلى المساعد. يرجى المحاولة مرة أخرى.",
+    "answer": "الإجابة",
+    "answerNote": "إجابة استشارية للقراءة فقط — مُستندة إلى بيانات المنصّة + المستندات، وليست معرفة نموذج عامة.",
+    "recommendedAction": "الإجراء الموصى به",
+    "empty": "اطرح سؤالًا أو اختر مطالبة مثال للحصول على إجابة مُستندة ومدعومة بالأدلة."
+  }
+}

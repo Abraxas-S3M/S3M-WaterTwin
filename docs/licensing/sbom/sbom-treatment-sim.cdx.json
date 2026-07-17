@@ -46,6 +46,81 @@
       "version": "2.12.0"
     },
     {
+      "bom-ref": "requirements-L22",
+      "description": "requirements line 22: opentelemetry-api==1.44.0",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/opentelemetry-api/"
+        }
+      ],
+      "name": "opentelemetry-api",
+      "purl": "pkg:pypi/opentelemetry-api@1.44.0",
+      "type": "library",
+      "version": "1.44.0"
+    },
+    {
+      "bom-ref": "requirements-L24",
+      "description": "requirements line 24: opentelemetry-exporter-otlp-proto-http==1.44.0",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/opentelemetry-exporter-otlp-proto-http/"
+        }
+      ],
+      "name": "opentelemetry-exporter-otlp-proto-http",
+      "purl": "pkg:pypi/opentelemetry-exporter-otlp-proto-http@1.44.0",
+      "type": "library",
+      "version": "1.44.0"
+    },
+    {
+      "bom-ref": "requirements-L25",
+      "description": "requirements line 25: opentelemetry-instrumentation-fastapi==0.65b0",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/opentelemetry-instrumentation-fastapi/"
+        }
+      ],
+      "name": "opentelemetry-instrumentation-fastapi",
+      "purl": "pkg:pypi/opentelemetry-instrumentation-fastapi@0.65b0",
+      "type": "library",
+      "version": "0.65b0"
+    },
+    {
+      "bom-ref": "requirements-L23",
+      "description": "requirements line 23: opentelemetry-sdk==1.44.0",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/opentelemetry-sdk/"
+        }
+      ],
+      "name": "opentelemetry-sdk",
+      "purl": "pkg:pypi/opentelemetry-sdk@1.44.0",
+      "type": "library",
+      "version": "1.44.0"
+    },
+    {
+      "bom-ref": "requirements-L21",
+      "description": "requirements line 21: prometheus-client==0.25.0",
+      "externalReferences": [
+        {
+          "comment": "implicit dist url",
+          "type": "distribution",
+          "url": "https://pypi.org/simple/prometheus-client/"
+        }
+      ],
+      "name": "prometheus-client",
+      "purl": "pkg:pypi/prometheus-client@0.25.0",
+      "type": "library",
+      "version": "0.25.0"
+    },
+    {
       "bom-ref": "requirements-L15",
       "description": "requirements line 15: pydantic==2.11.7",
       "externalReferences": [
@@ -126,6 +201,21 @@
       "ref": "requirements-L16"
     },
     {
+      "ref": "requirements-L21"
+    },
+    {
+      "ref": "requirements-L22"
+    },
+    {
+      "ref": "requirements-L23"
+    },
+    {
+      "ref": "requirements-L24"
+    },
+    {
+      "ref": "requirements-L25"
+    },
+    {
       "ref": "requirements-L6"
     },
     {
@@ -136,7 +226,7 @@
     }
   ],
   "metadata": {
-    "timestamp": "2026-07-17T13:56:03.329916+00:00",
+    "timestamp": "2026-07-17T14:55:44.551289+00:00",
     "tools": {
       "components": [
         {
@@ -240,7 +330,7 @@
       ]
     }
   },
-  "serialNumber": "urn:uuid:8bf0544d-8cd7-4c50-9a86-8b43aac022ad",
+  "serialNumber": "urn:uuid:03142966-46e4-48a0-984d-ef44f073c597",
   "version": 1,
   "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
   "bomFormat": "CycloneDX",

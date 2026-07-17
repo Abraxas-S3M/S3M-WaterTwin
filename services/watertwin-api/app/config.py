@@ -16,6 +16,38 @@ RECOMMENDATION_STORE_PATH = os.environ.get(
     os.path.join(os.path.dirname(__file__), "..", "data", "recommendations.json"),
 )
 
+# Work-order store (JSON-file backed by default; mirrors the recommendation store).
+WORK_ORDER_STORE_PATH = os.environ.get(
+    "WATERTWIN_WORK_ORDER_STORE",
+    os.path.join(os.path.dirname(__file__), "..", "data", "work-orders.json"),
+)
+
+# ---------------------------------------------------------------------------
+# CMMS (maintenance system of record) integration.
+#
+# The platform talks to a CMMS through a pluggable adapter (app/cmms/). The
+# default adapter is STRICTLY READ-ONLY: it pulls work orders + asset history
+# only. A write-back adapter -- which creates a CMMS *ticket* for an
+# operator-approved work order -- is enabled ONLY when CMMS_WRITE_BACK_ENABLED
+# is true. A CMMS ticket is a business-system record, NEVER an OT/control path,
+# and is only ever created after operator approval.
+# ---------------------------------------------------------------------------
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+#: Enable write-back of operator-approved work orders as CMMS tickets. Default
+#: false (read-only). Even when true this is a ticket path, never a control path.
+CMMS_WRITE_BACK_ENABLED = _env_bool("CMMS_WRITE_BACK_ENABLED", False)
+
+#: Human-readable name of the CMMS system of record.
+CMMS_SYSTEM_NAME = os.environ.get("CMMS_SYSTEM", "synthetic-cmms")
+
 # CORS origins allowed to call this API (the dashboard).
 CORS_ORIGINS = os.environ.get("WATERTWIN_CORS_ORIGINS", "*").split(",")
 
@@ -39,6 +71,44 @@ COMPLIANCE_LIMITS_JSON = os.environ.get("WATERTWIN_COMPLIANCE_LIMITS") or None
 # Durable store (TimescaleDB/Postgres). When unset the store runs purely in
 # memory and degrades gracefully; nothing here is ever a control-write path.
 DATABASE_URL = os.environ.get("WATERTWIN_DATABASE_URL") or None
+
+# Provisioned shared token an edge gateway presents (X-Ingest-Token header) to
+# the telemetry ingest path. When unset, ingest falls back to role-based auth
+# (see app.auth.require_ingest). Read at request time in app.auth, not here.
+INGEST_TOKEN = os.environ.get("WATERTWIN_INGEST_TOKEN") or None
+
+# ---------------------------------------------------------------------------
+# Advisory service-event bus (NATS).
+#
+# Service events (telemetry-ingested, alert-raised, workorder-created,
+# config-published, audit-appended) are published to a NATS bus so other
+# services can react/project them. The bus is ADVISORY / NOTIFICATION ONLY: it
+# never carries a control command (enforced by the subject guard in
+# ``watertwin_events``). When ``NATS_URL`` is unset or the broker is unreachable
+# the bus degrades gracefully -- it logs, counts a metric, and falls back to
+# direct in-process delivery so the API keeps working. No event is ever a
+# control-write path.
+# ---------------------------------------------------------------------------
+
+#: NATS broker URL (e.g. ``nats://nats:4222``). Unset -> degraded (direct) mode.
+NATS_URL = os.environ.get("NATS_URL") or None
+
+#: Connect timeout (seconds) for the NATS client before degrading.
+NATS_CONNECT_TIMEOUT = float(os.environ.get("NATS_CONNECT_TIMEOUT", "2.0"))
+
+# ---------------------------------------------------------------------------
+# Multi-tenant / multi-facility scoping.
+#
+# Every canonical record and persisted row is scoped to a (tenant, facility)
+# pair. The platform historically modelled a single facility with no explicit
+# tenant boundary; that pre-existing data is treated as belonging to the default
+# tenant/facility below so upgrades are non-breaking (the store backfills NULL
+# scopes to these defaults on connect). These defaults are also used as the
+# implicit scope for callers whose token carries no explicit tenant/facility
+# membership (e.g. the dev bypass and legacy single-facility tokens).
+# ---------------------------------------------------------------------------
+DEFAULT_TENANT_ID = os.environ.get("WATERTWIN_DEFAULT_TENANT_ID") or "s3m-default"
+DEFAULT_FACILITY_ID = os.environ.get("WATERTWIN_DEFAULT_FACILITY_ID") or "S3M-DESAL-01"
 
 # ---------------------------------------------------------------------------
 # Telemetry source selection (read-only OT connectors).

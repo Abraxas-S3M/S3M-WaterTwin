@@ -14,6 +14,8 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 __all__ = [
+    "DEFAULT_TENANT_ID",
+    "DEFAULT_FACILITY_ID",
     "AssetType",
     "TreatmentStage",
     "StreamType",
@@ -51,6 +53,12 @@ __all__ = [
     "FoulingSeverity",
     "MembraneHealth",
     "PdMRecommendation",
+    "WorkOrderStatus",
+    "WorkOrderPriority",
+    "WorkOrderSource",
+    "CmmsSyncStatus",
+    "MaintenanceWorkOrder",
+    "AssetMaintenanceRecord",
     "EnergyOptimizationResult",
     "EnergyLoss",
     "ResilienceCriticality",
@@ -78,6 +86,16 @@ __all__ = [
     "COMPLIANCE_DISCLAIMER",
     "now_iso",
 ]
+
+#: Canonical default tenant + facility. The platform historically modelled a
+#: single seawater-RO facility with no explicit tenant boundary. Multi-tenant
+#: scoping treats that pre-existing data as belonging to this default
+#: tenant/facility so nothing breaks on upgrade (see the store migration in
+#: ``watertwin-api/app/store.py``). ``DEFAULT_FACILITY_ID`` matches the canonical
+#: RO facility id used throughout the synthetic plant.
+DEFAULT_TENANT_ID = "s3m-default"
+DEFAULT_FACILITY_ID = "S3M-DESAL-01"
+
 
 #: Standard disclaimer stamped on every value/ROI artifact. These figures are
 #: illustrative estimates on synthetic pilot data -- not validated savings or
@@ -223,6 +241,7 @@ class Asset(BaseModel):
     asset_id: str
     name: str
     asset_type: AssetType
+    tenant_id: str = DEFAULT_TENANT_ID
     facility_id: str
     train_id: str
     treatment_stage: Optional[TreatmentStage] = None
@@ -311,6 +330,7 @@ class WaterTwinPacket(BaseModel):
     packet_type: str
     source: str = "s3m-watertwin"
     track: str
+    tenant_id: str = DEFAULT_TENANT_ID
     facility_id: str
     train_id: str
     asset_id: Optional[str] = None
@@ -324,6 +344,7 @@ class WaterTwinPacket(BaseModel):
 class RecommendationCard(BaseModel):
     recommendation_id: str
     packet_id: str
+    tenant_id: str = DEFAULT_TENANT_ID
     facility_id: str
     train_id: str
     asset_id: Optional[str] = None
@@ -602,6 +623,143 @@ class PdMRecommendation(BaseModel):
     control_boundary: ControlBoundary = Field(default_factory=ControlBoundary)
     approval_status: ApprovalStatus = ApprovalStatus.pending
     provenance: DataProvenance = DataProvenance.preliminary
+
+
+# ---------------------------------------------------------------------------
+# Work-order / maintenance (CMMS) models
+#
+# A :class:`MaintenanceWorkOrder` is a PROPOSED maintenance work order derived
+# from a predictive-maintenance alert (or pulled read-only from a CMMS). It is
+# fully traceable back to the originating model and its :class:`Evidence`
+# (``originating_model`` + ``source_recommendation_id`` + ``ranked_causes`` +
+# ``evidence``). It is created ``pending`` operator approval with the read-only
+# :class:`ControlBoundary` intact.
+#
+# CRITICAL BOUNDARY: a work order is a CMMS *ticket*, never a device command.
+# Even when a write-back CMMS integration is enabled (behind a config flag and
+# only AFTER operator approval), creating a CMMS ticket is a business-system
+# write -- it is NEVER an OT/control path and it NEVER sets
+# ``control_write_enabled``. ``control_boundary`` therefore stays advisory /
+# read-only on every work order.
+# ---------------------------------------------------------------------------
+
+
+class WorkOrderStatus(str, Enum):
+    """Lifecycle state of a maintenance work order.
+
+    ``proposed`` work orders are derived from a predictive-maintenance alert and
+    await operator approval. The remaining states mirror the states a CMMS
+    reports for records pulled read-only (``open`` .. ``cancelled``).
+    """
+
+    proposed = "proposed"
+    approved = "approved"
+    rejected = "rejected"
+    open = "open"
+    in_progress = "in_progress"
+    completed = "completed"
+    cancelled = "cancelled"
+
+
+class WorkOrderPriority(str, Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+    urgent = "urgent"
+
+
+class WorkOrderSource(str, Enum):
+    """Where a work order originated."""
+
+    #: Derived from a predictive-maintenance alert (traceable to the model).
+    predictive_maintenance = "predictive_maintenance"
+    #: Pulled read-only from the CMMS of record.
+    cmms = "cmms"
+    #: Manually raised by an operator (not used in the synthetic default).
+    manual = "manual"
+
+
+class CmmsSyncStatus(str, Enum):
+    """Whether a proposed work order has been written back to the CMMS.
+
+    A write-back only ever creates a CMMS *ticket* (business system), never a
+    control/OT command, and only after operator approval.
+    """
+
+    not_synced = "not_synced"
+    synced = "synced"
+    failed = "failed"
+
+
+class MaintenanceWorkOrder(BaseModel):
+    """A proposed maintenance work order traceable to its originating model.
+
+    Derived from a :class:`PdMRecommendation` (predictive-maintenance alert):
+    ``originating_model`` + ``source_recommendation_id`` + ``source_alert_code``
+    name the exact model artifact behind it, ``ranked_causes`` + ``evidence``
+    carry the supporting evidence, and the failure-mode / RUL / cost fields are
+    the preliminary estimates it was built from. It is created ``pending``
+    operator approval with the read-only control boundary intact.
+
+    A write-back to the CMMS (when enabled) creates a ticket only -- it sets the
+    ``cmms_*`` fields but NEVER changes ``control_boundary``; a work order is a
+    ticket, not a device command.
+    """
+
+    work_order_id: str
+    asset_id: str
+    asset_name: Optional[str] = None
+    title: str
+    description: str
+    priority: WorkOrderPriority = WorkOrderPriority.medium
+    status: WorkOrderStatus = WorkOrderStatus.proposed
+    source: WorkOrderSource = WorkOrderSource.predictive_maintenance
+
+    # -- traceability to the originating model + evidence -------------------
+    originating_model: Optional[str] = None
+    source_recommendation_id: Optional[str] = None
+    source_alert_code: Optional[str] = None
+    predicted_failure_mode: Optional[str] = None
+    failure_probability_30d: Optional[float] = None
+    rul_days: Optional[float] = None
+    recommended_window: Optional[str] = None
+    spares_required: list[str] = Field(default_factory=list)
+    estimated_downtime_hours: Optional[float] = None
+    estimated_cost: Optional[float] = None
+    ranked_causes: list[RankedCause] = Field(default_factory=list)
+    evidence: Optional[Evidence] = None
+
+    # -- approval + CMMS linkage -------------------------------------------
+    approval_status: ApprovalStatus = ApprovalStatus.pending
+    approved_by: Optional[str] = None
+    decided_at: Optional[str] = None
+    cmms_system: Optional[str] = None
+    cmms_external_id: Optional[str] = None
+    cmms_sync_status: CmmsSyncStatus = CmmsSyncStatus.not_synced
+
+    control_boundary: ControlBoundary = Field(default_factory=ControlBoundary)
+    provenance: DataProvenance = DataProvenance.preliminary
+    created_at: str = Field(default_factory=now_iso)
+
+
+class AssetMaintenanceRecord(BaseModel):
+    """A historical maintenance record pulled READ-ONLY from a CMMS.
+
+    Read-only asset history for context on an asset's past work; no field here
+    is ever written back to the CMMS or to any control system.
+    """
+
+    work_order_id: str
+    asset_id: str
+    title: str
+    status: WorkOrderStatus = WorkOrderStatus.completed
+    performed_at: Optional[str] = None
+    performed_by: Optional[str] = None
+    labor_hours: Optional[float] = None
+    cost: Optional[float] = None
+    notes: Optional[str] = None
+    cmms_system: Optional[str] = None
+    provenance: DataProvenance = DataProvenance.synthetic
 
 
 # ---------------------------------------------------------------------------
