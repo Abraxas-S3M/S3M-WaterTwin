@@ -73,6 +73,21 @@ export function installFetchMock(overrides: Record<string, unknown> = {}): Fetch
       return json(overrides.equipmentRootCause ?? fx.equipmentRootCause);
     if (/\/membrane\/.+\/health/.test(path))
       return json(overrides.membraneHealth ?? fx.membraneHealth);
+
+    // Value layer: Energy / Resilience / Executive.
+    if (path.startsWith('/energy/summary')) return json(overrides.energySummary ?? fx.energySummary);
+    if (path.startsWith('/energy/optimize'))
+      return json(overrides.energyOptimize ?? fx.energyOptimize);
+    if (path.startsWith('/energy/losses')) return json(overrides.energyLosses ?? fx.energyLosses);
+    if (path.startsWith('/resilience/criticality'))
+      return json(overrides.resilienceCriticality ?? fx.resilienceCriticality);
+    if (path.startsWith('/resilience/generator'))
+      return json(overrides.resilienceGenerator ?? fx.resilienceGenerator);
+    if (path.startsWith('/resilience/grid-outage'))
+      return json(overrides.gridOutage ?? fx.gridOutage);
+    if (path.startsWith('/executive/value-summary'))
+      return json(overrides.executiveValueSummary ?? fx.executiveValueSummary);
+    if (path.startsWith('/executive/roi')) return json(overrides.executiveRoi ?? fx.executiveRoi);
     if (path.startsWith('/assets/')) return json(fx.hpAsset);
     if (path.startsWith('/assets')) return json(fx.assets);
     if (path.startsWith('/streams')) return json([]);

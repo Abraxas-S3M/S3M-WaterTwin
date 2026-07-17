@@ -3,11 +3,17 @@ import type {
   AnomalyResult,
   AuditResponse,
   ControlBoundary,
+  EnergyLossesResponse,
+  EnergyOptimizeResponse,
+  EnergySummaryResponse,
   EquipmentEnvelopeResponse,
   EquipmentFailureProbabilityResponse,
   EquipmentHealthResponse,
   EquipmentRootCauseResponse,
   EquipmentRulResponse,
+  ExecutiveROIResponse,
+  ExecutiveValueSummaryResponse,
+  GridOutageResponse,
   HealthScore,
   MaintenanceRankingResponse,
   MaintenanceRecommendationsResponse,
@@ -15,6 +21,8 @@ import type {
   PlantOverview,
   PumpCurve,
   RecommendationCard,
+  ResilienceCriticalityResponse,
+  ResilienceGeneratorResponse,
   TelemetryReading,
   WQAlertsResponse,
   WQContaminantMatrixResponse,
@@ -564,6 +572,223 @@ export const maintenanceRecommendations: MaintenanceRecommendationsResponse = {
   ...pdmEnvelope,
   recommendations: [pdmRecommendationHpp, pdmRecommendationMemb],
   cards: [pdmCardHpp],
+};
+
+// --- Value layer: Energy / Resilience / Executive ---
+
+const valueEnvelope = {
+  facility_id: 'S3M-DESAL-01',
+  train_id: 'RO-TRAIN-001',
+  control_boundary: controlBoundary,
+};
+
+export const energySummary: EnergySummaryResponse = {
+  ...valueEnvelope,
+  provenance: 'estimated',
+  energy_by_asset: [
+    { asset_id: 'AST-HPP-01', name: 'High-Pressure Pump A (net of ERD)', power_kw: 520.4, provenance: 'synthetic' },
+    { asset_id: 'AST-ERD-01', name: 'Energy Recovery Device (recovered)', power_kw: -260.1, provenance: 'synthetic' },
+    { asset_id: 'AST-BOOST-01', name: 'Booster / Permeate Pump', power_kw: 24.0, provenance: 'synthetic' },
+    { asset_id: 'AST-DOSE-01', name: 'Dosing Skid', power_kw: 6.0, provenance: 'synthetic' },
+    { asset_id: 'AUX', name: 'Auxiliary / Controls', power_kw: 14.0, provenance: 'synthetic' },
+  ],
+  total_power_kw: 564.4,
+  current_setpoint: { feed_pressure_bar: 68.0, recovery: 0.42, sec_kwh_m3: 2.58, permeate_flow_m3h: 210.0 },
+  optimal_setpoint: { feed_pressure_bar: 57.0, recovery: 0.3772, sec_kwh_m3: 2.21, permeate_flow_m3h: 188.6 },
+  current_sec_kwh_m3: 2.58,
+  optimal_sec_kwh_m3: 2.21,
+  sec_reduction_kwh_m3: 0.37,
+  sec_reduction_pct: 14.3,
+  estimated_cost_saving_per_day: 219.97,
+  currency: 'USD',
+};
+
+export const energyOptimize: EnergyOptimizeResponse = {
+  ...valueEnvelope,
+  provenance: 'estimated',
+  optimization: {
+    asset_id: 'AST-HPP-01',
+    optimal_feed_pressure_bar: 57.0,
+    optimal_recovery: 0.3772,
+    baseline_sec_kwh_m3: 2.58,
+    optimized_sec_kwh_m3: 2.21,
+    sec_reduction_kwh_m3: 0.37,
+    sec_reduction_pct: 14.3,
+    permeate_flow_m3h: 188.6,
+    permeate_tds_mg_l: 261.1,
+    permeate_boron_mg_l: 0.582,
+    estimated_energy_saving_kwh_day: 2444.07,
+    estimated_cost_saving_per_day: 219.97,
+    currency: 'USD',
+    constraints_respected: true,
+    binding_constraints: [],
+    method: 'scipy.optimize.minimize (bounded SLSQP) over the deterministic RO model',
+    provenance: 'estimated',
+  },
+};
+
+export const energyLosses: EnergyLossesResponse = {
+  ...valueEnvelope,
+  provenance: 'estimated',
+  losses: [
+    {
+      label: 'RO specific-energy vs optimum',
+      current_sec_kwh_m3: 2.58,
+      best_achievable_sec_kwh_m3: 2.21,
+      avoidable_loss_kwh_m3: 0.37,
+      avoidable_loss_pct: 14.3,
+      estimated_avoidable_kwh_day: 2444.07,
+      estimated_avoidable_cost_per_day: 219.97,
+      currency: 'USD',
+      provenance: 'estimated',
+    },
+  ],
+};
+
+export const resilienceGenerator: ResilienceGeneratorResponse = {
+  ...valueEnvelope,
+  provenance: 'preliminary',
+  generator: {
+    generator_id: 'GEN-001',
+    name: 'Standby Diesel Generator',
+    start_probability: 0.94,
+    battery_fraction: 0.86,
+    days_since_last_test: 22,
+    maintenance_due: false,
+    fuel_level_fraction: 0.72,
+    consumption_rate_l_per_h: 230.0,
+    load_fraction: 0.85,
+    fuel_endurance_hours: 13.0,
+    rated_power_kw: 1100.0,
+    provenance: 'preliminary',
+  },
+};
+
+export const resilienceCriticality: ResilienceCriticalityResponse = {
+  ...valueEnvelope,
+  provenance: 'preliminary',
+  criticality: [
+    {
+      asset_id: 'AST-HPP-01',
+      asset_name: 'High-Pressure Pump A',
+      criticality_score: 74.5,
+      customer_or_production_impact: 0.95,
+      failure_probability: 0.35,
+      recovery_time_hours: 36,
+      dependency_centrality: 0.95,
+      backup_deficiency: 0.6,
+      rank: 1,
+      provenance: 'preliminary',
+    },
+    {
+      asset_id: 'AST-BOOST-01',
+      asset_name: 'Booster / Permeate Pump',
+      criticality_score: 45.2,
+      customer_or_production_impact: 0.55,
+      failure_probability: 0.18,
+      recovery_time_hours: 10,
+      dependency_centrality: 0.6,
+      backup_deficiency: 0.4,
+      rank: 2,
+      provenance: 'preliminary',
+    },
+  ],
+};
+
+export const gridOutage: GridOutageResponse = {
+  ...valueEnvelope,
+  provenance: 'preliminary',
+  scenario: 'grid_outage',
+  generator: resilienceGenerator.generator,
+  load_shed_plan: {
+    available_generation_kw: 1100.0,
+    total_load_kw: 1280.0,
+    retained_load_kw: 1070.0,
+    shed_load_kw: 210.0,
+    critical_loads_sustained: true,
+    provenance: 'preliminary',
+    items: [
+      { asset_id: 'AST-CIP-01', asset_name: 'CIP System', load_kw: 150, priority: 'non_essential', shed_order: 1, retained: false },
+      { asset_id: 'AST-AUX-01', asset_name: 'Building / Auxiliary Loads', load_kw: 60, priority: 'non_essential', shed_order: 2, retained: false },
+      { asset_id: 'AST-BOOST-01', asset_name: 'Booster / Permeate Pump', load_kw: 130, priority: 'essential', shed_order: 3, retained: true },
+      { asset_id: 'AST-DOSE-01', asset_name: 'Dosing Skid', load_kw: 40, priority: 'essential', shed_order: 4, retained: true },
+      { asset_id: 'AST-HPP-01', asset_name: 'High-Pressure Pump A', load_kw: 900, priority: 'critical', shed_order: 5, retained: true },
+    ],
+  },
+  service_continuity: {
+    scenario: 'grid_outage',
+    service_continuity_hours: 13.0,
+    limiting_factor: 'generator fuel endurance',
+    generator_available: true,
+    generator_start_probability: 0.94,
+    fuel_endurance_hours: 13.0,
+    battery_bridge_minutes: 12.0,
+    critical_loads_sustained: true,
+    provenance: 'preliminary',
+  },
+  criticality: resilienceCriticality.criticality,
+  recommendation: {
+    ...recommendation,
+    recommendation_id: 'rec-resilience-grid-outage',
+    asset_id: 'AST-HPP-01',
+    summary: 'Grid outage: prioritise GEN-001 to the high-pressure pump + essential loads.',
+    recommended_action:
+      'Prioritise GEN-001 to the HP pump (AST-HPP-01) and essential loads; shed non-essential loads. Advisory only — operator approval required, no control write.',
+    source_engine_status: 'resilience: preliminary',
+    approval_status: 'pending',
+  },
+};
+
+export const executiveValueSummary: ExecutiveValueSummaryResponse = {
+  ...valueEnvelope,
+  provenance: 'estimated',
+  disclaimer:
+    'Illustrative estimates on synthetic pilot data — not validated savings or guaranteed outcomes. Every figure is preliminary and advisory only.',
+  value_summary: {
+    facility_id: 'S3M-DESAL-01',
+    train_id: 'RO-TRAIN-001',
+    currency: 'USD',
+    downtime_avoided: 210000.0,
+    energy_savings: 80289.0,
+    chemical_savings: 12600.0,
+    water_loss_avoided: 3577.0,
+    maintenance_savings: 140000.0,
+    capex_deferred: 114000.0,
+    total_annualized_benefit: 560466.0,
+    synthetic_basis: true,
+    disclaimer:
+      'Illustrative estimates on synthetic pilot data — not validated savings or guaranteed outcomes. Every figure is preliminary and advisory only.',
+    provenance: 'estimated',
+    components: [
+      { category: 'downtime_avoided', annualized_benefit: 210000.0, basis: 'PdM avoided-failure cost (downtime share)', currency: 'USD', provenance: 'estimated' },
+      { category: 'energy_savings', annualized_benefit: 80289.0, basis: 'RO SEC optimization daily saving × 365', currency: 'USD', provenance: 'estimated' },
+      { category: 'chemical_savings', annualized_benefit: 12600.0, basis: 'antiscalant dosing headroom (best-effort)', currency: 'USD', provenance: 'estimated' },
+      { category: 'water_loss_avoided', annualized_benefit: 3577.0, basis: 'reduced leakage losses (best-effort)', currency: 'USD', provenance: 'estimated' },
+      { category: 'maintenance_savings', annualized_benefit: 140000.0, basis: 'PdM avoided-failure cost (repair share)', currency: 'USD', provenance: 'estimated' },
+      { category: 'capex_deferred', annualized_benefit: 114000.0, basis: 'replacement value deferred by life extension', currency: 'USD', provenance: 'estimated' },
+    ],
+  },
+};
+
+export const executiveRoi: ExecutiveROIResponse = {
+  ...valueEnvelope,
+  provenance: 'estimated',
+  disclaimer:
+    'Illustrative estimates on synthetic pilot data — not validated savings or guaranteed outcomes. Every figure is preliminary and advisory only.',
+  roi: {
+    facility_id: 'S3M-DESAL-01',
+    train_id: 'RO-TRAIN-001',
+    currency: 'USD',
+    pilot_investment: 250000.0,
+    pilot_benefit: 280233.0,
+    pilot_roi_pct: 12.09,
+    annualized_benefit: 560466.0,
+    payback_period_months: 5.35,
+    synthetic_basis: true,
+    disclaimer:
+      'Illustrative estimates on synthetic pilot data — not validated savings or guaranteed outcomes. Every figure is preliminary and advisory only.',
+    provenance: 'estimated',
+  },
 };
 
 export const overview: PlantOverview = {

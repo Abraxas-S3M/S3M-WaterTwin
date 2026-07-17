@@ -58,7 +58,12 @@ export type AnomalyDomain =
   | 'sensor'
   | 'cyber_physical';
 
-export type DataProvenance = 'synthetic' | 'simulated' | 'preliminary' | 'measured';
+export type DataProvenance =
+  | 'synthetic'
+  | 'simulated'
+  | 'preliminary'
+  | 'estimated'
+  | 'measured';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
@@ -546,4 +551,205 @@ export interface MaintenanceRankingResponse extends PdMEnvelope {
 export interface MaintenanceRecommendationsResponse extends PdMEnvelope {
   recommendations: PdMRecommendation[];
   cards: RecommendationCard[];
+}
+
+// --- Value layer: Energy / Resilience / Executive (estimated, preliminary) ---
+
+export interface ValueEnvelope {
+  facility_id: string;
+  train_id: string;
+  provenance: DataProvenance;
+  control_boundary: ControlBoundary;
+}
+
+export interface EnergyByAsset {
+  asset_id: string;
+  name: string;
+  power_kw: number;
+  provenance: DataProvenance;
+}
+
+export interface EnergySetpoint {
+  feed_pressure_bar: number;
+  recovery: number;
+  sec_kwh_m3: number;
+  permeate_flow_m3h: number;
+}
+
+export interface EnergySummaryResponse extends ValueEnvelope {
+  energy_by_asset: EnergyByAsset[];
+  total_power_kw: number;
+  current_setpoint: EnergySetpoint;
+  optimal_setpoint: EnergySetpoint;
+  current_sec_kwh_m3: number;
+  optimal_sec_kwh_m3: number;
+  sec_reduction_kwh_m3: number;
+  sec_reduction_pct: number;
+  estimated_cost_saving_per_day: number;
+  currency: string;
+}
+
+export interface EnergyOptimizationResult {
+  asset_id?: string | null;
+  optimal_feed_pressure_bar: number;
+  optimal_recovery: number;
+  baseline_sec_kwh_m3: number;
+  optimized_sec_kwh_m3: number;
+  sec_reduction_kwh_m3: number;
+  sec_reduction_pct: number;
+  permeate_flow_m3h: number;
+  permeate_tds_mg_l: number;
+  permeate_boron_mg_l: number;
+  estimated_energy_saving_kwh_day: number;
+  estimated_cost_saving_per_day: number;
+  currency: string;
+  constraints_respected: boolean;
+  binding_constraints: string[];
+  method: string;
+  provenance: DataProvenance;
+}
+
+export interface EnergyOptimizeResponse extends ValueEnvelope {
+  optimization: EnergyOptimizationResult;
+}
+
+export interface EnergyLoss {
+  label: string;
+  current_sec_kwh_m3: number;
+  best_achievable_sec_kwh_m3: number;
+  avoidable_loss_kwh_m3: number;
+  avoidable_loss_pct: number;
+  estimated_avoidable_kwh_day: number;
+  estimated_avoidable_cost_per_day: number;
+  currency: string;
+  provenance: DataProvenance;
+}
+
+export interface EnergyLossesResponse extends ValueEnvelope {
+  losses: EnergyLoss[];
+}
+
+export interface ResilienceCriticality {
+  asset_id: string;
+  asset_name?: string | null;
+  criticality_score: number;
+  customer_or_production_impact: number;
+  failure_probability: number;
+  recovery_time_hours: number;
+  dependency_centrality: number;
+  backup_deficiency: number;
+  rank?: number | null;
+  provenance: DataProvenance;
+}
+
+export interface ResilienceCriticalityResponse extends ValueEnvelope {
+  criticality: ResilienceCriticality[];
+}
+
+export interface GeneratorStatus {
+  generator_id: string;
+  name?: string | null;
+  start_probability: number;
+  battery_fraction: number;
+  days_since_last_test: number;
+  maintenance_due: boolean;
+  fuel_level_fraction: number;
+  consumption_rate_l_per_h: number;
+  load_fraction: number;
+  fuel_endurance_hours: number;
+  rated_power_kw?: number | null;
+  provenance: DataProvenance;
+}
+
+export interface ResilienceGeneratorResponse extends ValueEnvelope {
+  generator: GeneratorStatus;
+}
+
+export interface LoadShedItem {
+  asset_id: string;
+  asset_name?: string | null;
+  load_kw: number;
+  priority: string;
+  shed_order: number;
+  retained: boolean;
+}
+
+export interface LoadShedPlan {
+  available_generation_kw: number;
+  total_load_kw: number;
+  retained_load_kw: number;
+  shed_load_kw: number;
+  items: LoadShedItem[];
+  critical_loads_sustained: boolean;
+  provenance: DataProvenance;
+}
+
+export interface ServiceContinuity {
+  scenario: string;
+  service_continuity_hours: number;
+  limiting_factor: string;
+  generator_available: boolean;
+  generator_start_probability: number;
+  fuel_endurance_hours: number;
+  battery_bridge_minutes: number;
+  critical_loads_sustained: boolean;
+  provenance: DataProvenance;
+}
+
+export interface GridOutageResponse extends ValueEnvelope {
+  scenario: string;
+  generator: GeneratorStatus;
+  load_shed_plan: LoadShedPlan;
+  service_continuity: ServiceContinuity;
+  criticality: ResilienceCriticality[];
+  recommendation: RecommendationCard;
+}
+
+export interface ValueComponent {
+  category: string;
+  annualized_benefit: number;
+  basis: string;
+  currency: string;
+  provenance: DataProvenance;
+}
+
+export interface ExecutiveValueSummary {
+  facility_id: string;
+  train_id: string;
+  currency: string;
+  downtime_avoided: number;
+  energy_savings: number;
+  chemical_savings: number;
+  water_loss_avoided: number;
+  maintenance_savings: number;
+  capex_deferred: number;
+  total_annualized_benefit: number;
+  components: ValueComponent[];
+  synthetic_basis: boolean;
+  disclaimer: string;
+  provenance: DataProvenance;
+}
+
+export interface ExecutiveValueSummaryResponse extends ValueEnvelope {
+  value_summary: ExecutiveValueSummary;
+  disclaimer: string;
+}
+
+export interface ROIEstimate {
+  facility_id: string;
+  train_id: string;
+  currency: string;
+  pilot_investment: number;
+  pilot_benefit: number;
+  pilot_roi_pct: number;
+  annualized_benefit: number;
+  payback_period_months: number;
+  synthetic_basis: boolean;
+  disclaimer: string;
+  provenance: DataProvenance;
+}
+
+export interface ExecutiveROIResponse extends ValueEnvelope {
+  roi: ROIEstimate;
+  disclaimer: string;
 }
