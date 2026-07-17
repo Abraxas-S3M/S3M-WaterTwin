@@ -19,6 +19,8 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+from . import audit as audit_chain
+
 logger = logging.getLogger("watertwin.store")
 
 
@@ -26,15 +28,45 @@ def _utcnow_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+# The audit table is a tamper-evident, append-only hash chain. Each row records
+# the hash of the previous row (``prev_hash``) and its own ``hash`` so any edit
+# to a stored event is detectable (see ``app.audit``). ``seq`` gives a
+# deterministic append order for chain verification. The append-only invariant
+# is additionally enforced at the database layer by a trigger in
+# ``infrastructure/database/init.sql`` (updates/deletes are rejected).
 _CREATE_AUDIT = """
 CREATE TABLE IF NOT EXISTS audit_event (
+    seq BIGSERIAL,
     id UUID PRIMARY KEY,
     ts TIMESTAMPTZ NOT NULL DEFAULT now(),
     kind TEXT NOT NULL,
     actor TEXT NOT NULL DEFAULT 'system',
     subject TEXT,
-    payload JSONB NOT NULL DEFAULT '{}'::jsonb
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    prev_hash TEXT NOT NULL DEFAULT '',
+    hash TEXT NOT NULL DEFAULT ''
 );
+"""
+
+# Backfill columns/ordering for databases created before the hash chain existed.
+_MIGRATE_AUDIT = (
+    "ALTER TABLE audit_event ADD COLUMN IF NOT EXISTS seq BIGSERIAL",
+    "ALTER TABLE audit_event ADD COLUMN IF NOT EXISTS prev_hash TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE audit_event ADD COLUMN IF NOT EXISTS hash TEXT NOT NULL DEFAULT ''",
+)
+
+# Append-only guard: reject row updates/deletes on the audit trail. TRUNCATE
+# (used only by the demo ``reset``) is intentionally not blocked here.
+_APPEND_ONLY_GUARD = """
+CREATE OR REPLACE FUNCTION audit_event_reject_mutation() RETURNS trigger AS $$
+BEGIN
+    RAISE EXCEPTION 'audit_event is append-only: % is not permitted', TG_OP;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS audit_event_no_mutation ON audit_event;
+CREATE TRIGGER audit_event_no_mutation
+    BEFORE UPDATE OR DELETE ON audit_event
+    FOR EACH ROW EXECUTE FUNCTION audit_event_reject_mutation();
 """
 
 _CREATE_RECOMMENDATION = """
@@ -62,6 +94,9 @@ class Store:
         self._audit_mem: list[dict[str, Any]] = []
         self._rec_mem: dict[str, dict[str, Any]] = {}
 
+        # Running head of the in-memory audit hash chain (genesis when empty).
+        self._chain_head: str = audit_chain.GENESIS_HASH
+
         if connect and self.database_url:
             self._try_connect(self.database_url)
 
@@ -74,6 +109,9 @@ class Store:
             self._conn = psycopg.connect(database_url, autocommit=True)
             with self._conn.cursor() as cur:
                 cur.execute(_CREATE_AUDIT)
+                for stmt in _MIGRATE_AUDIT:
+                    cur.execute(stmt)
+                cur.execute(_APPEND_ONLY_GUARD)
                 cur.execute(_CREATE_RECOMMENDATION)
             self.db_connected = True
             logger.info("store connected to database", extra={"db_connected": True})
@@ -96,6 +134,15 @@ class Store:
 
     # -- audit ----------------------------------------------------------------
 
+    def _db_chain_head(self) -> str:
+        """Return the hash of the newest audit row (genesis when empty)."""
+        with self._conn.cursor() as cur:  # pragma: no cover - real DB only
+            cur.execute("SELECT hash FROM audit_event ORDER BY seq DESC LIMIT 1")
+            row = cur.fetchone()
+        if row and row[0]:
+            return row[0]
+        return audit_chain.GENESIS_HASH
+
     def audit(
         self,
         kind: str,
@@ -103,7 +150,13 @@ class Store:
         actor: str = "system",
         subject: str | None = None,
     ) -> dict[str, Any]:
-        """Record an audit event and return the stored record."""
+        """Append a hash-chained audit event and return the stored record.
+
+        The event is linked to the current chain head (``prev_hash``) and its
+        own ``hash`` is derived from that link plus the event contents, making
+        the trail tamper-evident. Appends only; there is deliberately no update
+        or delete path for audit events.
+        """
         event = {
             "id": str(uuid.uuid4()),
             "ts": _utcnow_iso(),
@@ -117,10 +170,13 @@ class Store:
                 try:
                     from psycopg.types.json import Jsonb
 
+                    prev_hash = self._db_chain_head()
+                    audit_chain.link_event(event, prev_hash)
                     with self._conn.cursor() as cur:
                         cur.execute(
-                            "INSERT INTO audit_event (id, ts, kind, actor, subject, payload) "
-                            "VALUES (%s, %s, %s, %s, %s, %s)",
+                            "INSERT INTO audit_event "
+                            "(id, ts, kind, actor, subject, payload, prev_hash, hash) "
+                            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                             (
                                 event["id"],
                                 event["ts"],
@@ -128,6 +184,8 @@ class Store:
                                 event["actor"],
                                 event["subject"],
                                 Jsonb(event["payload"]),
+                                event["prev_hash"],
+                                event["hash"],
                             ),
                         )
                     return event
@@ -135,8 +193,47 @@ class Store:
                     logger.warning(
                         "audit write failed; mirroring to memory", extra={"error": str(exc)}
                     )
+            audit_chain.link_event(event, self._chain_head)
             self._audit_mem.append(event)
+            self._chain_head = event["hash"]
         return event
+
+    def audit_chain_asc(self) -> list[dict[str, Any]]:
+        """Return the full audit chain oldest-first (for verification)."""
+        with self._lock:
+            if self.db_connected:
+                try:  # pragma: no cover - real DB only
+                    with self._conn.cursor() as cur:
+                        cur.execute(
+                            "SELECT id, ts, kind, actor, subject, payload, prev_hash, hash "
+                            "FROM audit_event ORDER BY seq ASC"
+                        )
+                        rows = cur.fetchall()
+                    return [
+                        {
+                            "id": str(r[0]),
+                            "ts": r[1].isoformat() if hasattr(r[1], "isoformat") else r[1],
+                            "kind": r[2],
+                            "actor": r[3],
+                            "subject": r[4],
+                            "payload": r[5],
+                            "prev_hash": r[6],
+                            "hash": r[7],
+                        }
+                        for r in rows
+                    ]
+                except Exception as exc:  # pragma: no cover - real DB only
+                    logger.warning("audit read failed; using memory", extra={"error": str(exc)})
+            return list(self._audit_mem)
+
+    def verify_chain(self) -> dict[str, Any]:
+        """Verify the tamper-evident audit hash chain.
+
+        Returns ``{"ok": True, ...}`` when intact, or ``{"ok": False,
+        "broken_at": <event id>, ...}`` identifying the first event whose stored
+        contents or link no longer match the chain.
+        """
+        return audit_chain.verify_chain(self.audit_chain_asc())
 
     def recent_audit(self, n: int = 100) -> list[dict[str, Any]]:
         """Return up to ``n`` most-recent audit events, newest first."""
@@ -145,8 +242,8 @@ class Store:
                 try:
                     with self._conn.cursor() as cur:
                         cur.execute(
-                            "SELECT id, ts, kind, actor, subject, payload FROM audit_event "
-                            "ORDER BY ts DESC LIMIT %s",
+                            "SELECT id, ts, kind, actor, subject, payload, prev_hash, hash "
+                            "FROM audit_event ORDER BY seq DESC LIMIT %s",
                             (n,),
                         )
                         rows = cur.fetchall()
@@ -158,6 +255,8 @@ class Store:
                             "actor": r[3],
                             "subject": r[4],
                             "payload": r[5],
+                            "prev_hash": r[6],
+                            "hash": r[7],
                         }
                         for r in rows
                     ]
@@ -227,6 +326,7 @@ class Store:
         with self._lock:
             self._audit_mem.clear()
             self._rec_mem.clear()
+            self._chain_head = audit_chain.GENESIS_HASH
             if self.db_connected:
                 try:
                     with self._conn.cursor() as cur:

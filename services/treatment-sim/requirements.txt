@@ -8,7 +8,9 @@ idaes-pse==2.12.0
 pyomo==6.10.1
 
 # API / service runtime.
-fastapi==0.115.14
+# fastapi pinned to 0.139.2: earlier releases pull a starlette (<0.42) with
+# advisories flagged by pip-audit; 0.139.2 resolves a fixed starlette.
+fastapi==0.139.2
 uvicorn[standard]==0.34.0
 pydantic==2.11.7
 httpx==0.28.1

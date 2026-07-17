@@ -54,6 +54,8 @@ components are enumerated in full inside those SBOMs.
 | uvicorn[standard] | 0.34.x / 0.51.x | `BSD-3-Clause` | PyPI | all API services |
 | pydantic | 2.10–2.13 | `MIT` | PyPI | all services + shared packages |
 | httpx | 0.28.1 | `BSD-3-Clause` | PyPI | api clients / tests |
+| pytest | 9.x | `MIT` | PyPI | test dependency (`services/hydraulic-sim` requirements) |
+| pyjwt[crypto] | 2.13.0 | `MIT` | PyPI | `services/watertwin-api` (JWT/JWKS validation) |
 | psycopg[binary] | 3.2.3 | `LGPL-3.0-or-later` | PyPI | `services/watertwin-api` (DB driver) |
 | asyncua | 1.1.6 | `LGPL-3.0-only` | PyPI | `services/watertwin-api` (read-only OPC UA **client** connector) |
 | pymodbus | 3.7.4 | `BSD-3-Clause` | PyPI | `services/watertwin-api` (read-only Modbus connector) |
@@ -74,6 +76,33 @@ components are enumerated in full inside those SBOMs.
 > dynamically-linked library via its published wheel; we do not modify or
 > statically embed it, which is compatible with LGPL terms.
 
+### Dashboard (npm) direct dependencies
+
+The dashboard's **direct** npm dependencies (from `apps/dashboard/package.json`,
+reconciled against `sbom-dashboard.cdx.json`). Transitive components are
+enumerated in full inside that SBOM.
+
+| Component | License (SPDX) | Consumed via | Used by |
+|-----------|----------------|--------------|---------|
+| react | `MIT` | npm | `apps/dashboard` |
+| react-dom | `MIT` | npm | `apps/dashboard` |
+| zustand | `MIT` | npm | `apps/dashboard` (state) |
+| @tanstack/react-query | `MIT` | npm | `apps/dashboard` (data fetching) |
+| echarts | `Apache-2.0` | npm | `apps/dashboard` (charts) |
+| echarts-for-react | `MIT` | npm | `apps/dashboard` (charts) |
+| maplibre-gl | `BSD-3-Clause` | npm | `apps/dashboard` (map) |
+| typescript | `Apache-2.0` | npm | `apps/dashboard` (toolchain) |
+| vite | `MIT` | npm | `apps/dashboard` (build) |
+| vitest | `MIT` | npm | `apps/dashboard` (test) |
+| jsdom | `MIT` | npm | `apps/dashboard` (test DOM) |
+| @vitejs/plugin-react | `MIT` | npm | `apps/dashboard` (build) |
+| @playwright/test | `Apache-2.0` | npm | `apps/dashboard` (e2e) |
+| @testing-library/react | `MIT` | npm | `apps/dashboard` (test) |
+| @testing-library/jest-dom | `MIT` | npm | `apps/dashboard` (test) |
+| @testing-library/user-event | `MIT` | npm | `apps/dashboard` (test) |
+| @types/node | `MIT` | npm | `apps/dashboard` (types) |
+| @types/react | `MIT` | npm | `apps/dashboard` (types) |
+| @types/react-dom | `MIT` | npm | `apps/dashboard` (types) |
 > `asyncua` is LGPL-3.0. Like `psycopg`, it is consumed **unmodified** as a
 > dynamically-linked library via its published PyPI wheel (dynamic use only); we
 > do not modify or statically embed it, which is compatible with LGPL terms. It
@@ -120,9 +149,21 @@ cd apps/dashboard && npx @cyclonedx/cyclonedx-npm --package-lock-only \
     --output-format JSON --output-file ../../docs/licensing/sbom/sbom-dashboard.cdx.json
 ```
 
-The CI `security` job regenerates the SBOMs on every run and runs dependency
-(`pip-audit`) and secret scanning, so drift between the register, the SBOMs, and
-the pinned `requirements.txt` files is caught automatically.
+Reconcile the SBOMs against this register (flags any direct dependency present
+in an SBOM but missing here):
+
+```bash
+make reconcile               # or: python scripts/reconcile_sbom.py
+```
+
+The CI `sbom` job regenerates the SBOMs on every run and reconciles them against
+this register (a build gate). Separate CI jobs run dependency (`vuln-scan`:
+`pip-audit` + `npm audit`) and secret (`secret-scan`: `gitleaks`) scanning as
+**build gates**. Vulnerability and secret findings fail the build; accepted
+advisories must be documented in the ignore files under `security/` and
+`.gitleaks.toml` (see `docs/security/accepted-advisories.md`). Drift between the
+register, the SBOMs, and the pinned dependency files is therefore caught
+automatically.
 
 ## Compliance notes
 

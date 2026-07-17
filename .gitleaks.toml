@@ -1,0 +1,29 @@
+# gitleaks configuration for S3M-WaterTwin secret scanning (CI build gate).
+#
+# Uses the full default gitleaks ruleset and layers on a documented allowlist
+# for intentional, non-secret example/demo values. Any *new* finding outside the
+# allowlist fails the CI `secret-scan` job. To accept a finding, add a narrowly
+# scoped entry below with a justification (this file is the audited record of
+# accepted secret-scan findings).
+
+title = "S3M-WaterTwin gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented, intentional non-secrets (demo/example values only)."
+
+# Files that intentionally contain placeholder / demo credentials. These carry
+# no access to any real system and exist purely for local dev and demos.
+paths = [
+  # Example environment file with placeholder values (never real secrets).
+  '''(^|/)\.env\.example$''',
+  # Keycloak *demo* realm: local-only demo users (viewer/operator/engineer/
+  # admin/auditor) with self-describing demo passwords. Not used in production.
+  '''infrastructure/keycloak/watertwin-realm\.json$''',
+  # Generated CycloneDX SBOMs and the npm lockfile (integrity hashes, not
+  # secrets) can trip high-entropy heuristics.
+  '''docs/licensing/sbom/.*\.cdx\.json$''',
+  '''apps/dashboard/package-lock\.json$''',
+]

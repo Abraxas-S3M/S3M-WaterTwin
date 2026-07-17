@@ -1,0 +1,15 @@
+# Accepted Python vulnerability advisories (pip-audit).
+#
+# The CI `vuln-scan` job runs `pip-audit` against every service's pinned
+# requirements.txt and FAILS the build on any finding. To accept a specific,
+# reviewed advisory, add its ID here (one per line). Comments (`#`) and blank
+# lines are ignored. Each entry is passed to pip-audit as `--ignore-vuln <ID>`.
+#
+# Every accepted advisory MUST also be documented in
+# docs/security/accepted-advisories.md with a justification and review date.
+#
+# Format: one advisory ID per line, e.g.
+#   GHSA-xxxx-xxxx-xxxx
+#   PYSEC-2024-xxxxx
+#
+# (No advisories are currently accepted.)
