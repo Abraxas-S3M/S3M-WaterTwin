@@ -16,6 +16,38 @@ RECOMMENDATION_STORE_PATH = os.environ.get(
     os.path.join(os.path.dirname(__file__), "..", "data", "recommendations.json"),
 )
 
+# Work-order store (JSON-file backed by default; mirrors the recommendation store).
+WORK_ORDER_STORE_PATH = os.environ.get(
+    "WATERTWIN_WORK_ORDER_STORE",
+    os.path.join(os.path.dirname(__file__), "..", "data", "work-orders.json"),
+)
+
+# ---------------------------------------------------------------------------
+# CMMS (maintenance system of record) integration.
+#
+# The platform talks to a CMMS through a pluggable adapter (app/cmms/). The
+# default adapter is STRICTLY READ-ONLY: it pulls work orders + asset history
+# only. A write-back adapter -- which creates a CMMS *ticket* for an
+# operator-approved work order -- is enabled ONLY when CMMS_WRITE_BACK_ENABLED
+# is true. A CMMS ticket is a business-system record, NEVER an OT/control path,
+# and is only ever created after operator approval.
+# ---------------------------------------------------------------------------
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+#: Enable write-back of operator-approved work orders as CMMS tickets. Default
+#: false (read-only). Even when true this is a ticket path, never a control path.
+CMMS_WRITE_BACK_ENABLED = _env_bool("CMMS_WRITE_BACK_ENABLED", False)
+
+#: Human-readable name of the CMMS system of record.
+CMMS_SYSTEM_NAME = os.environ.get("CMMS_SYSTEM", "synthetic-cmms")
+
 # CORS origins allowed to call this API (the dashboard).
 CORS_ORIGINS = os.environ.get("WATERTWIN_CORS_ORIGINS", "*").split(",")
 
