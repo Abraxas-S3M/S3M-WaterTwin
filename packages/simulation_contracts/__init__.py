@@ -1,66 +1,30 @@
-"""Shared contracts for S3M-WaterTwin process-simulation services.
-
-This package defines the request/result data models and job envelope that the
-read-only process-simulation services (e.g. ``services/treatment-sim``) expose
-and that the API layer consumes. It is engine-agnostic: the same contracts are
-used whether a result is produced by the WaterTAP/IDAES stack or an analytical
-reference model.
-
-Design rules that these contracts enforce by construction:
-
-* Every simulation result carries ``provenance = "simulated"`` and
-  ``status = "preliminary"``. Simulated output is *never* labelled as measured
-  or validated.
-* Results are advisory only. The :class:`ControlBoundary` block is embedded so
-  downstream consumers cannot mistake a what-if for a control command.
-
-The enums intentionally mirror ``canonical_water_model`` (``DataProvenance``,
-``ControlBoundary``) so the two packages stay aligned, while keeping this
-package importable on its own.
 """Shared simulation contracts for S3M-WaterTwin what-if services.
 
-Canonical request/result models exchanged between the hydraulic-simulation
-service, ``watertwin-api``, and the dashboard. Every simulation is a **read-only
-what-if**: results carry ``provenance="simulated"`` and ``status="preliminary"``
-and never authorize a control-system write (see :class:`ControlBoundary`).
+Canonical request/result models exchanged between the read-only simulation
+services (``services/hydraulic-sim`` and ``services/treatment-sim``),
+``watertwin-api``, and the dashboard. Every simulation is a **read-only
+what-if / optimization**: results carry ``provenance="simulated"`` and
+``status="preliminary"`` and never authorize a control-system write (see
+:class:`ControlBoundary`).
 
-This package deliberately reuses the shared :class:`ControlBoundary` from
-``canonical_water_model`` so the control-boundary contract is identical across
-every service and surfaced verbatim on ``/health``.
+Design rules enforced by construction:
+
+* Every simulation artifact is tagged ``provenance="simulated"`` and
+  ``status="preliminary"``. Simulated output is *never* labelled measured or
+  validated.
+* Results are advisory only. The shared :class:`ControlBoundary` is embedded so
+  downstream consumers cannot mistake a what-if for a control command.
+
+The single :class:`SimulationJob` envelope is intentionally flexible so the same
+contract serves both the hydraulic (EPANET/WNTR) service, which carries a
+``scenario`` + :class:`SimulationRequest`, and the treatment (WaterTAP/IDAES)
+service, which carries a :class:`SimulationKind` + request payload.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
-
-from pydantic import BaseModel, Field
-
-__all__ = [
-    "now_iso",
-    "SimulationProvenance",
-    "ResultStatus",
-    "JobState",
-    "SimulationKind",
-    "ControlBoundary",
-    "ROFeed",
-    "ROMembrane",
-    "ROOperating",
-    "SimulateRequest",
-    "OptimizeRequest",
-    "SensitivitySweep",
-    "SensitivityRequest",
-    "MembraneDegradationRequest",
-    "ROBaselineResult",
-    "OptimizeResult",
-    "SensitivityPoint",
-    "SensitivityResult",
-    "DegradationResult",
-    "SimulationJob",
-    "HealthResponse",
-]
-
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -69,18 +33,42 @@ from pydantic import BaseModel, Field
 from canonical_water_model import ControlBoundary
 
 __all__ = [
-    "ScenarioType",
+    "now_iso",
+    "new_job_id",
+    "PROVENANCE_SIMULATED",
+    "STATUS_PRELIMINARY",
+    "SimulationProvenance",
+    "ResultStatus",
     "JobState",
+    "SimulationKind",
+    "ScenarioType",
     "ViolationSeverity",
+    "ControlBoundary",
+    # RO (treatment-sim) inputs
+    "ROFeed",
+    "ROMembrane",
+    "ROOperating",
+    "SimulateRequest",
+    "OptimizeRequest",
+    "SensitivitySweep",
+    "SensitivityRequest",
+    "MembraneDegradationRequest",
+    # RO (treatment-sim) results
+    "ROBaselineResult",
+    "OptimizeResult",
+    "SensitivityPoint",
+    "SensitivityResult",
+    "DegradationResult",
+    # Hydraulic (hydraulic-sim) contracts
     "SimulationRequest",
     "ConstraintViolation",
     "LeakLocalization",
     "ScenarioDelta",
     "SimulationOutputs",
     "SimulationResult",
+    # Job envelope + service health
     "SimulationJob",
-    "now_iso",
-    "new_job_id",
+    "HealthResponse",
 ]
 
 PROVENANCE_SIMULATED = "simulated"
@@ -90,6 +78,16 @@ STATUS_PRELIMINARY = "preliminary"
 def now_iso() -> str:
     """Return the current UTC time as an ISO-8601 string."""
     return datetime.now(timezone.utc).isoformat()
+
+
+def new_job_id() -> str:
+    """Return a fresh simulation job id."""
+    return f"sim-{uuid4().hex[:12]}"
+
+
+# ---------------------------------------------------------------------------
+# Enums
+# ---------------------------------------------------------------------------
 
 
 class SimulationProvenance(str, Enum):
@@ -110,13 +108,34 @@ class ResultStatus(str, Enum):
     """
 
     preliminary = "preliminary"
-def new_job_id() -> str:
-    """Return a fresh simulation job id."""
-    return f"sim-{uuid4().hex[:12]}"
+
+
+class JobState(str, Enum):
+    """Lifecycle state of an async simulation job.
+
+    Superset that serves both simulation services: the hydraulic service uses
+    ``completed`` as its terminal success state while the treatment service uses
+    ``succeeded``. Both are accepted here so the shared job envelope is portable.
+    """
+
+    queued = "queued"
+    running = "running"
+    succeeded = "succeeded"
+    completed = "completed"
+    failed = "failed"
+
+
+class SimulationKind(str, Enum):
+    """Which simulation entry-point produced a job (treatment-sim)."""
+
+    simulate = "simulate"
+    optimize = "optimize"
+    sensitivity = "sensitivity"
+    membrane_degradation = "membrane_degradation"
 
 
 class ScenarioType(str, Enum):
-    """Supported read-only what-if scenarios."""
+    """Supported read-only hydraulic what-if scenarios (hydraulic-sim)."""
 
     baseline = "baseline"
     pump_outage = "pump_outage"
@@ -125,38 +144,14 @@ class ScenarioType(str, Enum):
     leak = "leak"
 
 
-class JobState(str, Enum):
-    """Lifecycle state of an async simulation job."""
-
-    queued = "queued"
-    running = "running"
-    succeeded = "succeeded"
-    failed = "failed"
-
-
-class SimulationKind(str, Enum):
-    """Which simulation entry-point produced a job."""
-
-    simulate = "simulate"
-    optimize = "optimize"
-    sensitivity = "sensitivity"
-    membrane_degradation = "membrane_degradation"
-
-
-class ControlBoundary(BaseModel):
-    """Advisory-only guardrail carried by every simulation artifact.
-
-    Mirrors ``canonical_water_model.ControlBoundary``. Simulation is strictly
-    read-only what-if / optimization; there is no closed-loop control path.
-    """
-
-    control_mode: str = "advisory"
-    operator_approval_required: bool = True
-    control_write_enabled: bool = False
+class ViolationSeverity(str, Enum):
+    info = "info"
+    warning = "warning"
+    critical = "critical"
 
 
 # ---------------------------------------------------------------------------
-# Request inputs
+# RO process-simulation request inputs (treatment-sim)
 # ---------------------------------------------------------------------------
 
 
@@ -283,7 +278,7 @@ class MembraneDegradationRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Result payloads
+# RO process-simulation result payloads (treatment-sim)
 # ---------------------------------------------------------------------------
 
 
@@ -343,48 +338,8 @@ class DegradationResult(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Job envelope + service health
+# Hydraulic what-if contracts (hydraulic-sim)
 # ---------------------------------------------------------------------------
-
-
-class SimulationJob(BaseModel):
-    """Async job envelope returned by the simulation endpoints."""
-
-    job_id: str
-    kind: SimulationKind
-    state: JobState = JobState.queued
-    created_at: str = Field(default_factory=now_iso)
-    updated_at: str = Field(default_factory=now_iso)
-    request: dict = Field(default_factory=dict)
-    result: Optional[dict] = None
-    error: Optional[str] = None
-    engine: Optional[str] = None
-    scenario_id: Optional[str] = None
-    provenance: SimulationProvenance = SimulationProvenance.simulated
-    status: ResultStatus = ResultStatus.preliminary
-    control_boundary: ControlBoundary = Field(default_factory=ControlBoundary)
-
-
-class HealthResponse(BaseModel):
-    """Service health with control-boundary fields."""
-
-    status: str = "ok"
-    service: str = "treatment-sim"
-    engine: str
-    watertap_available: bool
-    solver_available: bool
-    control_mode: str = "advisory"
-    operator_approval_required: bool = True
-    control_write_enabled: bool = False
-    version: str = "0.1.0"
-    completed = "completed"
-    failed = "failed"
-
-
-class ViolationSeverity(str, Enum):
-    info = "info"
-    warning = "warning"
-    critical = "critical"
 
 
 class SimulationRequest(BaseModel):
@@ -462,7 +417,7 @@ class SimulationOutputs(BaseModel):
 
 
 class SimulationResult(BaseModel):
-    """Result of a read-only what-if simulation.
+    """Result of a read-only hydraulic what-if simulation.
 
     Always ``provenance="simulated"`` and ``status="preliminary"``.
     """
@@ -488,18 +443,54 @@ class SimulationResult(BaseModel):
         return self.job_id
 
 
+# ---------------------------------------------------------------------------
+# Job envelope + service health (shared)
+# ---------------------------------------------------------------------------
+
+
 class SimulationJob(BaseModel):
-    """Async job envelope persisted in the shared job store."""
+    """Async job envelope persisted in the shared job store.
+
+    Flexible enough to serve both simulation services:
+
+    * hydraulic-sim constructs ``SimulationJob(scenario=..., request=<SimulationRequest>)``
+      and stores a :class:`SimulationResult` in ``result``;
+    * treatment-sim constructs ``SimulationJob(kind=..., request=<dict>, scenario_id=...)``
+      and stores an RO result dict in ``result``.
+
+    ``request`` and ``result`` are typed ``Any`` so either a Pydantic model or a
+    plain JSON-compatible dict round-trips cleanly.
+    """
 
     job_id: str = Field(default_factory=new_job_id)
-    scenario: ScenarioType
+    kind: Optional[SimulationKind] = None
+    scenario: Optional[ScenarioType] = None
+    scenario_id: Optional[str] = None
     state: JobState = JobState.queued
-    request: SimulationRequest
-    result: Optional[SimulationResult] = None
+    request: Any = None
+    result: Any = None
     error: Optional[str] = None
+    engine: Optional[str] = None
     created_at: str = Field(default_factory=now_iso)
     updated_at: str = Field(default_factory=now_iso)
+    provenance: SimulationProvenance = SimulationProvenance.simulated
+    status: ResultStatus = ResultStatus.preliminary
+    control_boundary: ControlBoundary = Field(default_factory=ControlBoundary)
 
     def touch(self) -> "SimulationJob":
         self.updated_at = now_iso()
         return self
+
+
+class HealthResponse(BaseModel):
+    """Service health with control-boundary fields."""
+
+    status: str = "ok"
+    service: str = "treatment-sim"
+    engine: str
+    watertap_available: bool
+    solver_available: bool
+    control_mode: str = "advisory"
+    operator_approval_required: bool = True
+    control_write_enabled: bool = False
+    version: str = "0.1.0"
