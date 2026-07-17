@@ -1,0 +1,53 @@
+S3M-WaterTwin Proprietary License
+Copyright (c) 2026 Abraxas-S3M. All rights reserved.
+
+1. PROPRIETARY AND CONFIDENTIAL
+   This software and its associated documentation, source code, and materials
+   (the "Software") are the proprietary and confidential property of Abraxas-S3M
+   ("Licensor"). The Software is licensed, not sold. No ownership rights are
+   transferred. You may not use, copy, modify, merge, publish, distribute,
+   sublicense, or sell copies of the Software, in whole or in part, without the
+   prior express written permission of the Licensor.
+
+2. GRANT
+   Subject to the terms of a separate written agreement with the Licensor, and
+   only to the extent expressly granted therein, authorized parties may use the
+   Software solely for internal, advisory, and evaluation purposes. Absent such a
+   written agreement, no license or right to use the Software is granted.
+
+3. ADVISORY / READ-ONLY NATURE — SAFETY DISCLAIMER
+   THE SOFTWARE IS AN ADVISORY, READ-ONLY DECISION-SUPPORT SYSTEM. IT PRODUCES
+   RECOMMENDATIONS, BRIEFS, SUMMARIES, AND DECISION CARDS THAT REQUIRE HUMAN
+   REVIEW. THE SOFTWARE MUST NOT BE USED, CONFIGURED, INTEGRATED, OR RELIED UPON
+   FOR AUTONOMOUS OR CLOSED-LOOP CONTROL OF ANY WATER, TREATMENT, INDUSTRIAL, OR
+   OTHER PHYSICAL INFRASTRUCTURE.
+
+   Without limiting the foregoing, the Software MUST NOT:
+     (a) directly or indirectly actuate, command, or control pumps, valves,
+         dosing systems, SCADA/PLC/ICS equipment, or any other operational
+         technology (OT) or physical process;
+     (b) operate in any autonomous, unattended, or closed-loop control mode; or
+     (c) be treated as a substitute for a qualified human operator, established
+         operating procedures, regulatory controls, or independent safety
+         systems.
+
+   Every recommendation produced by the Software is subject to mandatory human
+   review. A qualified human operator remains the sole authority for any physical
+   action. Any use of the Software for autonomous or closed-loop plant control is
+   strictly prohibited and outside the scope of any license granted.
+
+4. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+5. LIMITATION OF LIABILITY
+   IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
+   OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE, INCLUDING WITHOUT LIMITATION ANY DAMAGES ARISING FROM USE OF THE
+   SOFTWARE IN VIOLATION OF SECTION 3.
+
+6. TERMINATION
+   Any breach of this License, including any use prohibited by Section 3,
+   automatically terminates all rights granted hereunder.
