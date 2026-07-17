@@ -45,7 +45,8 @@ export type PageId =
   | 'predictive-maintenance'
   | 'energy'
   | 'resilience'
-  | 'executive';
+  | 'executive'
+  | 'assistant';
 
 interface DashboardState {
   page: PageId;

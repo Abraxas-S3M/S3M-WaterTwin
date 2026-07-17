@@ -14,6 +14,9 @@ venv/
 
 # Service runtime state (shared store JSON files)
 **/data/
+# ...but keep the seeded operations documents corpus at the repo-root /data.
+!/data/
+!/data/**
 *.tmp
 # Node
 node_modules/

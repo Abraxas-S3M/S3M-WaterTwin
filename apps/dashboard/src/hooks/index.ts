@@ -10,9 +10,11 @@ import { api } from '../api/client';
 import type {
   AnomalyResult,
   Asset,
+  AssistantExamplesResponse,
   AuditResponse,
   ControlBoundary,
   DecisionRequest,
+  DocumentsResponse,
   EnergyLossesResponse,
   EnergySummaryResponse,
   EquipmentEnvelopeResponse,
@@ -78,6 +80,8 @@ export const queryKeys = {
   resilienceGenerator: ['resilience-generator'] as const,
   executiveValueSummary: ['executive-value-summary'] as const,
   executiveRoi: ['executive-roi'] as const,
+  assistantExamples: ['assistant-examples'] as const,
+  documents: ['documents'] as const,
 };
 
 // Control boundary rarely changes; poll slowly but keep it fresh.
@@ -381,6 +385,36 @@ export function useExecutiveRoi(): UseQueryResult<ExecutiveROIResponse> {
     queryKey: queryKeys.executiveRoi,
     queryFn: api.getExecutiveRoi,
     refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
+// --- S3M Operations Assistant hooks (advisory, grounded) ---
+
+export function useAssistantExamples(): UseQueryResult<AssistantExamplesResponse> {
+  return useQuery({
+    queryKey: queryKeys.assistantExamples,
+    queryFn: api.getAssistantExamples,
+    staleTime: POLL_INTERVAL_MS * 60,
+  });
+}
+
+export function useDocuments(): UseQueryResult<DocumentsResponse> {
+  return useQuery({
+    queryKey: queryKeys.documents,
+    queryFn: api.getDocuments,
+    staleTime: POLL_INTERVAL_MS * 60,
+  });
+}
+
+export function useAskAssistant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ question, requestedBy }: { question: string; requestedBy?: string }) =>
+      api.askAssistant(question, requestedBy),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['recommendations'] });
+      void qc.invalidateQueries({ queryKey: ['audit'] });
+    },
   });
 }
 

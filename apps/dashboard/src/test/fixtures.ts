@@ -1,8 +1,11 @@
 import type {
   Asset,
   AnomalyResult,
+  AssistantExamplesResponse,
+  AssistantResponse,
   AuditResponse,
   ControlBoundary,
+  DocumentsResponse,
   EnergyLossesResponse,
   EnergyOptimizeResponse,
   EnergySummaryResponse,
@@ -789,6 +792,89 @@ export const executiveRoi: ExecutiveROIResponse = {
       'Illustrative estimates on synthetic pilot data — not validated savings or guaranteed outcomes. Every figure is preliminary and advisory only.',
     provenance: 'estimated',
   },
+};
+
+// --- S3M Operations Assistant ---
+
+export const assistantExamples: AssistantExamplesResponse = {
+  control_boundary: controlBoundary,
+  examples: [
+    { intent: 'explain_degradation', question: 'Why is HPP-001 degrading?' },
+    { intent: 'scenario_impact', question: 'What happens if the high-pressure pump fails?' },
+    { intent: 'optimize_energy', question: 'Which setpoint minimizes energy use?' },
+    {
+      intent: 'generator_priority',
+      question: 'Which asset gets the generator first during a grid outage?',
+    },
+    {
+      intent: 'show_evidence',
+      question: 'Show the evidence behind the membrane cleaning recommendation.',
+    },
+    { intent: 'draft_work_order', question: 'Draft a work order for the high-pressure pump.' },
+    { intent: 'shift_summary', question: 'Give me a shift summary for RO-TRAIN-001.' },
+    { intent: 'water_quality_status', question: 'What is the current water quality status?' },
+  ],
+};
+
+export const assistantAnswer: AssistantResponse = {
+  query: 'Why is HPP-001 degrading?',
+  intent: 'explain_degradation',
+  target: 'AST-HPP-01',
+  answer:
+    'High-Pressure Pump A (AST-HPP-01) is at health 32/100 (Critical). Leading penalties: ' +
+    'Vibration -19; Current imbalance -9. Most probable root cause: bearing wear (44%). ' +
+    'Preliminary 30-day failure probability 48%; remaining useful life ~96 d. All figures are ' +
+    'preliminary engineering estimates, not validated.',
+  evidence: {
+    telemetry_window: 'live synthetic platform telemetry (aggregated, advisory)',
+    assets_reviewed: ['AST-HPP-01'],
+    documents_reviewed: ['MAN-HPP-001', 'REC-MAINT-HIST-001', 'PROC-ISO-HPP-001'],
+    simulation_ids: [],
+    assumptions: [
+      'Answer assembled from existing platform layer outputs + retrieved documents (advisory).',
+      'Health is a visible-penalty score; RUL / failure probability are preliminary estimates.',
+    ],
+    data_timestamp: '2026-07-17T07:00:00Z',
+  },
+  confidence: 0.69,
+  recommended_action: {
+    ...recommendation,
+    recommendation_id: 'rec-assistant-explain_degradation-ast-hpp-01',
+    asset_id: 'AST-HPP-01',
+    summary: 'High-Pressure Pump A: health 32 (Critical); 30-day failure probability 48%.',
+    recommended_action:
+      'Review the ranked root causes and plan maintenance ahead of the lower RUL bound. ' +
+      'Advisory only — operator approval required, no control write.',
+    source_engine_status: 'fallback_local',
+    approval_status: 'pending',
+  },
+  approval_required: true,
+  grounded: true,
+  source_engine_status: 'fallback_local',
+  provenance: 'preliminary',
+  control_boundary: controlBoundary,
+  packet_id: 'pkt-assistant-explain_degradation-ast-hpp-01',
+  created_at: '2026-07-17T07:00:00Z',
+};
+
+export const documentsList: DocumentsResponse = {
+  control_boundary: controlBoundary,
+  documents: [
+    {
+      document_id: 'MAN-HPP-001',
+      title: 'High-Pressure Feed Pump — Operation & Maintenance Manual (Excerpt)',
+      document_type: 'manual',
+      path: 'data/manuals/hp_pump_manual.md',
+      tags: ['AST-HPP-01', 'pump', 'bearing', 'seal', 'vibration'],
+    },
+    {
+      document_id: 'PROC-ISO-HPP-001',
+      title: 'Procedure: High-Pressure Pump Isolation (Lockout/Tagout)',
+      document_type: 'procedure',
+      path: 'data/procedures/pump_isolation_procedure.md',
+      tags: ['AST-HPP-01', 'isolation', 'pump'],
+    },
+  ],
 };
 
 export const overview: PlantOverview = {
