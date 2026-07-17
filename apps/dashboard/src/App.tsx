@@ -20,6 +20,7 @@ import { EnergyOptimization } from './pages/EnergyOptimization';
 import { ResilienceCommand } from './pages/ResilienceCommand';
 import { ExecutiveValue } from './pages/ExecutiveValue';
 import { OperationsAssistant } from './pages/OperationsAssistant';
+import { Security } from './pages/Security';
 import { MultiFacilityAdmin } from './pages/MultiFacilityAdmin';
 import { FacilitySwitcher } from './components/FacilitySwitcher';
 import { TrainingSimulator } from './pages/TrainingSimulator';
@@ -28,6 +29,9 @@ import { useDashboardStore, type PageId } from './state/store';
 interface NavEntry {
   id: PageId;
   page: number;
+  disabled?: boolean;
+  note?: string;
+  requiresSecurity?: boolean;
   noteKey?: string;
 }
 
@@ -42,6 +46,7 @@ const NAV: NavEntry[] = [
   { id: 'resilience', label: 'Resilience Command', page: 9 },
   { id: 'executive', label: 'Executive Value / ROI', page: 10 },
   { id: 'assistant', label: 'Operations Assistant', page: 11 },
+  { id: 'security', label: 'Cyber-Physical Security', page: 12, requiresSecurity: true },
   { id: 'training', label: 'Training Simulator', page: 12, note: 'SIMULATION' },
   { id: 'simulation', label: 'Simulation Center', page: 8, note: 'Phase 8–9' },
   { id: 'command', page: 1 },
@@ -80,12 +85,14 @@ function Nav() {
   const page = useDashboardStore((s) => s.page);
   const navigate = useDashboardStore((s) => s.navigate);
   const { capabilities } = useAuth();
+  const entries = NAV.filter((item) => !item.requiresSecurity || capabilities.readSecurity);
   return (
     <nav className="app-nav" aria-label="Primary">
       <div className="brand">
         <h1>S3M-WaterTwin</h1>
         <div className="sub">Operator Console</div>
       </div>
+      {entries.map((item) => (
       <FacilitySwitcher />
     <nav className="app-nav" aria-label={t('nav.ariaLabel')}>
       <Brand />
@@ -150,6 +157,8 @@ function CurrentPage() {
       return <ExecutiveValue />;
     case 'assistant':
       return <OperationsAssistant />;
+    case 'security':
+      return <Security />;
     case 'training':
       return <TrainingSimulator />;
     case 'simulation':

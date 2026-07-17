@@ -32,6 +32,8 @@ import type {
   ResilienceGeneratorResponse,
   PumpCurve,
   RecommendationCard,
+  SecurityOverviewResponse,
+  SiemExportResponse,
   TelemetryReading,
   TrainingActionRequest,
   TrainingActionResponse,
@@ -83,7 +85,7 @@ async function doFetch(path: string, init?: RequestInit): Promise<Response> {
   });
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function requestRaw(path: string, init?: RequestInit): Promise<Response> {
   let res = await doFetch(path, init);
 
   // On a 401 with a live session, try a single silent token refresh + retry.
@@ -95,7 +97,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     let detail = res.statusText;
     try {
-      const body = await res.json();
+      const body = await res.clone().json();
       detail = (body as { detail?: string }).detail ?? detail;
     } catch {
       /* non-JSON error body */
@@ -107,8 +109,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new ApiError(res.status, detail);
   }
+  return res;
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await requestRaw(path, init);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+async function requestText(path: string, init?: RequestInit): Promise<string> {
+  const res = await requestRaw(path, init);
+  return res.text();
 }
 
 export const api = {
@@ -235,6 +247,10 @@ export const api = {
   getAssistantExamples: () => request<AssistantExamplesResponse>('/assistant/examples'),
   getDocuments: () => request<DocumentsResponse>('/documents'),
 
+  // Cyber-Physical Security (advisory, read-only; security role required)
+  getSecurityOverview: () => request<SecurityOverviewResponse>('/security/overview'),
+  getSiemExport: () => request<SiemExportResponse>('/security/siem-export?format=json'),
+  getSiemExportCef: () => requestText('/security/siem-export?format=cef'),
   // Operator Training Simulator (SIMULATION, sandboxed — never emits a command)
   getTrainingScenarios: () => request<TrainingScenariosResponse>('/training/scenarios'),
   startTrainingSession: (scenarioId: string, operator?: string) =>

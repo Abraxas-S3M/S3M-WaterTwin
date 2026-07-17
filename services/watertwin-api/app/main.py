@@ -52,6 +52,8 @@ from . import membrane
 from . import models as d1_models
 from . import predictive_maintenance as pdm
 from . import resilience as resil
+from . import security as security_analytics
+from . import siem_export
 from . import sources
 from . import training
 from . import water_quality as wq
@@ -621,6 +623,104 @@ def events_status() -> dict:
         **events.get_bus().status(),
         "control_boundary": ControlBoundary().model_dump(),
     }
+
+
+# ---------------------------------------------------------------------------
+# Cyber-Physical Security (advisory, read-only)
+#
+# Surfaces the platform's EXISTING cyber-physical + anomaly signals as a security
+# posture view for the ``security`` role: sensor-confidence scoring, cyber-
+# physical consistency (observed telemetry vs. the plant's hydraulic/physical
+# design expectation), telemetry source-health, and the tamper-evident audit
+# hash-chain verify status. A SIEM export renders the immutable audit log as a
+# signed, append-only JSON/CEF feed. Every response carries the read-only control
+# boundary; nothing here writes to any control system (no control path).
+# ---------------------------------------------------------------------------
+
+SECURITY = [Depends(require_role("security"))]
+
+
+def _security_reading_count(resolution: sources.SourceResolution) -> Optional[int]:
+    """Best-effort count of the latest telemetry batch (never raises)."""
+    try:
+        return len(resolution.source.read_latest())
+    except Exception:  # pragma: no cover - defensive; a live OT feed may be down
+        return None
+
+
+@app.get("/api/v1/security/overview", dependencies=SECURITY)
+def security_overview() -> dict:
+    """Cyber-physical security posture (security/admin role required).
+
+    Aggregates sensor-confidence scoring, cyber-physical consistency detection
+    (telemetry vs. hydraulic expectation), telemetry source-health and the audit
+    hash-chain integrity status into a single read-only posture view.
+    """
+    resolution = get_source_resolution()
+    consistency = security_analytics.cyber_physical_consistency()
+    confidence = security_analytics.sensor_confidence(consistency)
+    source = security_analytics.source_health(
+        resolution, reading_count=_security_reading_count(resolution)
+    )
+    audit_status = store.verify_chain()
+    status = security_analytics.overall_status(
+        audit_ok=bool(audit_status.get("ok")),
+        source_status=source.get("status", "unknown"),
+        consistency=consistency,
+        confidence=confidence,
+    )
+    return {
+        "status": status,
+        "sensor_confidence": confidence,
+        "cyber_physical_consistency": consistency,
+        "source_health": source,
+        "audit_integrity": audit_status,
+        "facility_id": wq.FACILITY_ID,
+        "train_id": wq.TRAIN_ID,
+        "provenance": DataProvenance.preliminary.value,
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+@app.get("/api/v1/security/siem-export")
+def security_siem_export(
+    format: str = "json",
+    user: Principal = Depends(require_role("security")),
+):
+    """Signed, append-only SIEM export of the immutable audit log.
+
+    ``format=json`` (default) returns the ordered chain + chain head + live
+    verify status + a detached HMAC-SHA256 signature; ``format=cef`` returns one
+    ArcSight CEF line per event (oldest-first) with a trailing signature line.
+    Read-only: it snapshots and signs the audit trail and writes nothing to any
+    control system.
+    """
+    fmt = (format or "json").strip().lower()
+    if fmt not in {"json", "cef"}:
+        raise HTTPException(status_code=422, detail="format must be 'json' or 'cef'")
+
+    events = store.audit_chain_asc()
+    verify_result = store.verify_chain()
+
+    # Record that an export was taken (append-only; the snapshot above predates
+    # this event, so the signed export is unaffected). Advisory action only.
+    store.audit(
+        "security.siem_export",
+        payload={"format": fmt, "record_count": len(events)},
+        actor=_actor(user),
+        subject="audit-log",
+    )
+
+    if fmt == "cef":
+        document = siem_export.build_cef_export(events, verify_result)
+        return PlainTextResponse(
+            content=document,
+            media_type="text/plain",
+            headers={
+                "Content-Disposition": 'attachment; filename="watertwin-siem-export.cef"'
+            },
+        )
+    return siem_export.build_json_export(events, verify_result)
 
 
 # ---------------------------------------------------------------------------

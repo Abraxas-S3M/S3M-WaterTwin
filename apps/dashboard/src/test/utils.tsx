@@ -154,6 +154,22 @@ export function installFetchMock(overrides: Record<string, unknown> = {}): Fetch
     if (path.startsWith('/assistant/ask') && method === 'POST')
       return json(overrides.assistantAnswer ?? fx.assistantAnswer);
     if (path.startsWith('/documents')) return json(overrides.documentsList ?? fx.documentsList);
+
+    // Cyber-Physical Security.
+    if (path.startsWith('/security/overview'))
+      return json(overrides.securityOverview ?? fx.securityOverview);
+    if (path.startsWith('/security/siem-export')) {
+      if (/format=cef/.test(path)) {
+        const text =
+          '# S3M-WaterTwin SIEM export (CEF)\n' +
+          'CEF:0|S3M|WaterTwin|1.0|system.reset|system.reset|6|cn1=1\n' +
+          '#signature alg=HMAC-SHA256 value=f00dcafe\n';
+        return Promise.resolve(
+          new Response(text, { status: 200, headers: { 'Content-Type': 'text/plain' } }),
+        );
+      }
+      return json(overrides.siemExport ?? fx.siemExport);
+    }
     if (path.startsWith('/assets/')) return json(fx.hpAsset);
     if (path.startsWith('/assets')) return json(fx.assets);
     if (path.startsWith('/streams')) return json([]);

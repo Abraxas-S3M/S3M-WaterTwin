@@ -18,7 +18,8 @@
       { "name": "operator", "description": "May approve/reject advisory recommendations (no control write)." },
       { "name": "engineer", "description": "May run what-if scenarios and reset demo state." },
       { "name": "admin", "description": "Full advisory administration (superset of all roles)." },
-      { "name": "auditor", "description": "May read the audit trail." }
+      { "name": "auditor", "description": "May read the audit trail." },
+      { "name": "security", "description": "May read cyber-physical security analytics and export the signed SIEM feed (read-only; no control write)." }
     ]
   },
   "clients": [
@@ -109,7 +110,7 @@
       "credentials": [
         { "type": "password", "value": "admin", "temporary": false }
       ],
-      "realmRoles": ["viewer", "operator", "engineer", "auditor", "admin"]
+      "realmRoles": ["viewer", "operator", "engineer", "auditor", "security", "admin"]
     },
     {
       "username": "auditor",
@@ -122,6 +123,18 @@
         { "type": "password", "value": "auditor", "temporary": false }
       ],
       "realmRoles": ["viewer", "auditor"]
+    },
+    {
+      "username": "security",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "security@watertwin.local",
+      "firstName": "Sam",
+      "lastName": "Security",
+      "credentials": [
+        { "type": "password", "value": "security", "temporary": false }
+      ],
+      "realmRoles": ["viewer", "security"]
     }
   ]
 }

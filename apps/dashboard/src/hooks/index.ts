@@ -38,6 +38,7 @@ import type {
   RecommendationCard,
   ResilienceCriticalityResponse,
   ResilienceGeneratorResponse,
+  SecurityOverviewResponse,
   TelemetryReading,
   TrainingActionRequest,
   TrainingActionResponse,
@@ -101,6 +102,7 @@ export const queryKeys = {
   executiveRoi: ['executive-roi'] as const,
   assistantExamples: ['assistant-examples'] as const,
   documents: ['documents'] as const,
+  securityOverview: ['security-overview'] as const,
   trainingScenarios: ['training-scenarios'] as const,
   trainingRecords: ['training-records'] as const,
 };
@@ -491,6 +493,16 @@ export function useDocuments(): UseQueryResult<DocumentsResponse> {
     queryKey: queryKeys.documents,
     queryFn: api.getDocuments,
     staleTime: POLL_INTERVAL_MS * 60,
+  });
+}
+
+// --- Cyber-Physical Security hooks (advisory, read-only) ---
+
+export function useSecurityOverview(): UseQueryResult<SecurityOverviewResponse> {
+  return useQuery({
+    queryKey: queryKeys.securityOverview,
+    queryFn: api.getSecurityOverview,
+    refetchInterval: POLL_INTERVAL_MS,
   });
 }
 

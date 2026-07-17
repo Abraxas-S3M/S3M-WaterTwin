@@ -41,6 +41,10 @@ from . import config
 
 logger = logging.getLogger("watertwin.auth")
 
+# The advisory roles seeded in the Keycloak "watertwin" realm. ``security`` gates
+# the Cyber-Physical Security views + SIEM export (read-only; no control path).
+ROLES: frozenset[str] = frozenset(
+    {"viewer", "operator", "engineer", "admin", "auditor", "security"}
 # The advisory roles seeded in the Keycloak "watertwin" realm. The multi-facility
 # roles gate the fleet administration surface: ``tenant-admin`` manages every
 # facility within its tenant, while ``facility-operator`` is scoped to the

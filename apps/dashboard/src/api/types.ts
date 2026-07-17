@@ -900,6 +900,103 @@ export interface AssistantExamplesResponse {
   control_boundary: ControlBoundary;
 }
 
+// --- Cyber-Physical Security (advisory, read-only) ---
+
+export type SecurityStatus = 'ok' | 'attention' | 'alert';
+export type ConfidenceBand = 'high' | 'medium' | 'low';
+export type ConsistencyStatus = 'consistent' | 'deviation' | 'inconsistent';
+
+export interface SensorConfidenceRow {
+  asset_id: string;
+  asset_name: string;
+  confidence: number;
+  band: ConfidenceBand;
+  cross_sensor_consistency: number;
+  physical_plausibility: number;
+  calibration_days: number;
+}
+
+export interface ConsistencyCheck {
+  metric: string;
+  observed: number;
+  expected_bound: number;
+  bound: 'max' | 'min';
+  residual_pct: number;
+  consistent: boolean;
+  basis: string;
+}
+
+export interface CyberPhysicalConsistencyRow {
+  asset_id: string;
+  asset_name: string;
+  consistency_score: number;
+  status: ConsistencyStatus;
+  checks: ConsistencyCheck[];
+  inconsistent_metrics: string[];
+}
+
+export interface SourceHealth {
+  status: 'healthy' | 'degraded' | 'unknown';
+  active_source?: string | null;
+  requested_source?: string | null;
+  fallback: boolean;
+  fallback_reason?: string | null;
+  available_sources: string[];
+  detail: Record<string, unknown>;
+  reading_count?: number | null;
+}
+
+export interface AuditIntegrity {
+  ok: boolean;
+  count: number;
+  head?: string;
+  broken_at?: string;
+  index?: number;
+  reason?: string;
+}
+
+export interface SecurityOverviewResponse {
+  status: SecurityStatus;
+  sensor_confidence: SensorConfidenceRow[];
+  cyber_physical_consistency: CyberPhysicalConsistencyRow[];
+  source_health: SourceHealth;
+  audit_integrity: AuditIntegrity;
+  facility_id: string;
+  train_id: string;
+  provenance: DataProvenance;
+  control_boundary: ControlBoundary;
+}
+
+export interface SiemExportRecord {
+  seq: number;
+  id: string;
+  ts: string;
+  kind: string;
+  actor: string;
+  subject?: string | null;
+  payload: Record<string, unknown>;
+  prev_hash: string;
+  hash: string;
+}
+
+export interface SiemExportResponse {
+  export_format: 'json';
+  source: string;
+  generated_at: string;
+  append_only: boolean;
+  record_count: number;
+  chain: {
+    verified: boolean;
+    head: string;
+    verify: AuditIntegrity;
+  };
+  records: SiemExportRecord[];
+  signature: {
+    alg: string;
+    value: string;
+    signed_fields: string[];
+    detail: string;
+  };
 // --- Operator Training Simulator (SIMULATION, sandboxed, read-only) ---
 
 export type TrainingScenarioType =
