@@ -8,8 +8,12 @@
 -- telemetry, the audit trail, and recommendation cards. There is no control
 -- state and no control-write path anywhere in the platform.
 
--- 1. TimescaleDB extension -------------------------------------------------
+-- 1. Extensions ------------------------------------------------------------
 CREATE EXTENSION IF NOT EXISTS timescaledb;
+-- PostGIS backs the geospatial network twin (network_element geometry column).
+-- Available in the timescaledb-ha image; if a plain image is used this is a
+-- no-op guarded failure and watertwin-api degrades to the in-memory twin.
+CREATE EXTENSION IF NOT EXISTS postgis;
 
 -- 2. Telemetry hypertable --------------------------------------------------
 -- Long, narrow time-series of synthetic/simulated readings. One row per
@@ -134,5 +138,33 @@ UPDATE recommendation SET facility_id = 'S3M-DESAL-01' WHERE facility_id IS NULL
 
 CREATE INDEX IF NOT EXISTS recommendation_status_idx ON recommendation (status);
 CREATE INDEX IF NOT EXISTS recommendation_ts_idx ON recommendation (ts DESC);
+
+-- 5. Geospatial network twin ----------------------------------------------
+-- Geo-referenced network elements (nodes + links) of the water-distribution
+-- twin, imported from the same EPANET model the hydraulic simulation runs so
+-- the twin and simulation share topology. Each element links to a canonical
+-- asset id and carries GeoJSON + a PostGIS geometry(4326) column for spatial
+-- queries. Coordinates are SYNTHETIC (a synthetic affine geo-reference of the
+-- schematic layout) and everything here is advisory only -- there is no control
+-- state and no control-write path. watertwin-api also ensures this table
+-- idempotently at startup and falls back to an in-memory twin when PostGIS is
+-- unavailable.
+CREATE TABLE IF NOT EXISTS network_element (
+    element_id         TEXT PRIMARY KEY,
+    network_id         TEXT NOT NULL DEFAULT 'ro-handoff',
+    element_type       TEXT NOT NULL,
+    kind               TEXT NOT NULL,
+    canonical_asset_id TEXT NOT NULL,
+    canonical_link     BOOLEAN NOT NULL DEFAULT FALSE,
+    start_node         TEXT,
+    end_node           TEXT,
+    properties         JSONB NOT NULL DEFAULT '{}'::jsonb,
+    geojson            JSONB NOT NULL DEFAULT '{}'::jsonb,
+    geom               geometry(Geometry, 4326)
+);
+
+CREATE INDEX IF NOT EXISTS network_element_geom_idx ON network_element USING GIST (geom);
+CREATE INDEX IF NOT EXISTS network_element_asset_idx ON network_element (canonical_asset_id);
+CREATE INDEX IF NOT EXISTS network_element_type_idx ON network_element (element_type);
 CREATE INDEX IF NOT EXISTS recommendation_tenant_facility_idx
     ON recommendation (tenant_id, facility_id);

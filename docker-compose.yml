@@ -23,8 +23,10 @@
 # dev user per role). The API enforces Keycloak-issued JWTs by default and the
 # dashboard logs in via OIDC. See docs/security/identity.md.
 #
-# Deferred to a later commercial-hardening work package (documented, not built
-# here): PostGIS spatial extensions. See docs/architecture for the rationale.
+# The persistent store is a spatially-enabled TimescaleDB (timescaledb-ha, which
+# bundles PostGIS). It backs the audit + recommendation tables and the geospatial
+# network twin (network_element with a geometry(4326) column). watertwin-api
+# degrades gracefully to an in-memory / GeoJSON twin when PostGIS is unavailable.
 
 services:
   keycloak:
@@ -67,7 +69,9 @@ services:
     restart: unless-stopped
 
   timescaledb:
-    image: timescale/timescaledb:2.17.2-pg16
+    # timescaledb-ha bundles both TimescaleDB and PostGIS, so the same store
+    # serves the audit/recommendation tables and the geospatial network twin.
+    image: timescale/timescaledb-ha:pg16
     container_name: watertwin-timescaledb
     environment:
       POSTGRES_USER: watertwin
@@ -76,7 +80,8 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - timescale_data:/var/lib/postgresql/data
+      # timescaledb-ha stores its cluster under /home/postgres/pgdata.
+      - timescale_data:/home/postgres/pgdata
       - ./infrastructure/database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U watertwin -d watertwin"]

@@ -62,6 +62,8 @@ from . import water_quality as wq
 from .config_store import ConfigStore
 from .tag_normalization import RawReading, TagMap, TagMapError, load_tag_map, normalize
 from .hydraulic_client import HydraulicSimClient, HydraulicSimError
+from .network_store import NetworkStore
+from .network_twin import NetworkTwin
 from .recommendations import RecommendationStore, build_recommendation
 from .reports import build_compliance_report, build_scenario_report
 from .store import Store
@@ -249,6 +251,12 @@ def get_cmms_adapter() -> cmms_pkg.CmmsAdapter:
 # control-write path.
 config_store = ConfigStore()
 
+# Geospatial network twin: PostGIS-backed spatial store (in-memory/GeoJSON
+# fallback) plus the imported topology (shared with hydraulic-sim). Advisory,
+# read-only, synthetic coordinates only.
+network_store = NetworkStore(config.DATABASE_URL)
+network_twin = NetworkTwin(network_store)
+
 # Completed runs cached by simulation job id so a downloadable report can be
 # regenerated on demand. Advisory, read-only what-if data only.
 _runs: dict[str, dict[str, Any]] = {}
@@ -360,6 +368,7 @@ def health() -> dict:
         "hydraulic_sim_reachable": sim_ok,
         "hydraulic_sim": sim_health,
         "db_connected": store.db_connected,
+        "network_twin": network_store.describe(),
         "telemetry_source": telemetry.get("active_source"),
         "telemetry_source_requested": telemetry.get("requested_source"),
         "telemetry_source_fallback": telemetry.get("fallback"),
@@ -378,6 +387,109 @@ def network() -> dict:
         return get_hydraulic_client().network_info()
     except HydraulicSimError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
+
+
+# ---------------------------------------------------------------------------
+# Geospatial Network Twin (advisory, read-only)
+#
+# A geo-referenced digital twin of the water-distribution network, imported from
+# the same EPANET model the hydraulic simulation runs (shared topology). It
+# models pipes/nodes/junctions/valves/pumps/tanks/reservoirs with GeoJSON
+# geometry linked to canonical asset ids, persisted in PostGIS when available
+# (in-memory/GeoJSON fallback otherwise). Endpoints serve GeoJSON feature
+# collections, per-asset spatial lookup, nearest-element lookup, and an
+# EPANET-residual leak-localization overlay that REUSES the hydraulic-sim
+# residual ranking. Coordinates are SYNTHETIC and overlays are PRELIMINARY;
+# nothing here writes to any control system.
+# ---------------------------------------------------------------------------
+
+_NETWORK_ELEMENT_TYPES = {
+    "junction",
+    "reservoir",
+    "tank",
+    "pipe",
+    "pump",
+    "valve",
+}
+_NETWORK_KINDS = {"node", "link"}
+
+
+@app.get("/api/v1/network/", dependencies=AUTHENTICATED)
+def network_twin_info() -> dict:
+    """Describe the geospatial network twin (topology + storage + boundary)."""
+    network_twin.ensure_loaded()
+    return {
+        **network_twin.topology.metadata,
+        "storage": network_store.describe(),
+        "control_boundary": ControlBoundary().model_dump(),
+    }
+
+
+@app.get("/api/v1/network/features", dependencies=AUTHENTICATED)
+def network_features(
+    element_type: Optional[str] = None,
+    kind: Optional[str] = None,
+) -> dict:
+    """Return the network twin as a GeoJSON FeatureCollection.
+
+    Optional filters: ``element_type`` (junction/reservoir/tank/pipe/pump/valve)
+    and ``kind`` (node/link).
+    """
+    if element_type is not None and element_type not in _NETWORK_ELEMENT_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"element_type must be one of {sorted(_NETWORK_ELEMENT_TYPES)}",
+        )
+    if kind is not None and kind not in _NETWORK_KINDS:
+        raise HTTPException(
+            status_code=422, detail=f"kind must be one of {sorted(_NETWORK_KINDS)}"
+        )
+    return network_twin.feature_collection(element_type=element_type, kind=kind)
+
+
+@app.get("/api/v1/network/assets/{asset_id}", dependencies=AUTHENTICATED)
+def network_asset(asset_id: str) -> dict:
+    """Spatial lookup for a single asset (canonical asset id or element id)."""
+    fc = network_twin.asset_features(asset_id)
+    if not fc["features"]:
+        raise HTTPException(
+            status_code=404, detail=f"no network element for asset '{asset_id}'"
+        )
+    return fc
+
+
+@app.get("/api/v1/network/nearest", dependencies=AUTHENTICATED)
+def network_nearest(lon: float, lat: float, limit: int = 1) -> dict:
+    """Return the nearest network element(s) to a WGS84 ``(lon, lat)`` point."""
+    limit = max(1, min(limit, 50))
+    return network_twin.nearest(lon, lat, limit=limit)
+
+
+@app.get("/api/v1/network/overlays/leak-localization", dependencies=AUTHENTICATED)
+def network_leak_overlay(
+    node_id: str = "J-D2",
+    area_m2: float = 0.01,
+    discharge_coeff: float = 0.75,
+) -> dict:
+    """EPANET-residual leak-localization overlay (preliminary + synthetic).
+
+    Runs the leak what-if via hydraulic-sim and translates its pressure-residual
+    ranking into geospatial candidate zones. The overlay reuses the simulation's
+    residual output and is advisory only -- never a validated leak location.
+    """
+    client = get_hydraulic_client()
+    try:
+        result = client.run(
+            ScenarioType.leak,
+            parameters={
+                "node_id": node_id,
+                "area_m2": area_m2,
+                "discharge_coeff": discharge_coeff,
+            },
+        )
+    except HydraulicSimError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return network_twin.leak_overlay(result)
 
 
 @app.post("/api/v1/simulation-center/run")

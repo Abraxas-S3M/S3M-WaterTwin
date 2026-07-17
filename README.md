@@ -109,6 +109,10 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
 - `packages/simulation_contracts` — shared what-if simulation request/result
   contracts (`provenance="simulated"`, `status="preliminary"`, read-only control
   boundary).
+- `packages/network_twin` — shared geospatial network twin: a dependency-light
+  EPANET `.inp` importer (topology shared with `hydraulic-sim`), synthetic
+  geo-referencing, canonical-asset linkage, RFC 7946 GeoJSON serialization, and
+  the EPANET-residual leak-localization overlay builder.
 - `packages/watertwin_models` — the **D1 framework**: `ModelSpec` metadata,
   synthetic back-test harness, false-alarm tracking, confidence calibration,
   population-stability-index drift hooks and a benchmark scaffold. Pure and
@@ -175,9 +179,11 @@ Digital-twin platform for reverse-osmosis (RO) desalination water treatment.
 | `grafana` | http://localhost:3000 | Auto-provisioned WaterTwin dashboard (admin/admin) |
 
 The API persists audit events and recommendations to TimescaleDB
-(`infrastructure/database/init.sql` creates the telemetry hypertable and the
-audit + recommendation tables) and degrades gracefully to in-memory when no
-database is configured.
+(`infrastructure/database/init.sql` creates the telemetry hypertable, the
+audit + recommendation tables, and the PostGIS `network_element` table for the
+geospatial twin) and degrades gracefully to in-memory when no database is
+configured. The store image is `timescaledb-ha`, which bundles **PostGIS**
+alongside TimescaleDB.
 
 Additional Phase 10 capabilities:
 
@@ -228,6 +234,17 @@ Additional Phase 10 capabilities:
   dev-mode env; the identity flows into the audit trail. This does **not** relax
   the advisory/read-only boundary. See
   [`docs/security/identity.md`](docs/security/identity.md).
+- **Geospatial network twin** (commercial hardening): a geo-referenced digital
+  twin of the water-distribution network (pipes, junctions, valves, pumps,
+  tanks, reservoirs), imported from the **same EPANET model** the hydraulic
+  simulation runs so twin and simulation **share topology**, linked to canonical
+  asset ids and persisted in **PostGIS** (in-memory / GeoJSON fallback for
+  tests). `GET /api/v1/network/` serves GeoJSON feature collections, per-asset
+  spatial lookup, nearest-element lookup, and an **EPANET-residual
+  leak-localization overlay** that reuses the hydraulic-sim residual ranking to
+  surface candidate zones — explicitly **preliminary + synthetic** (coordinates
+  are a synthetic geo-reference, never surveyed positions). See
+  [`packages/network_twin`](packages/network_twin).
 - **Telemetry ingest + edge store-and-forward**: `POST /api/v1/ingestion/telemetry`
   is an **idempotent** (on `batch_id`) ingest path that records each batch in the
   tamper-evident audit chain; the `edge-gateway` service buffers to a durable
@@ -245,7 +262,7 @@ Additional Phase 10 capabilities:
     [`docs/deployment/dr-runbook.md`](docs/deployment/dr-runbook.md).
 
 > Deferred to a later commercial-hardening work package (documented, not built):
-> PostGIS spatial features and multi-tenancy.
+> multi-tenancy.
 
 ## Run the stack
 Operator-facing digital twin for seawater reverse-osmosis (SWRO) water
