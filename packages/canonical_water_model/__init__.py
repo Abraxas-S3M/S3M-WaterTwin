@@ -859,3 +859,18 @@ class AssistantResponse(BaseModel):
     control_boundary: ControlBoundary = Field(default_factory=ControlBoundary)
     packet_id: Optional[str] = None
     created_at: str = Field(default_factory=now_iso)
+
+
+# ---------------------------------------------------------------------------
+# Customer configuration entity models
+#
+# Imported at the end of the module (after the enums/models above are defined)
+# because ``configuration`` depends on them. These are the shared *content*
+# models for the versioned, approval-gated customer configuration store; the
+# versioning + approval wrapper lives in the watertwin-api service.
+# ---------------------------------------------------------------------------
+
+from . import configuration  # noqa: E402
+from .configuration import *  # noqa: E402, F403
+
+__all__ += configuration.__all__

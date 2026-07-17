@@ -308,6 +308,36 @@ GET  /api/v1/audit
 POST /api/v1/reset
 ```
 
+### Customer configuration service (`app/configuration/`)
+
+A versioned, approval-gated configuration store for customer onboarding data —
+asset hierarchy, tag discovery/mapping (customer tag → `asset_id.metric`, reusing
+`app/tag_normalization.py`), engineering units, scaling/offset, sampling
+frequency, alarm thresholds, rated equipment, pump curves, membrane models,
+process stages, sampling points, lab methods, compliance limits and user role
+assignments. Config entity shapes shared with analytics live in
+`packages/canonical_water_model`; the versioning/approval wrapper stays in the
+service.
+
+Every configuration record is versioned and **immutable-on-publish**
+(`draft → submitted → approved → active`); an audit entry is appended to the
+tamper-evident hash chain on every state change, approval is RBAC-gated
+(engineer/admin only), and published versions are never deleted — a change
+supersedes the prior active version. Persisted to the existing store
+(TimescaleDB with in-memory fallback). Configuration is declarative data only and
+never touches a control path, so the advisory / read-only invariant is unchanged.
+
+```
+GET  /api/v1/config/entities
+GET  /api/v1/config/{entity}                       list active versions
+POST /api/v1/config/{entity}                       create a draft            (engineer)
+GET  /api/v1/config/{entity}/{id}                  active (or latest) version
+PUT  /api/v1/config/{entity}/{id}                  edit the draft            (engineer)
+GET  /api/v1/config/{entity}/{id}/versions         full version history
+POST /api/v1/config/{entity}/{id}/publish          draft → submitted         (engineer)
+POST /api/v1/config/{entity}/{id}/approve          submitted → approved → active (engineer/admin)
+```
+
 ## Licensing of dependencies
 
 See [`docs/licensing/open-source-register.md`](docs/licensing/open-source-register.md).

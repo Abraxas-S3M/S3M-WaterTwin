@@ -23,6 +23,7 @@ from simulation_contracts import ScenarioType, SimulationResult
 
 from . import auth
 from . import config
+from . import configuration
 from .auth import (
     Principal,
     get_current_user,
@@ -88,6 +89,12 @@ def _actor(user: Principal, fallback: str | None = None) -> str:
 
 reco_store = RecommendationStore(config.RECOMMENDATION_STORE_PATH)
 store = Store(config.DATABASE_URL)
+
+# Versioned, approval-gated customer configuration service. It shares the single
+# ``store`` instance so every configuration state change is appended to the same
+# tamper-evident audit hash chain surfaced by /api/v1/audit. Configuration is
+# declarative data only and never touches a control path.
+config_service = configuration.init_app(app, store)
 
 # Completed runs cached by simulation job id so a downloadable report can be
 # regenerated on demand. Advisory, read-only what-if data only.

@@ -80,6 +80,57 @@ CREATE TABLE IF NOT EXISTS recommendation (
 );
 """
 
+# Versioned, approval-gated customer configuration. Each row is one immutable
+# *version* of a logical configuration (``entity_type`` + ``config_id``). The
+# lifecycle (draft -> submitted -> approved -> active -> superseded) is enforced
+# by the configuration service; a version's ``payload`` is frozen once it leaves
+# ``draft``. State changes are recorded in the tamper-evident ``audit_event``
+# chain. Nothing here is a control-write path -- configuration is declarative.
+_CREATE_CONFIG_VERSION = """
+CREATE TABLE IF NOT EXISTS config_version (
+    version_id UUID PRIMARY KEY,
+    entity_type TEXT NOT NULL,
+    config_id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft',
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_by TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    submitted_by TEXT,
+    submitted_at TIMESTAMPTZ,
+    approved_by TEXT,
+    approved_at TIMESTAMPTZ,
+    activated_at TIMESTAMPTZ,
+    superseded_by UUID,
+    UNIQUE (entity_type, config_id, version)
+);
+CREATE INDEX IF NOT EXISTS config_version_lookup_idx
+    ON config_version (entity_type, config_id, version DESC);
+CREATE INDEX IF NOT EXISTS config_version_status_idx
+    ON config_version (entity_type, status);
+"""
+
+# Columns persisted for a config version, in a stable order used by both the
+# DB and in-memory paths.
+_CONFIG_COLUMNS = (
+    "version_id",
+    "entity_type",
+    "config_id",
+    "version",
+    "status",
+    "payload",
+    "created_by",
+    "created_at",
+    "updated_at",
+    "submitted_by",
+    "submitted_at",
+    "approved_by",
+    "approved_at",
+    "activated_at",
+    "superseded_by",
+)
+
 
 class Store:
     """Audit + recommendation persistence with graceful in-memory fallback."""
@@ -93,6 +144,8 @@ class Store:
         # In-memory mirrors used whenever the database is unavailable.
         self._audit_mem: list[dict[str, Any]] = []
         self._rec_mem: dict[str, dict[str, Any]] = {}
+        # Config versions, keyed by version_id, in insertion order.
+        self._config_mem: dict[str, dict[str, Any]] = {}
 
         # Running head of the in-memory audit hash chain (genesis when empty).
         self._chain_head: str = audit_chain.GENESIS_HASH
@@ -113,6 +166,7 @@ class Store:
                     cur.execute(stmt)
                 cur.execute(_APPEND_ONLY_GUARD)
                 cur.execute(_CREATE_RECOMMENDATION)
+                cur.execute(_CREATE_CONFIG_VERSION)
             self.db_connected = True
             logger.info("store connected to database", extra={"db_connected": True})
         except Exception as exc:  # pragma: no cover - exercised only with a real DB
@@ -321,16 +375,151 @@ class Store:
             if rec is not None:
                 rec["status"] = status
 
+    # -- configuration versions ----------------------------------------------
+
+    @staticmethod
+    def _config_row_to_dict(row: tuple[Any, ...]) -> dict[str, Any]:
+        record = dict(zip(_CONFIG_COLUMNS, row))
+        record["version_id"] = str(record["version_id"])
+        if record.get("superseded_by") is not None:
+            record["superseded_by"] = str(record["superseded_by"])
+        for ts_field in ("created_at", "updated_at", "submitted_at", "approved_at", "activated_at"):
+            val = record.get(ts_field)
+            if hasattr(val, "isoformat"):
+                record[ts_field] = val.isoformat()
+        return record
+
+    def save_config_version(self, record: dict[str, Any]) -> dict[str, Any]:
+        """Insert a new immutable configuration version row."""
+        row = {col: record.get(col) for col in _CONFIG_COLUMNS}
+        with self._lock:
+            if self.db_connected:
+                try:
+                    from psycopg.types.json import Jsonb
+
+                    values = dict(row)
+                    values["payload"] = Jsonb(values.get("payload") or {})
+                    placeholders = ", ".join(["%s"] * len(_CONFIG_COLUMNS))
+                    with self._conn.cursor() as cur:
+                        cur.execute(
+                            f"INSERT INTO config_version ({', '.join(_CONFIG_COLUMNS)}) "
+                            f"VALUES ({placeholders})",
+                            tuple(values[col] for col in _CONFIG_COLUMNS),
+                        )
+                    return dict(row)
+                except Exception as exc:  # pragma: no cover - real DB only
+                    logger.warning(
+                        "config write failed; mirroring to memory", extra={"error": str(exc)}
+                    )
+            self._config_mem[str(row["version_id"])] = dict(row)
+        return dict(row)
+
+    def update_config_version(self, version_id: str, fields: dict[str, Any]) -> None:
+        """Update mutable lifecycle/metadata fields of a config version.
+
+        Only used by the configuration service to advance a version's status and
+        stamp the actor/timestamps; a version's ``payload`` is only mutated while
+        it is still a ``draft``.
+        """
+        with self._lock:
+            if self.db_connected:
+                try:
+                    from psycopg.types.json import Jsonb
+
+                    sets = []
+                    params: list[Any] = []
+                    for key, value in fields.items():
+                        sets.append(f"{key} = %s")
+                        params.append(Jsonb(value) if key == "payload" else value)
+                    params.append(version_id)
+                    with self._conn.cursor() as cur:
+                        cur.execute(
+                            f"UPDATE config_version SET {', '.join(sets)} WHERE version_id = %s",
+                            tuple(params),
+                        )
+                    return
+                except Exception as exc:  # pragma: no cover - real DB only
+                    logger.warning("config update failed; using memory", extra={"error": str(exc)})
+            rec = self._config_mem.get(version_id)
+            if rec is not None:
+                rec.update(fields)
+
+    def get_config_version(self, version_id: str) -> dict[str, Any] | None:
+        """Return a single config version by its version id."""
+        with self._lock:
+            if self.db_connected:
+                try:
+                    with self._conn.cursor() as cur:
+                        cur.execute(
+                            f"SELECT {', '.join(_CONFIG_COLUMNS)} FROM config_version "
+                            "WHERE version_id = %s",
+                            (version_id,),
+                        )
+                        row = cur.fetchone()
+                    return self._config_row_to_dict(row) if row else None
+                except Exception as exc:  # pragma: no cover - real DB only
+                    logger.warning("config read failed; using memory", extra={"error": str(exc)})
+            rec = self._config_mem.get(version_id)
+            return dict(rec) if rec else None
+
+    def list_config_versions(
+        self, entity_type: str, config_id: str
+    ) -> list[dict[str, Any]]:
+        """Return all versions of a logical config, oldest-first."""
+        with self._lock:
+            if self.db_connected:
+                try:
+                    with self._conn.cursor() as cur:
+                        cur.execute(
+                            f"SELECT {', '.join(_CONFIG_COLUMNS)} FROM config_version "
+                            "WHERE entity_type = %s AND config_id = %s ORDER BY version ASC",
+                            (entity_type, config_id),
+                        )
+                        rows = cur.fetchall()
+                    return [self._config_row_to_dict(r) for r in rows]
+                except Exception as exc:  # pragma: no cover - real DB only
+                    logger.warning("config read failed; using memory", extra={"error": str(exc)})
+            versions = [
+                dict(r)
+                for r in self._config_mem.values()
+                if r["entity_type"] == entity_type and r["config_id"] == config_id
+            ]
+            return sorted(versions, key=lambda r: r["version"])
+
+    def list_config_active(self, entity_type: str) -> list[dict[str, Any]]:
+        """Return the active version of every logical config of an entity type."""
+        with self._lock:
+            if self.db_connected:
+                try:
+                    with self._conn.cursor() as cur:
+                        cur.execute(
+                            f"SELECT {', '.join(_CONFIG_COLUMNS)} FROM config_version "
+                            "WHERE entity_type = %s AND status = 'active' ORDER BY config_id ASC",
+                            (entity_type,),
+                        )
+                        rows = cur.fetchall()
+                    return [self._config_row_to_dict(r) for r in rows]
+                except Exception as exc:  # pragma: no cover - real DB only
+                    logger.warning("config read failed; using memory", extra={"error": str(exc)})
+            active = [
+                dict(r)
+                for r in self._config_mem.values()
+                if r["entity_type"] == entity_type and r["status"] == "active"
+            ]
+            return sorted(active, key=lambda r: r["config_id"])
+
     def reset(self) -> None:
         """Clear the in-memory mirrors and truncate DB tables (advisory data only)."""
         with self._lock:
             self._audit_mem.clear()
             self._rec_mem.clear()
+            self._config_mem.clear()
             self._chain_head = audit_chain.GENESIS_HASH
             if self.db_connected:
                 try:
                     with self._conn.cursor() as cur:
                         cur.execute("TRUNCATE audit_event")
                         cur.execute("TRUNCATE recommendation")
+                        cur.execute("TRUNCATE config_version")
                 except Exception as exc:  # pragma: no cover - real DB only
                     logger.warning("reset truncate failed", extra={"error": str(exc)})
