@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from typing import Awaitable, Callable
+from typing import Callable
 
 from pydantic import BaseModel
 from simulation_contracts import JobState, SimulationJob, SimulationKind, now_iso
