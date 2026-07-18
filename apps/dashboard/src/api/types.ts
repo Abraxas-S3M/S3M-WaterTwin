@@ -148,6 +148,8 @@ export interface Evidence {
   telemetry_window: string;
   assets_reviewed: string[];
   documents_reviewed: string[];
+  // Rich citations: title, resolvable location and provenance badge per source.
+  citations?: DocumentRef[];
   simulation_ids: string[];
   assumptions: string[];
   data_timestamp: string;
@@ -858,6 +860,8 @@ export interface ExecutiveROIResponse extends ValueEnvelope {
 
 export type DocumentType = 'manual' | 'procedure' | 'maintenance_record';
 
+export type DocumentProvenance = 'platform_seeded' | 'customer_supplied';
+
 export interface DocumentRef {
   document_id: string;
   title: string;
@@ -866,6 +870,10 @@ export interface DocumentRef {
   tags: string[];
   score?: number | null;
   snippet?: string | null;
+  provenance?: DocumentProvenance;
+  page?: number | null;
+  section?: string | null;
+  location?: string | null;
 }
 
 export interface DocumentsResponse {
@@ -1002,6 +1010,8 @@ export interface UpdateVerifyResponse {
   applied: boolean;
   note: string;
   control_boundary: ControlBoundary;
+}
+
 // --- Network Twin (GeoJSON topology + C1 leak-localization overlay) ---
 
 // Minimal GeoJSON shapes (lon, lat). Kept local so the dashboard does not take
@@ -1088,6 +1098,8 @@ export interface LeakLocalizationResponse {
   preliminary: boolean;
   provenance: DataProvenance;
   candidate_zones: LeakCandidateZoneFeature[];
+}
+
 // --- Administration / Configuration Workbench (A1: /api/v1/config) ---
 //
 // Mirrors the configuration document served by the /api/v1/config API. The
@@ -1178,7 +1190,7 @@ export interface LabMethod {
   unit: string;
 }
 
-export interface ComplianceLimit {
+export interface LabComplianceLimit {
   id: string;
   analyte: string;
   limit: number;
@@ -1206,7 +1218,7 @@ export interface ConfigDocument {
   process_stages: ProcessStage[];
   sampling_points: SamplingPoint[];
   lab_methods: LabMethod[];
-  compliance_limits: ComplianceLimit[];
+  compliance_limits: LabComplianceLimit[];
   user_roles: UserRoleAssignment[];
 }
 
@@ -1242,6 +1254,8 @@ export type ConfigDraftPayload = Pick<
 export interface ConfigActionRequest {
   actor?: string;
   note?: string | null;
+}
+
 // --- Model governance registry (D1/D2 governance) ---
 
 export type DriftStatus = 'stable' | 'watch' | 'drifting' | 'unknown';
@@ -1332,6 +1346,8 @@ export interface ComplianceStatusResponse {
   provenance: DataProvenance;
   control_boundary: ControlBoundary;
   disclaimer: string;
+}
+
 // --- Cyber-Physical Security (advisory, read-only) ---
 
 export type SecurityStatus = 'ok' | 'attention' | 'alert';
@@ -1429,6 +1445,8 @@ export interface SiemExportResponse {
     signed_fields: string[];
     detail: string;
   };
+}
+
 // --- Operator Training Simulator (SIMULATION, sandboxed, read-only) ---
 
 export type TrainingScenarioType =
