@@ -2,6 +2,10 @@ line-length = 100
 target-version = "py312"
 
 [lint]
+select = ["E", "F", "W", "I"]
+
+[lint.per-file-ignores]
+# Tests import app modules after sys.path setup in conftest.
 select = ["E", "W", "F", "I", "B", "UP", "N", "SIM", "C4", "RUF"]
 
 [lint.per-file-ignores]

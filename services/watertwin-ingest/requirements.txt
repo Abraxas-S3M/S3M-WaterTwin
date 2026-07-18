@@ -1,4 +1,22 @@
 # watertwin-ingest service dependencies (pinned).
+# A hardened, tenant-isolated file/document ingestion service. It is the hostile-
+# input firewall in front of the platform: every parser runs behind malware scan,
+# archive/zip-bomb limits, XXE/XSLT-safe XML, CSV-injection-safe export, a
+# resource-capped sandbox, per-tenant quotas, strict tenant isolation and a
+# tamper-evident audit chain. It is read-only to OT (deny-all worker egress) and
+# has NO control-write path.
+# Versions match services/watertwin-api so the shared register + SBOMs stay
+# consistent.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+# Hardened XML parsing: forbids DTDs, external entities and entity expansion
+# (XXE / billion-laughs). Pure-python, no native code.
+defusedxml==0.7.1
+
+# Test-only (kept here so the container image can self-test the controls):
+pytest==8.3.4
+httpx==0.28.1
 # Sandboxed customer-file ingestion: parses an uploaded EPANET .inp inside a
 # hardened, network-isolated worker, reconciles it against the canonical config
 # fetched from watertwin-api over HTTP, and proposes changes for human review.

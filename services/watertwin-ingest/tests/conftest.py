@@ -1,3 +1,9 @@
+"""Test bootstrap: make shared packages + the ingest service importable."""
+
+from __future__ import annotations
+
+import os
+import sys
 """Test bootstrap: make shared packages + the service app importable, isolate state."""
 
 from __future__ import annotations
