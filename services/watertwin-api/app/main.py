@@ -1497,27 +1497,6 @@ class ModelAssessmentRequest(BaseModel):
     inputs: dict[str, float] = Field(default_factory=dict)
 
 
-@app.get("/api/v1/models", dependencies=AUTHENTICATED)
-def list_models() -> dict:
-    """List the registered D1 models with their spec summaries."""
-    return _models_envelope(
-        {
-            "models": [
-                {
-                    "model_id": ad.spec.model_id,
-                    "name": ad.spec.name,
-                    "version": ad.spec.version,
-                    "tier": ad.spec.tier.value,
-                    "asset_type": ad.spec.asset_type,
-                    "target": ad.spec.target,
-                    "status": ad.spec.status,
-                }
-                for ad in d1_models.MODELS.values()
-            ]
-        }
-    )
-
-
 @app.get("/api/v1/models/{model_id}/spec", dependencies=AUTHENTICATED)
 def model_spec(model_id: str) -> dict:
     """Full ModelSpec metadata (inputs, outputs, baseline, reused components,

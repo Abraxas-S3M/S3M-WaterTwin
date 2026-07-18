@@ -134,12 +134,9 @@ def test_benchmark_scaffold_aggregates(model_id: str) -> None:
 # --- Endpoints --------------------------------------------------------------
 
 
-def test_list_models_endpoint(client) -> None:
-    body = client.get("/api/v1/models").json()
-    assert body["control_boundary"]["control_write_enabled"] is False
-    ids = {m["model_id"] for m in body["models"]}
-    assert ids == set(MODEL_IDS)
-
+# NOTE: `/api/v1/models` is the model-governance registry (see
+# tests/test_models_governance.py). The D1 model set is asserted directly via
+# ``app.models`` above; the per-model endpoints below cover the D1 HTTP surface.
 
 _ENDPOINTS = [
     f"/api/v1/models/{mid}/{suffix}"
