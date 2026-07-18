@@ -15,6 +15,88 @@
   /* Ink used on top of the strong accent; overridable by customer branding. */
   --accent-contrast: #04222f;
   color-scheme: dark;
+
+  /* --- Design token layer (additive; consumed from PR 4 onward) --- */
+
+  /* Ground and surface */
+  --ground-deep: #03102e;
+  --ground:      #0a2360;
+  --ground-lit:  #1249b4;
+  --panel-a:     rgba(18,62,148,.52);
+  --panel-b:     rgba(6,24,72,.68);
+  --inset-a:     rgba(6,26,78,.72);
+  --inset-b:     rgba(9,38,104,.50);
+
+  /* Ink */
+  --ink:   #ffffff;
+  --ink-2: rgba(255,255,255,.66);
+  /* --ink-3 measures ~3:1 on the panel gradient. Permitted for uppercase metadata
+     at >=11px only. Never for a value, a value's label, or interactive text. */
+  --ink-3: rgba(255,255,255,.42);
+
+  /* Edge */
+  --edge:     rgba(190,220,255,.34);
+  --edge-hot: rgba(255,255,255,.85);
+
+  /* Signal */
+  --aqua:     #3fe9e0;
+  --alert-hi: #ff4d4d;
+  --alert-md: #ff9a2e;
+  --alert-lo: #ffd23f;
+  --signal-ok:#5fe08a;
+
+  /* Spacing — 4pt base */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px;
+
+  /* Type scale */
+  --fs-meta:  11px;
+  --fs-cap:   12px;
+  --fs-body:  13.5px;
+  --fs-lead:  15px;
+  --fs-h3:    17px;
+  --fs-h2:    22px;
+  --fs-stat:  30px;
+  --fs-big:   60px;
+
+  --lh-tight: 1.2;
+  --lh-body:  1.55;
+
+  --f-disp: 'Saira Condensed', 'Barlow Condensed', system-ui, sans-serif;
+  --f-body: 'Barlow', Inter, system-ui, sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* Elevation and decoration */
+  --elev-1: 0 4px 18px rgba(2,10,38,.55);
+  --elev-2: 0 6px 30px rgba(2,10,38,.62);
+  --bloom:  inset 0 0 28px rgba(70,150,255,.20);
+  --bloom-0: none;
+  --lip:    inset 0 1px 0 rgba(255,255,255,.10);
+
+  /* Chamfer geometry, direction-aware */
+  --chamfer: 10px;
+  --cut-br:  polygon(0 0, 100% 0, 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, 0 100%);
+  --cut-lean:polygon(var(--chamfer) 0, 100% 0, calc(100% - var(--chamfer)) 100%, 0 100%);
+  --cut-tag: polygon(var(--chamfer) 0, 100% 0, calc(100% - var(--chamfer)) 100%, 0 100%);
+
+  /* Motion */
+  --dur-fast: .18s;
+  --dur-base: .30s;
+  --dur-slow: .60s;
+  --ease:     cubic-bezier(.2,.7,.3,1);
+}
+
+[dir="rtl"] {
+  --cut-br:  polygon(0 0, 100% 0, 100% 100%, var(--chamfer) 100%, 0 calc(100% - var(--chamfer)));
+  --cut-lean:polygon(0 0, calc(100% - var(--chamfer)) 0, 100% 100%, var(--chamfer) 100%);
+  --cut-tag: polygon(0 0, calc(100% - var(--chamfer)) 0, 100% 100%, var(--chamfer) 100%);
+}
+
+[data-tier="workbench"] {
+  --panel-a: rgba(10,38,104,.58);
+  --panel-b: rgba(5,20,64,.72);
+  --bloom:   var(--bloom-0);
+  --elev-2:  var(--elev-1);
 }
 
 * {
@@ -1668,4 +1750,8 @@ input[type='text'] {
 [dir='rtl'] .flow {
   /* Preserve natural reading order for inline content in RTL. */
   direction: rtl;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0s; --dur-base: 0s; --dur-slow: 0s; }
 }

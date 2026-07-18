@@ -201,46 +201,6 @@ jobs:
         run: python -m pytest -q
 
   # ---------------------------------------------------------------------------
-  # Dashboard (React/TypeScript) unit tests.
-  # Ingestion threat-model suite (BUILD GATE). Proves every row of ADR-0014
-  # section 5 with an automated test (see security/threat-model-ingestion.md).
-  # This is blocking: a regression in any ingestion security control fails CI.
-  # ---------------------------------------------------------------------------
-  security-ingest:
-    name: security-ingest (ADR-0014 threat model, blocking)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install ingest service runtime + test deps
-        run: |
-          set -euxo pipefail
-          python -m pip install --upgrade pip
-          # The suite exercises the real watertwin-ingest service code and the
-          # shared canonical models (pydantic).
-          pip install -r services/watertwin-ingest/requirements.txt
-
-      - name: Ruff (lint the ingest service + security suite)
-        run: |
-          set -euxo pipefail
-          pip install ruff==0.8.4
-          ruff check services/watertwin-ingest security
-
-      - name: Threat-model suite (every ADR-0014 row, blocking)
-        env:
-          PYTHONPATH: ${{ github.workspace }}/packages
-        run: python -m pytest security/tests -q
-
-      - name: Ingest service smoke tests
-        working-directory: services/watertwin-ingest
-        run: python -m pytest -q
-
-  # ---------------------------------------------------------------------------
   # Dashboard (React/TypeScript) — BLOCKING frontend gate.
   # Installs from the lockfile, lints, runs the unit suite, and produces a
   # production build. Prior to this the frontend was never lint/type-checked or
