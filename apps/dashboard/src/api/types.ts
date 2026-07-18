@@ -58,11 +58,18 @@ export type AnomalyDomain =
   | 'sensor'
   | 'cyber_physical';
 
+// Mirrors packages/canonical_water_model DataProvenance. The `vendor_specified`,
+// `customer_supplied` and `customer_measured` members describe values that came
+// from a customer file (OEM datasheet, customer document, or customer historian/
+// LIMS export) and must never be confused with live `measured` telemetry.
 export type DataProvenance =
   | 'synthetic'
   | 'simulated'
   | 'preliminary'
   | 'estimated'
+  | 'vendor_specified'
+  | 'customer_supplied'
+  | 'customer_measured'
   | 'measured';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
@@ -1303,7 +1310,7 @@ export interface ModelsResponse {
 
 export type LimitBound = 'max' | 'min';
 
-export interface ComplianceLimit {
+export interface RegulatoryComplianceLimit {
   parameter: string;
   display_name: string;
   unit: string;
@@ -1315,7 +1322,7 @@ export interface ComplianceLimit {
 }
 
 export interface ComplianceLimitsResponse {
-  limits: ComplianceLimit[];
+  limits: RegulatoryComplianceLimit[];
   count: number;
   control_boundary: ControlBoundary;
 }
@@ -1576,4 +1583,197 @@ export interface TrainingActionRequest {
   text: string;
   rubric_key?: string | null;
   approved?: boolean | null;
+}
+
+// --- Data Intake (file -> classify -> preview -> diff -> submit) -------------
+//
+// The Data Intake page turns an uploaded file into an approved configuration
+// change through the EXISTING configuration lifecycle (see app/configuration).
+// Nothing here writes to OT; the whole flow is human-reviewed, fully logged,
+// reversible and fail-safe. All values remain advisory until approved.
+
+/** Sniffed classification of an uploaded file (EPANET only in this phase). */
+export type IngestClass = 'epanet_inp' | 'unknown';
+
+/** Workbench panel a diff row is grouped under, mirroring Administration tabs. */
+export type IngestPanel =
+  | 'asset-hierarchy'
+  | 'tag-mapping'
+  | 'alarm-thresholds'
+  | 'rated-equipment'
+  | 'process-stages'
+  | 'lab-methods'
+  | 'user-roles';
+
+/** Lifecycle status of an upload, tracked permanently in history. */
+export type IngestUploadStatus =
+  | 'classified'
+  | 'previewed'
+  | 'submitted'
+  | 'approved'
+  | 'rejected';
+
+export interface IngestAcceptedType {
+  extension: string;
+  label: string;
+  max_bytes: number;
+}
+
+/**
+ * Availability of the optional watertwin-ingest service. When `available` is
+ * false the nav entry is hidden and the page renders a clear unavailable state
+ * rather than a broken page.
+ */
+export interface IngestStatusResponse {
+  available: boolean;
+  enabled: boolean;
+  deployment_profile: string;
+  accepted_types: IngestAcceptedType[];
+  control_boundary: ControlBoundary;
+}
+
+export interface IngestClassification {
+  upload_id: string;
+  filename: string;
+  sha256: string;
+  size_bytes: number;
+  suggested_class: IngestClass;
+  confidence: number;
+  detail: string;
+  supported_classes: IngestClass[];
+}
+
+export interface IngestEntityCount {
+  entity: string;
+  label: string;
+  found: number;
+  matched: number;
+  added: number;
+  conflicts: number;
+}
+
+/** A source line that could not be parsed, with a plain-language reason. */
+export interface IngestUnparsedRow {
+  line: number;
+  section: string;
+  raw: string;
+  reason: string;
+}
+
+export type IngestChangeType = 'new' | 'update' | 'conflict';
+
+export interface IngestDiffRow {
+  row_id: string;
+  entity: string;
+  config_id: string;
+  field: string;
+  current_value: string | null;
+  proposed_value: string;
+  source_ref: string;
+  provenance: DataProvenance;
+  change_type: IngestChangeType;
+  match_confidence: number;
+  // True for asset hierarchy, rated equipment and alarm thresholds — the three
+  // safety-relevant entities that require a separate approver (separation of
+  // duties), enforced server-side.
+  safety_relevant: boolean;
+}
+
+export interface IngestDiffGroup {
+  panel: IngestPanel;
+  label: string;
+  rows: IngestDiffRow[];
+}
+
+export interface IngestPreview {
+  upload_id: string;
+  status: 'pending' | 'ready' | 'error';
+  suggested_class: IngestClass;
+  entity_counts: IngestEntityCount[];
+  unparsed: IngestUnparsedRow[];
+  diff: IngestDiffGroup[];
+}
+
+export interface IngestScope {
+  facility_id: string | null;
+  // Optional pre-scope to a single configuration entity when the page is opened
+  // from an Administration panel's "Import from file" deep link.
+  entity: string | null;
+}
+
+export interface IngestClassifyRequest {
+  filename: string;
+  size_bytes: number;
+  content: string;
+  confirmed_class?: IngestClass | null;
+  scope?: IngestScope | null;
+}
+
+export interface IngestRowDecision {
+  row_id: string;
+  accepted: boolean;
+  reject_reason?: string | null;
+}
+
+export interface IngestSubmitRequest {
+  upload_id: string;
+  actor: string;
+  decisions: IngestRowDecision[];
+}
+
+export interface IngestCreatedVersion {
+  entity: string;
+  config_id: string;
+  version: number;
+  version_id: string;
+  status: string;
+}
+
+export interface IngestSubmitResult {
+  upload_id: string;
+  created_versions: IngestCreatedVersion[];
+  accepted_count: number;
+  rejected_count: number;
+  // Separation of duties: when the accepted rows touch a safety-relevant entity
+  // the submitter may not also approve. The server sets this; the UI reflects it.
+  requires_separate_approver: boolean;
+  self_approval_blocked: boolean;
+  blocked_entities: string[];
+  message: string;
+  control_boundary: ControlBoundary;
+}
+
+export interface IngestHistoryItem {
+  upload_id: string;
+  filename: string;
+  sha256: string;
+  uploader: string;
+  timestamp: string;
+  upload_class: IngestClass;
+  status: IngestUploadStatus;
+  config_version: number | null;
+  approver: string | null;
+}
+
+export interface IngestHistoryResponse {
+  items: IngestHistoryItem[];
+  control_boundary: ControlBoundary;
+}
+
+export type OnboardingKey =
+  | 'network_model'
+  | 'equipment_specs'
+  | 'tag_mapping'
+  | 'documents';
+
+export interface OnboardingChecklistItem {
+  key: OnboardingKey;
+  complete: boolean;
+  count: number;
+}
+
+export interface IngestOnboardingResponse {
+  has_assets: boolean;
+  progress: number;
+  checklist: OnboardingChecklistItem[];
 }

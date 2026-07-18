@@ -25,6 +25,9 @@ dependencies = [
     "opentelemetry-sdk==1.44.0",
     "opentelemetry-exporter-otlp-proto-http==1.44.0",
     "opentelemetry-instrumentation-fastapi==0.65b0",
+    # Streamed multipart file uploads for the optional watertwin-ingest intake
+    # service (FastAPI UploadFile / Form). Required only by services/watertwin-ingest.
+    "python-multipart==0.0.20",
 ]
 
 [project.optional-dependencies]

@@ -16,6 +16,13 @@ would encumber this project.
 | pymodbus    | 3.7.4    | BSD-3-Clause (read function codes only) |
 | pypdf       | 5.1.0    | BSD-3-Clause (watertwin-ingest; PDF text-layer extraction only) |
 | python-docx | 1.1.2    | MIT (watertwin-ingest; .docx paragraph/heading text extraction only) |
+| defusedxml  | 0.7.1    | PSF-2.0 (hardened XML parsing in `services/watertwin-ingest`; forbids DTD/entity/external refs) |
+| defusedxml  | 0.7.1    | PSF-2.0 (used by services/watertwin-ingest to detect/reject XML XXE attacks in uploads) |
+| python-multipart | 0.0.20 | Apache-2.0 (multipart form parsing for file uploads in services/watertwin-ingest) |
+| httpx       | 0.28.1   | BSD-3-Clause (runtime HTTP client for the watertwin-ingest reconciler; also a dev dep elsewhere) |
+| python-multipart | 0.0.20 | Apache-2.0 (streamed uploads; watertwin-ingest only) |
+| openpyxl    | 3.1.5    | MIT (watertwin-ingest; read_only + data_only, never executes macros) |
+| charset-normalizer | 3.4.7 | MIT (watertwin-ingest; CSV encoding detection) |
 
 ### Transitive runtime dependencies
 
@@ -30,6 +37,20 @@ would encumber this project.
 | click            | 8.4.2    | BSD-3-Clause |
 | h11              | 0.16.0   | MIT          |
 | typing-extensions| 4.x      | PSF          |
+| et-xmlfile       | 2.0.0    | MIT (openpyxl dependency) |
+
+## watertwin-ingest service dependencies
+
+Additional runtime dependencies of the `services/watertwin-ingest` bulk
+file-import service (pinned in `services/watertwin-ingest/requirements.txt`).
+None is copyleft.
+
+| Package    | Version  | License      |
+| ---------- | -------- | ------------ |
+| pyarrow    | 25.0.0   | Apache-2.0 (streamed Parquet reading) |
+| pyshp      | 3.1.4    | MIT (pure-Python shapefile reader) |
+| pyproj     | 3.7.2    | MIT (bundles PROJ, MIT/ISC; CRS reprojection) |
+| defusedxml | 0.7.1    | PSF-2.0 (hardened XML parsing) |
 
 ## Development-only dependencies
 

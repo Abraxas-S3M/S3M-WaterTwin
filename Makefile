@@ -5,16 +5,16 @@ PYTHON ?= python3
 SBOM_DIR := docs/licensing/sbom
 SERVICES := watertwin-api hydraulic-sim treatment-sim edge-gateway
 # Services with CycloneDX SBOMs generated + reconciled (see the `sbom` target).
-SERVICES := watertwin-api hydraulic-sim treatment-sim
+SERVICES := watertwin-api hydraulic-sim treatment-sim watertwin-ingest
 # All Python services with lint + pytest suites (superset of SERVICES).
-TEST_SERVICES := watertwin-api hydraulic-sim treatment-sim edge-gateway
+TEST_SERVICES := watertwin-api hydraulic-sim treatment-sim edge-gateway watertwin-ingest
 LOAD_PROFILE ?= smoke
 
 HELM_CHART := infrastructure/helm/watertwin
 HELM_ENV ?= dev
 
 .PHONY: up down logs ps test lint sbom reconcile backup scenario-degrade reset demo help \
-	helm-deps helm-lint helm-template
+	helm-deps helm-lint helm-template security
 .PHONY: up down logs ps test lint sbom reconcile backup scenario-degrade reset \
         demo load-smoke chaos dr-drill help
 
@@ -27,6 +27,7 @@ help:
 	@echo "  lint             Run ruff for every service"
 	@echo "  sbom             Generate CycloneDX SBOMs (python services + dashboard)"
 	@echo "  reconcile        Reconcile the SBOMs against the open-source register"
+	@echo "  security         Run the ADR-0014 ingestion threat-model test suite"
 	@echo "  backup           Back up the audit/Timescale database (pg_dump)"
 	@echo "  scenario-degrade Inject an HPP/pump-outage degradation what-if (end-to-end)"
 	@echo "  reset            Clear cached runs, recommendations, and audit trail"
@@ -85,6 +86,10 @@ sbom:
 # open-source register. Fails if any direct dependency is unregistered.
 reconcile:
 	@$(PYTHON) scripts/reconcile_sbom.py
+
+# Run the ADR-0014 ingestion threat-model suite (one test per threat row).
+security:
+	@PYTHONPATH=packages $(PYTHON) -m pytest security/tests -q
 
 # Back up the audit + Timescale database via pg_dump (see docs/deployment).
 backup:

@@ -1,0 +1,2 @@
+ot_tag,asset_id,measurement_type,unit,scale (dimensionless),offset (engineering units),deadband (engineering units)
+PLC1.HPP01.FLOW,AST-HPP-01,flow,m3/h,1.0,0.0,0.5

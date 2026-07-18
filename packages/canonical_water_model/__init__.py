@@ -23,6 +23,8 @@ __all__ = [
     "HealthBand",
     "AnomalyDomain",
     "DataProvenance",
+    "is_customer_sourced",
+    "PROVENANCE_RANK",
     "ApprovalStatus",
     "RatedData",
     "Asset",
@@ -217,7 +219,53 @@ class DataProvenance(str, Enum):
     #: validated or guaranteed saving/benefit -- always presented with a
     #: disclaimer (used by the energy / resilience / executive value layer).
     estimated = "estimated"
+    #: From an OEM datasheet, pump curve, or membrane projection. Authoritative
+    #: for DESIGN INTENT only, never for current condition.
+    vendor_specified = "vendor_specified"
+    #: From a customer document, drawing, or design basis. Trusted as a CLAIM,
+    #: unverified against the plant.
+    customer_supplied = "customer_supplied"
+    #: From a customer historian, LIMS, or instrument export. Real data, still
+    #: subject to sensor-confidence scoring.
+    customer_measured = "customer_measured"
+    #: RESERVED for live telemetry ingested through the edge gateway. Do NOT use
+    #: for customer file imports (use the ``customer_*`` members instead).
     measured = "measured"
+
+
+def is_customer_sourced(p: DataProvenance) -> bool:
+    """Return ``True`` only for provenance that originates from a customer file.
+
+    True for :attr:`DataProvenance.vendor_specified`,
+    :attr:`DataProvenance.customer_supplied` and
+    :attr:`DataProvenance.customer_measured` -- the values produced by upcoming
+    customer file-ingestion. It is deliberately ``False`` for
+    :attr:`DataProvenance.measured` (live telemetry) and for all
+    synthetic/simulated/preliminary/estimated internal values.
+    """
+    return p in (
+        DataProvenance.vendor_specified,
+        DataProvenance.customer_supplied,
+        DataProvenance.customer_measured,
+    )
+
+
+#: Trust ordering (lowest to highest confidence in reflecting *plant reality*)
+#: for DISPLAY PURPOSES ONLY -- UI sorting and badge styling. This ranking must
+#: NOT be used to auto-promote an analytic label (e.g. it never turns a
+#: ``preliminary`` result into a ``calibrated`` one). Customer-measured data is
+#: ranked below live ``measured`` telemetry because it is still subject to
+#: sensor-confidence scoring.
+PROVENANCE_RANK: dict[DataProvenance, int] = {
+    DataProvenance.synthetic: 0,
+    DataProvenance.simulated: 1,
+    DataProvenance.preliminary: 2,
+    DataProvenance.estimated: 3,
+    DataProvenance.customer_supplied: 4,
+    DataProvenance.vendor_specified: 5,
+    DataProvenance.customer_measured: 6,
+    DataProvenance.measured: 7,
+}
 
 
 class ApprovalStatus(str, Enum):

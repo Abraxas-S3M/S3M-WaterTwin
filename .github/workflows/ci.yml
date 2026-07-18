@@ -53,8 +53,10 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Compiles every package + service, including the optional
+      # services/watertwin-ingest intake service (covered by ``services``).
       - name: Compile every package and service (syntax gate)
-        run: python -m compileall packages services
+        run: python -m compileall packages services security scripts
 
   import-guard:
     name: import-guard (${{ matrix.service }})
@@ -62,7 +64,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [watertwin-api, hydraulic-sim, treatment-sim, edge-gateway]
+        service: [watertwin-api, hydraulic-sim, treatment-sim, edge-gateway, watertwin-ingest]
     steps:
       - uses: actions/checkout@v4
 
@@ -93,6 +95,9 @@ jobs:
             edge-gateway)
               pip install -r services/edge-gateway/requirements.txt
               ;;
+            watertwin-ingest)
+              pip install -r services/watertwin-ingest/requirements.txt
+              ;;
           esac
 
       - name: Import the service app (fails on any import-time error)
@@ -102,6 +107,9 @@ jobs:
           # edge-gateway creates its store-and-forward spool at import; point it
           # at a writable path so the import check does not need /data.
           EDGE_SPOOL_DIR: ${{ runner.temp }}/edge-spool
+          # watertwin-ingest builds its local content store at import; point it
+          # at a writable path so the import check does not need /data.
+          INGEST_STORAGE_ROOT: ${{ runner.temp }}/ingest-store
         run: python -c "import app.main"
 
   # ---------------------------------------------------------------------------
@@ -113,7 +121,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [watertwin-api, hydraulic-sim, treatment-sim, edge-gateway]
+        service: [watertwin-api, hydraulic-sim, treatment-sim, edge-gateway, watertwin-ingest]
     steps:
       - uses: actions/checkout@v4
 
@@ -154,6 +162,13 @@ jobs:
               # buffer. Install its pinned deps.
               pip install -r services/edge-gateway/requirements.txt
               ;;
+            watertwin-ingest)
+              # Hardened, tenant-isolated advisory ingestion service (hostile-
+              # input firewall). Install its pinned deps.
+              # Optional immutable-intake service: no direct DB, no OT access.
+              # Install its pinned deps (fastapi + multipart + httpx + event bus).
+              pip install -r services/watertwin-ingest/requirements.txt
+              ;;
           esac
 
       - name: Ruff (lint)
@@ -169,6 +184,10 @@ jobs:
 
       - name: Pytest
         working-directory: services/${{ matrix.service }}
+        env:
+          # The suite points the write-once store at a throwaway dir (see the
+          # test conftest); this default keeps import-time store creation off /data.
+          INGEST_STORAGE_ROOT: ${{ runner.temp }}/ingest-store
         run: python -m pytest -q
 
   # ---------------------------------------------------------------------------
@@ -198,6 +217,45 @@ jobs:
 
       - name: Pytest
         working-directory: packages
+        run: python -m pytest -q
+
+  # ---------------------------------------------------------------------------
+  # Ingestion threat-model suite (BUILD GATE). Proves every row of ADR-0014
+  # section 5 with an automated test (see security/threat-model-ingestion.md).
+  # This is blocking: a regression in any ingestion security control fails CI.
+  # ---------------------------------------------------------------------------
+  security-ingest:
+    name: security-ingest (ADR-0014 threat model, blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install ingest service runtime + test deps
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip
+          # The suite exercises the real watertwin-ingest service code and the
+          # shared canonical models (pydantic).
+          pip install -r services/watertwin-ingest/requirements.txt
+
+      - name: Ruff (lint the ingest service + security suite)
+        run: |
+          set -euxo pipefail
+          pip install ruff==0.8.4
+          ruff check services/watertwin-ingest security
+
+      - name: Threat-model suite (every ADR-0014 row, blocking)
+        env:
+          PYTHONPATH: ${{ github.workspace }}/packages
+        run: python -m pytest security/tests -q
+
+      - name: Ingest service smoke tests
+        working-directory: services/watertwin-ingest
         run: python -m pytest -q
 
   # ---------------------------------------------------------------------------
@@ -307,7 +365,7 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p docs/licensing/sbom
-          for svc in watertwin-api hydraulic-sim treatment-sim edge-gateway; do
+          for svc in watertwin-api hydraulic-sim treatment-sim edge-gateway watertwin-ingest; do
             python -m cyclonedx_py requirements "services/$svc/requirements.txt" \
               -o "docs/licensing/sbom/sbom-$svc.cdx.json"
           done
@@ -373,7 +431,7 @@ jobs:
             done < security/pip-audit-ignore.txt
           fi
           status=0
-          for svc in watertwin-api hydraulic-sim treatment-sim edge-gateway; do
+          for svc in watertwin-api hydraulic-sim treatment-sim edge-gateway watertwin-ingest; do
             echo "::group::pip-audit $svc"
             pip-audit -r "services/$svc/requirements.txt" "${ignore_args[@]}" || status=1
             echo "::endgroup::"

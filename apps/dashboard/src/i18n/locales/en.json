@@ -33,6 +33,8 @@
       "simulation": "Simulation Center",
       "administration": "Administration",
       "admin-facilities": "Multi-Facility"
+      "simulation": "Simulation Center",
+      "data-intake": "Data Intake"
     },
     "notes": {
       "simulation": "Phase 8–9",
@@ -77,6 +79,18 @@
     "estimated": {
       "label": "Estimated",
       "title": "Illustrative estimate on synthetic pilot data — not a validated saving or guaranteed outcome."
+    },
+    "vendor_specified": {
+      "label": "Vendor-Specified",
+      "title": "From an OEM datasheet, pump curve, or membrane projection — authoritative for design intent only, never for current condition."
+    },
+    "customer_supplied": {
+      "label": "Customer-Supplied",
+      "title": "From a customer document, drawing, or design basis — trusted as a claim, unverified against the plant."
+    },
+    "customer_measured": {
+      "label": "Customer-Measured",
+      "title": "From a customer historian, LIMS, or instrument export — real data, still subject to sensor-confidence scoring."
     }
   },
   "units": {
@@ -578,5 +592,150 @@
     "answerNote": "Read-only advisory answer — grounded in platform data + documents, not general model knowledge.",
     "recommendedAction": "Recommended Action",
     "empty": "Ask a question or pick an example prompt to get a grounded, evidence-backed answer."
+  },
+  "dataIntake": {
+    "importFromFile": "Import from file",
+    "title": "Data Intake",
+    "subtitle": "Turn an uploaded file into an approved configuration change. Everything is reviewed by a person before it is applied — nothing writes to plant controls.",
+    "loading": "Checking the data-intake service…",
+    "noAccess": "Data Intake is available to engineers and administrators (full) and operators (read-only). Your role does not include it.",
+    "unavailableTitle": "Data Intake is unavailable",
+    "unavailableBody": "The data-intake service is disabled for this deployment profile or is not reachable. No upload is possible right now; try again later or contact your administrator.",
+    "readOnlyNote": "Read-only view: you can review the upload history and provenance, but uploading and submitting changes require an engineer or administrator.",
+    "stepperLabel": "Data intake steps",
+    "steps": {
+      "drop": "Drop",
+      "classify": "Classify",
+      "preview": "Preview",
+      "diff": "Diff",
+      "submit": "Submit"
+    },
+    "classes": {
+      "epanet_inp": "EPANET network model (.inp)",
+      "unknown": "Unrecognised file"
+    },
+    "status": {
+      "classified": "Classified",
+      "previewed": "Previewed",
+      "submitted": "Submitted",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "entities": {
+      "asset": "Asset hierarchy",
+      "tag_mapping": "Tag mapping",
+      "alarm_threshold": "Alarm thresholds",
+      "rated_equipment": "Rated equipment"
+    },
+    "drop": {
+      "reviewNotice": "Files are reviewed before anything changes. Nothing is applied automatically.",
+      "zoneLabel": "Upload a file: drop it here or press Enter to open the file picker",
+      "instruction": "Drag a file here, or use the button below.",
+      "chooseFile": "Choose file",
+      "inputLabel": "Choose a file to upload",
+      "acceptedCaption": "Accepted file types and size limits (the server re-validates on upload).",
+      "colType": "Type",
+      "colExtension": "Extension",
+      "colMaxSize": "Max size",
+      "errorType": "That file type is not accepted ({{ext}}). Please choose a supported file.",
+      "errorSize": "That file is too large ({{size}}); the limit is {{max}}."
+    },
+    "classify": {
+      "suggestionTitle": "Suggested classification",
+      "suggestionHint": "We think this file is the type below (about {{confidence}}% confident). Confirm or correct it before we parse it.",
+      "confirmClassLabel": "Confirm or correct the file type",
+      "scopeTitle": "Scope",
+      "facilityLabel": "Facility",
+      "noFacility": "No facility in scope",
+      "entityLabel": "Limit to entity (optional)",
+      "allEntities": "All entities in the file",
+      "confirm": "Confirm and parse"
+    },
+    "preview": {
+      "pending": "Parsing your file… you can leave this page and come back.",
+      "foundTitle": "What we found",
+      "colEntity": "Entity",
+      "colFound": "Found",
+      "colMatched": "Matched",
+      "colNew": "New",
+      "colConflicts": "Conflicts",
+      "unparsedTitle": "Lines we could not parse",
+      "unparsedNone": "Every line parsed cleanly.",
+      "colLine": "Line",
+      "colSection": "Section",
+      "colReason": "Reason",
+      "colRaw": "Content",
+      "continue": "Review the changes"
+    },
+    "diff": {
+      "empty": "No field-level changes were produced from this file.",
+      "bulkAccept": "Accept all in this group",
+      "colField": "Field",
+      "colCurrent": "Current value",
+      "colProposed": "Proposed value",
+      "colSource": "Source",
+      "colProvenance": "Provenance",
+      "colDecision": "Decision",
+      "accept": "Accept",
+      "reject": "Reject",
+      "rejectConfirm": "Record rejection",
+      "reasonLabel": "Reason for rejecting this change",
+      "reasonPlaceholder": "Why is this change being rejected?",
+      "rejectedWithReason": "Rejected (reason recorded)",
+      "safety": "Safety-relevant",
+      "safetyTitle": "Asset hierarchy, rated equipment and alarm thresholds require a separate approver (separation of duties).",
+      "state": {
+        "accepted": "Accepted",
+        "rejected": "Rejected",
+        "undecided": "Not yet decided"
+      },
+      "continue": "Continue to submit"
+    },
+    "submit": {
+      "reviewTitle": "Review and submit",
+      "summary": "{{accepted}} change(s) accepted, {{rejected}} rejected. Only accepted changes are submitted as a draft for approval.",
+      "nothingAccepted": "Accept at least one change to submit.",
+      "submit": "Submit accepted changes",
+      "submitting": "Submitting…",
+      "submittedTitle": "Submitted for approval",
+      "colEntity": "Entity",
+      "colConfigId": "Configuration",
+      "colVersion": "Version",
+      "colStatus": "Status",
+      "sodTitle": "A separate approver is required",
+      "sodBody": "This change touches asset hierarchy, rated equipment or alarm thresholds. To preserve separation of duties, you cannot approve your own submission — another engineer or an administrator must approve it.",
+      "sodEntities": "Safety-relevant entities in this submission:"
+    },
+    "history": {
+      "title": "Upload history",
+      "filterLabel": "Filter uploads",
+      "filterPlaceholder": "Filter by file, uploader, status…",
+      "empty": "No uploads yet.",
+      "colFile": "File",
+      "colSha": "SHA-256",
+      "colUploader": "Uploader",
+      "colTime": "Timestamp",
+      "colClass": "Class",
+      "colStatus": "Status",
+      "colVersion": "Config version",
+      "colApprover": "Approver",
+      "colOriginal": "Original",
+      "copySha": "Copy full SHA-256",
+      "copy": "Copy",
+      "copied": "Copied",
+      "download": "Download"
+    },
+    "onboarding": {
+      "title": "Finish setting up this facility",
+      "body": "This tenant has no assets yet. Import your configuration to get started — the checklist below tracks your progress.",
+      "done": "Done",
+      "todo": "To do",
+      "items": {
+        "network_model": "Network model",
+        "equipment_specs": "Equipment specs",
+        "tag_mapping": "Tag mapping",
+        "documents": "Documents"
+      }
+    }
   }
 }

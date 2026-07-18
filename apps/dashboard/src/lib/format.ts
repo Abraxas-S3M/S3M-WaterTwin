@@ -31,6 +31,11 @@ export const provenanceValidated: Record<DataProvenance, boolean> = {
   simulated: false,
   preliminary: false,
   estimated: false,
+  // Customer-file provenance is never treated as validated: it is a claim or an
+  // export that has not been verified against this plant's live instruments.
+  vendor_specified: false,
+  customer_supplied: false,
+  customer_measured: false,
 };
 
 export function fmtMoney(value: number | null | undefined, digits = 0): string {

@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Administration } from './Administration';
@@ -18,20 +19,22 @@ function setRoles(roles: string[]) {
   });
 }
 
-describe('Administration / Configuration Workbench', () => {
+describe('Administration', () => {
   let mock: ReturnType<typeof installFetchMock>;
+
   beforeEach(() => {
     // jsdom has no object-URL / navigation; stub them for the download path.
     URL.createObjectURL = vi.fn(() => 'blob:mock');
     URL.revokeObjectURL = vi.fn();
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
   });
+
   afterEach(() => {
     mock?.restore();
     setRoles([...ALL_ROLES]);
   });
 
-  it('renders every panel via the tab strip for an admin', async () => {
+  it('renders licensing, usage, and the signed-update channel', async () => {
     setRoles(['admin']);
     mock = installFetchMock();
     renderWithProviders(<Administration />);
@@ -54,7 +57,8 @@ describe('Administration / Configuration Workbench', () => {
     expect(screen.getByTestId('update-policy')).toBeInTheDocument();
   });
 
-  it('generates a support bundle on demand', async () => {
+  it('generates a support bundle and exposes the configuration workbench', async () => {
+    setRoles(['admin']);
     mock = installFetchMock();
     renderWithProviders(<Administration />);
 
@@ -109,7 +113,9 @@ describe('Administration / Configuration Workbench', () => {
     mock = installFetchMock();
     renderWithProviders(<Administration />);
 
-    await waitFor(() => expect(screen.getByTestId('admin-panel-asset-hierarchy')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId('admin-panel-asset-hierarchy')).toBeInTheDocument(),
+    );
     const saveButton = screen.getByTestId('admin-save-draft-button');
     expect(saveButton).toBeDisabled();
 
