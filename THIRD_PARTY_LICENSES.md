@@ -29,6 +29,19 @@ would encumber this project.
 | h11              | 0.16.0   | MIT          |
 | typing-extensions| 4.x      | PSF          |
 
+## watertwin-ingest service dependencies
+
+Additional runtime dependencies of the `services/watertwin-ingest` bulk
+file-import service (pinned in `services/watertwin-ingest/requirements.txt`).
+None is copyleft.
+
+| Package    | Version  | License      |
+| ---------- | -------- | ------------ |
+| pyarrow    | 25.0.0   | Apache-2.0 (streamed Parquet reading) |
+| pyshp      | 3.1.4    | MIT (pure-Python shapefile reader) |
+| pyproj     | 3.7.2    | MIT (bundles PROJ, MIT/ISC; CRS reprojection) |
+| defusedxml | 0.7.1    | PSF-2.0 (hardened XML parsing) |
+
 ## Development-only dependencies
 
 | Package  | Version  | License      |
