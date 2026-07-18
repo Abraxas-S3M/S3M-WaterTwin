@@ -259,10 +259,15 @@ jobs:
         run: python -m pytest -q
 
   # ---------------------------------------------------------------------------
-  # Dashboard (React/TypeScript) unit tests.
+  # Dashboard (React/TypeScript) — BLOCKING frontend gate.
+  # Installs from the lockfile, lints, runs the unit suite, and produces a
+  # production build. Prior to this the frontend was never lint/type-checked or
+  # build-verified in CI, so a broken dashboard could (and did) merge unnoticed.
+  # Every step below is blocking (no continue-on-error): a lint error, a failing
+  # test, or a build failure fails the check and blocks the merge.
   # ---------------------------------------------------------------------------
   dashboard:
-    name: dashboard (React/TS)
+    name: dashboard (React/TS — lint + test + build, blocking)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -277,9 +282,17 @@ jobs:
         working-directory: apps/dashboard
         run: npm ci
 
+      - name: Lint
+        working-directory: apps/dashboard
+        run: npm run lint
+
       - name: Test
         working-directory: apps/dashboard
-        run: npm test
+        run: npm run test
+
+      - name: Build
+        working-directory: apps/dashboard
+        run: npm run build
 
   # ---------------------------------------------------------------------------
   # Kubernetes packaging: lint the Helm charts and validate every rendered
