@@ -1,0 +1,82 @@
+# Hardened Kubernetes Deployment for watertwin-ingest.
+#
+# Every hardening control the threat model requires is expressed here and is
+# asserted by security/tests/test_container_hardening.py, which parses this file:
+#   * runAsNonRoot + explicit non-root UID/GID
+#   * readOnlyRootFilesystem (writable scratch is an emptyDir tmpfs at /tmp)
+#   * allowPrivilegeEscalation: false
+#   * ALL Linux capabilities dropped
+#   * seccompProfile (Localhost -> deploy/seccomp.json, or RuntimeDefault)
+#   * no shell in the runtime image (distroless; see Dockerfile)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: watertwin-ingest
+  namespace: watertwin
+  labels:
+    app.kubernetes.io/name: watertwin-ingest
+    app.kubernetes.io/part-of: s3m-watertwin
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: watertwin-ingest
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: watertwin-ingest
+        app.kubernetes.io/part-of: s3m-watertwin
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          # Prefer the tuned profile; RuntimeDefault is an acceptable fallback.
+          type: Localhost
+          localhostProfile: watertwin/ingest-seccomp.json
+      containers:
+        - name: watertwin-ingest
+          image: ghcr.io/abraxas-s3m/watertwin-ingest:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8300
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "768Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8300
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8300
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          volumeMounts:
+            # Read-only root filesystem: give the process a small writable tmpfs
+            # for temp parse files only.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 256Mi
