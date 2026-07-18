@@ -36,6 +36,13 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
     class="nav-item"
   >
     <span>
+      التوأم الرقمي للشبكة
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
       التوأم الرقمي للأصل
     </span>
   </button>
@@ -51,6 +58,13 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
   >
     <span>
       الصيانة التنبؤية
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
+      مركز الصيانة
     </span>
   </button>
   <button
@@ -78,7 +92,33 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
     class="nav-item"
   >
     <span>
+      النماذج والامتثال
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
       مساعد العمليات
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
+      الأمن السيبراني-الفيزيائي
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
+      محاكي التدريب
+    </span>
+    <span
+      class="phase-tag"
+    >
+      محاكاة
     </span>
   </button>
   <button
@@ -93,9 +133,102 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
       المرحلة 8–9
     </span>
   </button>
+  <button
+    class="nav-item"
+  >
+    <span>
+      الإدارة
+    </span>
+  </button>
+  <div
+    aria-label="Display & reports"
+    class="nav-group"
+  >
+    <div
+      class="nav-group-title"
+    >
+      Display & reports
+    </div>
+    <button
+      class="nav-item"
+      data-testid="enter-control-room"
+    >
+      <span>
+        Control Room display
+      </span>
+    </button>
+    <button
+      class="nav-item"
+      data-testid="open-shift-report"
+    >
+      <span>
+        Print shift report
+      </span>
+    </button>
+    <button
+      class="nav-item"
+      data-testid="open-executive-report"
+    >
+      <span>
+        Print executive report
+      </span>
+    </button>
+  </div>
+  <div
+    class="nav-section"
+    data-testid="admin-nav-section"
+  >
+    <div
+      class="nav-section-title"
+    >
+      Administration
+    </div>
+    <button
+      class="nav-item"
+      data-testid="nav-admin-facilities"
+    >
+      <span>
+        المنشآت المتعددة
+      </span>
+    </button>
+  </div>
   <div
     style="flex: 1 1 0%;"
   />
+  <div
+    class="facility-switcher"
+    data-testid="facility-switcher"
+  >
+    <span
+      class="facility-switcher-label"
+    >
+      Acme Water Co
+    </span>
+    <select
+      aria-label="Active facility"
+      class="facility-switcher-select"
+      data-testid="facility-switcher-select"
+    >
+      <option
+        data-testid="facility-option-FAC-ALPHA"
+        value="FAC-ALPHA"
+      >
+        SWRO Alpha
+      </option>
+      <option
+        data-testid="facility-option-FAC-BETA"
+        value="FAC-BETA"
+      >
+        SWRO Beta
+      </option>
+      <option
+        data-testid="facility-option-FAC-GAMMA"
+        value="FAC-GAMMA"
+      >
+        SWRO Gamma
+      </option>
+    </select>
+  </div>
   <div
     class="shell-controls"
     data-testid="shell-controls"

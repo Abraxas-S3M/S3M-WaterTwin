@@ -1,4 +1,4 @@
-import type { ComplianceLimit, LabMethod } from '../../api/types';
+import type { LabComplianceLimit, LabMethod } from '../../api/types';
 import {
   CellInput,
   PanelShell,
@@ -17,7 +17,7 @@ const EMPTY_METHOD: LabMethod = {
   unit: '',
 };
 
-const EMPTY_LIMIT: ComplianceLimit = {
+const EMPTY_LIMIT: LabComplianceLimit = {
   id: '',
   analyte: '',
   limit: 0,
@@ -28,10 +28,10 @@ const EMPTY_LIMIT: ComplianceLimit = {
 
 interface Props {
   labMethods: LabMethod[];
-  complianceLimits: ComplianceLimit[];
+  complianceLimits: LabComplianceLimit[];
   readOnly: boolean;
   onLabMethodsChange: (rows: LabMethod[]) => void;
-  onComplianceLimitsChange: (rows: ComplianceLimit[]) => void;
+  onComplianceLimitsChange: (rows: LabComplianceLimit[]) => void;
 }
 
 export function LabMethodsPanel({
