@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { KpiCard } from '../components/KpiCard';
 import { ProvenanceBadge } from '../components/ProvenanceBadge';
+import { useCapabilities } from '../auth/useAuth';
 import {
   useApproveConfig,
   useBillingExport,
@@ -14,8 +15,6 @@ import {
   useUpdateChannel,
   useUsage,
 } from '../hooks';
-import { useCapabilities } from '../auth/useAuth';
-import { titleCase } from '../lib/format';
 import { useDashboardStore } from '../state/store';
 import { titleCase } from '../lib/format';
 import type { ConfigDocument, ConfigDraftPayload } from '../api/types';
@@ -27,10 +26,6 @@ import { ProcessStagesPanel } from './administration/ProcessStagesPanel';
 import { LabMethodsPanel } from './administration/LabMethodsPanel';
 import { UserRolesPanel } from './administration/UserRolesPanel';
 import { WorkflowStrip } from './administration/WorkflowStrip';
-
-function fmtLimit(limit: number): string {
-  return limit < 0 ? 'Unlimited' : limit.toLocaleString();
-}
 
 type TabId =
   | 'asset-hierarchy'
@@ -51,10 +46,6 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'user-roles', label: 'User Roles' },
 ];
 
-function fmtLimit(limit: number): string {
-  return limit < 0 ? 'Unlimited' : limit.toLocaleString();
-}
-
 function toDraft(config: ConfigDocument): ConfigDraftPayload {
   return {
     asset_hierarchy: config.asset_hierarchy,
@@ -74,25 +65,10 @@ function fmtLimit(limit: number): string {
 }
 
 export function Administration() {
-  // Licensing / metering / updates / support.
-  const entitlements = useEntitlements();
-  const usage = useUsage();
-  const billing = useBillingExport();
-  const channel = useUpdateChannel();
-  const bundle = useSupportBundle();
-  const [bundleMsg, setBundleMsg] = useState<string | null>(null);
-
-  // Configuration Workbench (versioned, approval-gated).
   const config = useConfig();
   const versions = useConfigVersions();
   const { administerConfig, approveConfig } = useCapabilities();
   const operator = useDashboardStore((s) => s.operatorName);
-
-  const entitlements = useEntitlements();
-  const usage = useUsage();
-  const billing = useBillingExport();
-  const channel = useUpdateChannel();
-  const bundle = useSupportBundle();
 
   const saveDraft = useSaveConfigDraft();
   const submit = useSubmitConfig();
@@ -131,31 +107,7 @@ export function Administration() {
 
   const [tab, setTab] = useState<TabId>('asset-hierarchy');
   const [draft, setDraft] = useState<ConfigDraftPayload | null>(null);
-  const [bundleMsg, setBundleMsg] = useState<string | null>(null);
   const seededKey = useRef<string | null>(null);
-
-  const ent = entitlements.data?.entitlements;
-  const usageSnap = usage.data?.usage;
-  const limitsStatus = entitlements.data?.limits_status ?? [];
-  const info = channel.data?.update_channel;
-
-  const handleGenerateBundle = () => {
-    setBundleMsg(null);
-    bundle.mutate(undefined, {
-      onSuccess: (blob) => {
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = `watertwin-support-bundle-${Date.now()}.zip`;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(url);
-        setBundleMsg('Support bundle generated (logs + SBOM + config, secrets redacted).');
-      },
-      onError: (err) => setBundleMsg((err as Error).message),
-    });
-  };
 
   // Reseed the working draft whenever the server document changes (initial load
   // or after a save/submit/approve round-trip), but never clobber in-flight edits
@@ -167,29 +119,6 @@ export function Administration() {
     seededKey.current = key;
     setDraft(toDraft(config.data));
   }, [config.data]);
-
-  const ent = entitlements.data?.entitlements;
-  const usageSnap = usage.data?.usage;
-  const limitsStatus = entitlements.data?.limits_status ?? [];
-  const info = channel.data?.update_channel;
-
-  const handleGenerateBundle = () => {
-    setBundleMsg(null);
-    bundle.mutate(undefined, {
-      onSuccess: (blob) => {
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = `watertwin-support-bundle-${Date.now()}.zip`;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(url);
-        setBundleMsg('Support bundle generated (logs + SBOM + config, secrets redacted).');
-      },
-      onError: (err) => setBundleMsg((err as Error).message),
-    });
-  };
 
   const readOnly = !administerConfig;
   const busy =
@@ -414,22 +343,6 @@ export function Administration() {
             {bundleMsg}
           </div>
         ) : null}
-      </div>
-
-      <div className="page-header">
-        <div>
-          <h2>Administration / Configuration Workbench</h2>
-      {/* Configuration Workbench (versioned, approval-gated) */}
-      <div className="page-header">
-        <div>
-          <h2>Configuration Workbench</h2>
-          <div className="context">
-            Central configuration for the digital twin. Non-admin roles have a{' '}
-            <strong>read-only</strong> view; edits move through a draft → submit → approve change
-            control workflow.
-          </div>
-        </div>
-        <ProvenanceBadge provenance={doc.provenance} />
       </div>
 
       <WorkflowStrip
