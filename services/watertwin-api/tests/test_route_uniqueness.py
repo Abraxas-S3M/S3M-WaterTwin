@@ -33,16 +33,48 @@ from app.main import app
 # services/watertwin-api/tests/ -> services/watertwin-api/ -> services/ -> repo
 _SERVICE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO_ROOT = os.path.dirname(os.path.dirname(_SERVICE_ROOT))
+SERVICES_ROOT = os.path.join(REPO_ROOT, "services")
 PACKAGES = os.path.join(REPO_ROOT, "packages")
 
-# The HTTP services (edge-gateway is deliberately excluded: it is an
-# outbound-only collection worker that binds no listener and has no app).
-FASTAPI_SERVICES = (
-    "watertwin-api",
-    "hydraulic-sim",
-    "treatment-sim",
-    "watertwin-ingest",
-)
+
+def _discover_fastapi_services() -> list[str]:
+    """Discover every service under ``services/`` that exposes a FastAPI app.
+
+    A service qualifies when it ships ``app/main.py`` that constructs a FastAPI
+    application (edge-gateway is naturally excluded: it is an outbound-only
+    collection worker that binds no listener and creates no ``FastAPI`` app).
+
+    Discovery replaces a hardcoded service list on purpose: deleting a service
+    can never leave a stale name behind that breaks this guard, and adding a new
+    FastAPI service is covered automatically.
+    """
+    if not os.path.isdir(SERVICES_ROOT):
+        return []
+    discovered: list[str] = []
+    for name in sorted(os.listdir(SERVICES_ROOT)):
+        main_py = os.path.join(SERVICES_ROOT, name, "app", "main.py")
+        if not os.path.isfile(main_py):
+            continue
+        try:
+            with open(main_py, encoding="utf-8") as handle:
+                source = handle.read()
+        except OSError:
+            continue
+        if "FastAPI(" in source:
+            discovered.append(name)
+    return discovered
+
+
+# Discovered dynamically so a deleted service can never break this guard.
+FASTAPI_SERVICES = tuple(_discover_fastapi_services())
+
+
+def test_fastapi_service_discovery_is_non_empty() -> None:
+    # Guards against a broken scan silently parametrizing zero services (which
+    # pytest would report as passing rather than failing).
+    assert "watertwin-api" in FASTAPI_SERVICES, (
+        f"expected to discover watertwin-api among FastAPI services, got {FASTAPI_SERVICES}"
+    )
 
 # Small program run inside each service's directory to dump its registered
 # (path, method) pairs as JSON. Kept dependency-free on purpose. The payload is
