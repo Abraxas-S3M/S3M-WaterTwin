@@ -3,6 +3,14 @@ target-version = "py312"
 
 [lint]
 select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "C4", "RUF"]
+line-length = 110
+
+[lint]
+select = ["E", "F", "W"]
+line-length = 100
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "C4"]
 
 [lint.per-file-ignores]
 "tests/*" = ["E402"]
