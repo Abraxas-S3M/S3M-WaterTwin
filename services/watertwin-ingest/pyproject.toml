@@ -1,6 +1,14 @@
 [project]
 name = "watertwin-ingest"
 version = "0.1.0"
+description = "S3M-WaterTwin customer-document ingestion: text extraction + deterministic chunking (read-only)."
+requires-python = ">=3.12"
+# Pinned runtime dependencies (see also requirements.txt and the repository
+# THIRD_PARTY_LICENSES.md). Both parsers perform text extraction only and never
+# execute active content.
+dependencies = [
+    "pypdf==5.1.0",
+    "python-docx==1.1.2",
 description = "S3M-WaterTwin templated spreadsheet ingestion (equipment specs, tag mappings, lab methods)."
 requires-python = ">=3.12"
 
@@ -15,6 +23,15 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "pytest==8.3.4",
+    "ruff==0.8.6",
+]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+warn_unused_ignores = false
+disallow_untyped_defs = false
     "pytest==9.1.1",
     "ruff==0.8.4",
 ]

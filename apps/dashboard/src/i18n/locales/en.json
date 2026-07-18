@@ -14,21 +14,31 @@
   "nav": {
     "ariaLabel": "Primary",
     "footerNote": "Pages 1, 2, 4 live · others in later phases",
+    "adminSection": "Administration",
     "items": {
       "command": "Command Overview",
       "process": "Process Twin",
+      "network": "Network Twin",
       "asset": "Asset Twin",
       "water-quality": "Water Quality",
       "predictive-maintenance": "Predictive Maintenance",
+      "maintenance-center": "Maintenance Center",
       "energy": "Energy Optimization",
       "resilience": "Resilience Command",
       "executive": "Executive Value / ROI",
+      "models": "Models & Compliance",
       "assistant": "Operations Assistant",
+      "security": "Cyber-Physical Security",
+      "training": "Training Simulator",
+      "simulation": "Simulation Center",
+      "administration": "Administration",
+      "admin-facilities": "Multi-Facility"
       "simulation": "Simulation Center",
       "data-intake": "Data Intake"
     },
     "notes": {
-      "simulation": "Phase 8–9"
+      "simulation": "Phase 8–9",
+      "training": "SIMULATION"
     }
   },
   "settings": {
@@ -565,6 +575,12 @@
     "sourceEngine": "Source engine",
     "assetsReviewed": "Assets reviewed",
     "documentsReviewed": "Documents reviewed",
+    "citations": "Cited sources",
+    "location": "Location",
+    "sourceCustomer": "Customer-supplied",
+    "sourcePlatform": "Platform-seeded",
+    "sourceCustomerTitle": "This document was uploaded by your organisation and approved for grounding.",
+    "sourcePlatformTitle": "This document ships with the platform.",
     "simulationsUsed": "Simulations used",
     "assumptions": "Assumptions",
     "questionPlaceholder": "e.g. Why is HPP-001 degrading?",

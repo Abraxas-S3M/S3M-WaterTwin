@@ -5,7 +5,7 @@ import { RecommendationCard } from '../components/RecommendationCard';
 import { useAskAssistant, useAssistantExamples, useDecision } from '../hooks';
 import { useDashboardStore } from '../state/store';
 import { fmtNumber, fmtTime } from '../lib/format';
-import type { AssistantResponse } from '../api/types';
+import type { AssistantResponse, DocumentProvenance } from '../api/types';
 
 function EngineStatusBadge({ status }: { status: string }) {
   const { t } = useTranslation();
@@ -19,6 +19,55 @@ function EngineStatusBadge({ status }: { status: string }) {
     >
       {local ? t('assistant.engineLocal') : t('assistant.engineQuad')}
     </span>
+  );
+}
+
+function SourceBadge({ provenance }: { provenance: DocumentProvenance }) {
+  const { t } = useTranslation();
+  const customer = provenance === 'customer_supplied';
+  return (
+    <span
+      className={`status-chip ${customer ? 'elevated' : 'approved'}`}
+      data-testid="source-badge"
+      data-provenance={provenance}
+      title={customer ? t('assistant.sourceCustomerTitle') : t('assistant.sourcePlatformTitle')}
+    >
+      {customer ? t('assistant.sourceCustomer') : t('assistant.sourcePlatform')}
+    </span>
+  );
+}
+
+function CitationsBlock({ response }: { response: AssistantResponse }) {
+  const { t } = useTranslation();
+  const citations = response.evidence.citations ?? [];
+  if (citations.length === 0) return null;
+  return (
+    <div data-testid="evidence-citations" style={{ marginTop: 8 }}>
+      <div className="card-sub">{t('assistant.citations')}</div>
+      <ul className="stack" style={{ margin: '4px 0 0', paddingLeft: 0, listStyle: 'none' }}>
+        {citations.map((c) => {
+          const provenance: DocumentProvenance = c.provenance ?? 'platform_seeded';
+          return (
+            <li
+              key={c.document_id}
+              data-testid="citation"
+              data-provenance={provenance}
+              className="row"
+              style={{ gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}
+            >
+              <SourceBadge provenance={provenance} />
+              <strong>{c.title}</strong>
+              <span className="muted">({c.document_id})</span>
+              {c.location ? (
+                <span className="card-sub" data-testid="citation-location">
+                  {t('assistant.location')}: {c.location}
+                </span>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 
@@ -90,6 +139,8 @@ function EvidenceBlock({ response }: { response: AssistantResponse }) {
           )}
         </div>
       </div>
+
+      <CitationsBlock response={response} />
 
       <div data-testid="evidence-assumptions" style={{ marginTop: 8 }}>
         <div className="card-sub">{t('assistant.assumptions')}</div>

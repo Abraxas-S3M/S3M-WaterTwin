@@ -65,6 +65,43 @@ describe('OperationsAssistant', () => {
     expect(screen.getByTestId('approve-button')).toBeInTheDocument();
   });
 
+  it('shows cited sources with provenance badges and a resolvable location', async () => {
+    mock = installFetchMock();
+    renderWithProviders(<OperationsAssistant />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('example-explain_degradation')).toBeInTheDocument(),
+    );
+    await userEvent.click(screen.getByTestId('example-explain_degradation'));
+
+    await waitFor(() => expect(screen.getByTestId('evidence-citations')).toBeInTheDocument());
+
+    const citations = screen.getAllByTestId('citation');
+    expect(citations).toHaveLength(2);
+
+    // A user can tell whose document each answer came from.
+    const platform = citations.find(
+      (c) => c.getAttribute('data-provenance') === 'platform_seeded',
+    );
+    const customer = citations.find(
+      (c) => c.getAttribute('data-provenance') === 'customer_supplied',
+    );
+    expect(platform).toBeTruthy();
+    expect(customer).toBeTruthy();
+
+    // The customer-supplied source is badged and carries a resolvable location.
+    const customerBadge = within(customer!).getByTestId('source-badge');
+    expect(customerBadge).toHaveAttribute('data-provenance', 'customer_supplied');
+    expect(customerBadge).toHaveTextContent(/customer-supplied/i);
+    expect(within(customer!).getByText(/Acme HP Pump Overhaul SOP/)).toBeInTheDocument();
+    expect(within(customer!).getByTestId('citation-location')).toHaveTextContent(
+      /Bearing Replacement/,
+    );
+
+    // The platform-seeded source is badged distinctly.
+    expect(within(platform!).getByTestId('source-badge')).toHaveTextContent(/platform-seeded/i);
+  });
+
   it('approves the recommended action through the existing decision flow', async () => {
     mock = installFetchMock();
     renderWithProviders(<OperationsAssistant />);

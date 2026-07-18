@@ -155,6 +155,8 @@ export interface Evidence {
   telemetry_window: string;
   assets_reviewed: string[];
   documents_reviewed: string[];
+  // Rich citations: title, resolvable location and provenance badge per source.
+  citations?: DocumentRef[];
   simulation_ids: string[];
   assumptions: string[];
   data_timestamp: string;
@@ -865,6 +867,8 @@ export interface ExecutiveROIResponse extends ValueEnvelope {
 
 export type DocumentType = 'manual' | 'procedure' | 'maintenance_record';
 
+export type DocumentProvenance = 'platform_seeded' | 'customer_supplied';
+
 export interface DocumentRef {
   document_id: string;
   title: string;
@@ -873,6 +877,10 @@ export interface DocumentRef {
   tags: string[];
   score?: number | null;
   snippet?: string | null;
+  provenance?: DocumentProvenance;
+  page?: number | null;
+  section?: string | null;
+  location?: string | null;
 }
 
 export interface DocumentsResponse {
@@ -1189,7 +1197,7 @@ export interface LabMethod {
   unit: string;
 }
 
-export interface ComplianceLimit {
+export interface LabComplianceLimit {
   id: string;
   analyte: string;
   limit: number;
@@ -1217,7 +1225,7 @@ export interface ConfigDocument {
   process_stages: ProcessStage[];
   sampling_points: SamplingPoint[];
   lab_methods: LabMethod[];
-  compliance_limits: ComplianceLimit[];
+  compliance_limits: LabComplianceLimit[];
   user_roles: UserRoleAssignment[];
 }
 

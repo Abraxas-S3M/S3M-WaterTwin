@@ -81,6 +81,13 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
     data-testid="nav-asset"
   >
     <span>
+      التوأم الرقمي للشبكة
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
       التوأم الرقمي للأصل
     </span>
   </button>
@@ -111,6 +118,13 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
   <button
     class="nav-item"
     data-testid="nav-energy"
+  >
+    <span>
+      مركز الصيانة
+    </span>
+  </button>
+  <button
+    class="nav-item"
   >
     <span>
       تحسين الطاقة
@@ -145,6 +159,13 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
     data-testid="nav-assistant"
   >
     <span>
+      النماذج والامتثال
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
       مساعد العمليات
     </span>
   </button>
@@ -174,6 +195,25 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
     data-testid="nav-simulation"
   >
     <span>
+      الأمن السيبراني-الفيزيائي
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
+      محاكي التدريب
+    </span>
+    <span
+      class="phase-tag"
+    >
+      محاكاة
+    </span>
+  </button>
+  <button
+    class="nav-item"
+  >
+    <span>
       مركز المحاكاة
     </span>
     <span
@@ -184,6 +224,9 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
   </button>
   <button
     class="nav-item"
+  >
+    <span>
+      الإدارة
     data-testid="nav-administration"
   >
     <span>
@@ -238,6 +281,7 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
       data-testid="nav-admin-facilities"
     >
       <span>
+        المنشآت المتعددة
         Multi-Facility
       </span>
     </button>
@@ -245,6 +289,40 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
   <div
     style="flex: 1 1 0%;"
   />
+  <div
+    class="facility-switcher"
+    data-testid="facility-switcher"
+  >
+    <span
+      class="facility-switcher-label"
+    >
+      Acme Water Co
+    </span>
+    <select
+      aria-label="Active facility"
+      class="facility-switcher-select"
+      data-testid="facility-switcher-select"
+    >
+      <option
+        data-testid="facility-option-FAC-ALPHA"
+        value="FAC-ALPHA"
+      >
+        SWRO Alpha
+      </option>
+      <option
+        data-testid="facility-option-FAC-BETA"
+        value="FAC-BETA"
+      >
+        SWRO Beta
+      </option>
+      <option
+        data-testid="facility-option-FAC-GAMMA"
+        value="FAC-GAMMA"
+      >
+        SWRO Gamma
+      </option>
+    </select>
+  </div>
   <div
     class="shell-controls"
     data-testid="shell-controls"

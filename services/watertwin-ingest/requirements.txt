@@ -1,4 +1,14 @@
 # watertwin-ingest service dependencies (pinned).
+# Customer-document TEXT EXTRACTION only. Both parsers read a document's text
+# layer/paragraphs; neither executes active content (no PDF JavaScript, no
+# embedded-file extraction, no form evaluation, no Word macros).
+#   pypdf       -- PDF text-layer extraction only (BSD-3-Clause).
+#   python-docx -- .docx paragraph/heading text extraction (MIT).
+pypdf==5.1.0
+python-docx==1.1.2
+
+# Test-only (kept here so the container image can self-test):
+pytest==8.3.4
 # Staged-file data intake with optional AI-assisted analysis. Advisory /
 # read-only: it analyzes staged files and produces a reviewable diff of
 # UNACCEPTED proposed changes; it never commits, approves, or issues a control

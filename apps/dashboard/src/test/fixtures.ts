@@ -990,7 +990,32 @@ export const assistantAnswer: AssistantResponse = {
   evidence: {
     telemetry_window: 'live synthetic platform telemetry (aggregated, advisory)',
     assets_reviewed: ['AST-HPP-01'],
-    documents_reviewed: ['MAN-HPP-001', 'REC-MAINT-HIST-001', 'PROC-ISO-HPP-001'],
+    documents_reviewed: ['MAN-HPP-001', 'CUST-ing-tenant-a'],
+    citations: [
+      {
+        document_id: 'MAN-HPP-001',
+        title: 'High-Pressure Feed Pump — O&M Manual (Excerpt)',
+        document_type: 'manual',
+        path: 'data/manuals/hp_pump_manual.md',
+        tags: ['AST-HPP-01', 'pump', 'bearing'],
+        score: 8.5,
+        snippet: 'Bearing vibration limits and lubrication intervals for the HP feed pump.',
+        provenance: 'platform_seeded',
+      },
+      {
+        document_id: 'CUST-ing-tenant-a',
+        title: 'Acme HP Pump Overhaul SOP',
+        document_type: 'procedure',
+        path: 'customer://tenant-a/ing-tenant-a#CUST-ing-tenant-a:c2',
+        tags: ['pump', 'bearing'],
+        score: 6.0,
+        snippet: 'Torque the bearing housing to 45 Nm and verify shaft runout before restart.',
+        provenance: 'customer_supplied',
+        page: 3,
+        section: 'Bearing Replacement',
+        location: 'p.3, § Bearing Replacement, chars 120-260',
+      },
+    ],
     simulation_ids: [],
     assumptions: [
       'Answer assembled from existing platform layer outputs + retrieved documents (advisory).',

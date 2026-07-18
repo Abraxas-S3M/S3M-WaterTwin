@@ -15,6 +15,7 @@ import {
   useUsage,
 } from '../hooks';
 import { useCapabilities } from '../auth/useAuth';
+import { titleCase } from '../lib/format';
 import { useDashboardStore } from '../state/store';
 import { titleCase } from '../lib/format';
 import type { ConfigDocument, ConfigDraftPayload } from '../api/types';
@@ -26,6 +27,10 @@ import { ProcessStagesPanel } from './administration/ProcessStagesPanel';
 import { LabMethodsPanel } from './administration/LabMethodsPanel';
 import { UserRolesPanel } from './administration/UserRolesPanel';
 import { WorkflowStrip } from './administration/WorkflowStrip';
+
+function fmtLimit(limit: number): string {
+  return limit < 0 ? 'Unlimited' : limit.toLocaleString();
+}
 
 type TabId =
   | 'asset-hierarchy'
@@ -82,6 +87,13 @@ export function Administration() {
   const versions = useConfigVersions();
   const { administerConfig, approveConfig } = useCapabilities();
   const operator = useDashboardStore((s) => s.operatorName);
+
+  const entitlements = useEntitlements();
+  const usage = useUsage();
+  const billing = useBillingExport();
+  const channel = useUpdateChannel();
+  const bundle = useSupportBundle();
+
   const saveDraft = useSaveConfigDraft();
   const submit = useSubmitConfig();
   const approve = useApproveConfig();
@@ -119,7 +131,31 @@ export function Administration() {
 
   const [tab, setTab] = useState<TabId>('asset-hierarchy');
   const [draft, setDraft] = useState<ConfigDraftPayload | null>(null);
+  const [bundleMsg, setBundleMsg] = useState<string | null>(null);
   const seededKey = useRef<string | null>(null);
+
+  const ent = entitlements.data?.entitlements;
+  const usageSnap = usage.data?.usage;
+  const limitsStatus = entitlements.data?.limits_status ?? [];
+  const info = channel.data?.update_channel;
+
+  const handleGenerateBundle = () => {
+    setBundleMsg(null);
+    bundle.mutate(undefined, {
+      onSuccess: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `watertwin-support-bundle-${Date.now()}.zip`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+        setBundleMsg('Support bundle generated (logs + SBOM + config, secrets redacted).');
+      },
+      onError: (err) => setBundleMsg((err as Error).message),
+    });
+  };
 
   // Reseed the working draft whenever the server document changes (initial load
   // or after a save/submit/approve round-trip), but never clobber in-flight edits
@@ -380,6 +416,9 @@ export function Administration() {
         ) : null}
       </div>
 
+      <div className="page-header">
+        <div>
+          <h2>Administration / Configuration Workbench</h2>
       {/* Configuration Workbench (versioned, approval-gated) */}
       <div className="page-header">
         <div>

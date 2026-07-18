@@ -40,8 +40,6 @@ interface NavEntry {
   page: number;
   label: string;
   disabled?: boolean;
-  note?: string;
-  adminOnly?: boolean;
   requiresSecurity?: boolean;
   // Data Intake depends on the optional watertwin-ingest service. When that
   // service is unavailable or disabled by the deployment profile the entry is
@@ -51,6 +49,22 @@ interface NavEntry {
 }
 
 const NAV: NavEntry[] = [
+  { id: 'command', page: 1 },
+  { id: 'process', page: 2 },
+  { id: 'network', page: 3 },
+  { id: 'asset', page: 4 },
+  { id: 'water-quality', page: 5 },
+  { id: 'predictive-maintenance', page: 6 },
+  { id: 'maintenance-center', page: 6 },
+  { id: 'energy', page: 7 },
+  { id: 'resilience', page: 9 },
+  { id: 'executive', page: 10 },
+  { id: 'models', page: 12 },
+  { id: 'assistant', page: 11 },
+  { id: 'security', page: 12, requiresSecurity: true },
+  { id: 'training', page: 12, noteKey: 'nav.notes.training' },
+  { id: 'simulation', page: 8, noteKey: 'nav.notes.simulation' },
+  { id: 'administration', page: 12 },
   { id: 'command', label: 'Command Overview', page: 1 },
   { id: 'process', label: 'Process Twin', page: 2 },
   { id: 'network', label: 'Network Twin', page: 3 },
@@ -72,9 +86,7 @@ const NAV: NavEntry[] = [
 
 // Administration section entries. Gated behind the facility-management
 // capability so facility-operators never see the fleet-wide admin surface.
-const ADMIN_NAV: NavEntry[] = [
-  { id: 'admin-facilities', label: 'Multi-Facility', page: 12 },
-];
+const ADMIN_NAV: NavEntry[] = [{ id: 'admin-facilities', page: 12 }];
 function Brand() {
   const { displayName, displaySubtitle, logoUrl } = useBranding();
   return (
@@ -173,13 +185,14 @@ function Nav() {
               aria-current={page === item.id ? 'page' : undefined}
               data-testid={`nav-${item.id}`}
             >
-              <span>{item.label}</span>
-              {item.note ? <span className="phase-tag">{item.note}</span> : null}
+              <span>{t(`nav.items.${item.id}`)}</span>
+              {item.noteKey ? <span className="phase-tag">{t(item.noteKey)}</span> : null}
             </button>
           ))}
         </div>
       ) : null}
       <div style={{ flex: 1 }} />
+      <FacilitySwitcher />
       <ShellControls />
       <UserBadge />
       <div className="brand">

@@ -14,21 +14,31 @@
   "nav": {
     "ariaLabel": "التنقل الأساسي",
     "footerNote": "الصفحات 1 و2 و4 مفعّلة · والبقية في مراحل لاحقة",
+    "adminSection": "الإدارة",
     "items": {
       "command": "نظرة عامة على القيادة",
       "process": "التوأم الرقمي للعملية",
+      "network": "التوأم الرقمي للشبكة",
       "asset": "التوأم الرقمي للأصل",
       "water-quality": "جودة المياه",
       "predictive-maintenance": "الصيانة التنبؤية",
+      "maintenance-center": "مركز الصيانة",
       "energy": "تحسين الطاقة",
       "resilience": "قيادة المرونة",
       "executive": "القيمة التنفيذية / العائد على الاستثمار",
+      "models": "النماذج والامتثال",
       "assistant": "مساعد العمليات",
+      "security": "الأمن السيبراني-الفيزيائي",
+      "training": "محاكي التدريب",
+      "simulation": "مركز المحاكاة",
+      "administration": "الإدارة",
+      "admin-facilities": "المنشآت المتعددة"
       "simulation": "مركز المحاكاة",
       "data-intake": "استيعاب البيانات"
     },
     "notes": {
-      "simulation": "المرحلة 8–9"
+      "simulation": "المرحلة 8–9",
+      "training": "محاكاة"
     }
   },
   "settings": {
@@ -565,6 +575,12 @@
     "sourceEngine": "محرك المصدر",
     "assetsReviewed": "الأصول المراجَعة",
     "documentsReviewed": "المستندات المراجَعة",
+    "citations": "المصادر المستشهد بها",
+    "location": "الموقع",
+    "sourceCustomer": "من العميل",
+    "sourcePlatform": "من المنصّة",
+    "sourceCustomerTitle": "تم رفع هذا المستند من قبل مؤسستك واعتماده للاستناد إليه.",
+    "sourcePlatformTitle": "هذا المستند مُضمَّن مع المنصّة.",
     "simulationsUsed": "المحاكاة المستخدَمة",
     "assumptions": "الافتراضات",
     "questionPlaceholder": "مثال: لماذا يتدهور HPP-001؟",
