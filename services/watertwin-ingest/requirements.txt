@@ -1,0 +1,19 @@
+# watertwin-ingest service dependencies (pinned).
+#
+# Templated spreadsheet ingestion for equipment specifications, OT tag mappings
+# and lab methods. This service is READ-ONLY to OT: it parses uploaded CSV/XLSX
+# files into a reviewable diff and never connects to, or writes to, any
+# OT/SCADA/PLC/OPC UA/MQTT system.
+
+# Shared canonical models + engineering plausibility ranges (from packages/).
+pydantic==2.10.4
+
+# Spreadsheet reading. openpyxl is used strictly in read_only + data_only mode:
+# it reads cached cell VALUES only and cannot execute VBA/macros. (MIT licensed.)
+openpyxl==3.1.5
+
+# CSV character-encoding detection with an explicit fallback. Pure-python, MIT.
+charset-normalizer==3.4.7
+
+# Test-only (kept here so the container image can self-test):
+pytest==9.1.1
