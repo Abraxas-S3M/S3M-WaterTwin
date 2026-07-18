@@ -36,6 +36,7 @@ import { useDashboardStore, type PageId } from './state/store';
 
 interface NavEntry {
   id: PageId;
+  label: string;
   page: number;
   label: string;
   disabled?: boolean;
@@ -94,6 +95,12 @@ function Nav() {
   const navigate = useDashboardStore((s) => s.navigate);
   const setDisplayMode = useDashboardStore((s) => s.setDisplayMode);
   const openReport = useDashboardStore((s) => s.openReport);
+  const { capabilities } = useAuth();
+  const entries = NAV.filter(
+    (item) =>
+      (!item.requiresSecurity || capabilities.readSecurity) &&
+      (!item.adminOnly || capabilities.administer),
+  );
   const { capabilities, roles } = useAuth();
   const ingest = useIngestStatus();
   const ingestAvailable = ingest.data?.available ?? false;
@@ -118,6 +125,12 @@ function Nav() {
           aria-current={page === item.id ? 'page' : undefined}
           data-testid={`nav-${item.id}`}
         >
+          <span>{t(`nav.items.${item.id}`, { defaultValue: item.label })}</span>
+          {item.note ? (
+            <span className="phase-tag">{item.note}</span>
+          ) : item.noteKey ? (
+            <span className="phase-tag">{t(item.noteKey)}</span>
+          ) : null}
           <span>{t(`nav.items.${item.id}`, item.label)}</span>
           {item.note ? <span className="phase-tag">{item.note}</span> : null}
           {item.noteKey ? <span className="phase-tag">{t(item.noteKey)}</span> : null}

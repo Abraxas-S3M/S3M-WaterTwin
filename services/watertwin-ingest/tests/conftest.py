@@ -1,3 +1,4 @@
+"""Test bootstrap: make shared packages + the service importable."""
 """Test bootstrap: make the service importable regardless of the CWD."""
 """Test bootstrap: make shared packages + the ingest service importable."""
 

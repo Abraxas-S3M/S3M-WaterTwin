@@ -1,4 +1,15 @@
 # watertwin-ingest service dependencies (pinned).
+# Staged-file data intake with optional AI-assisted analysis. Advisory /
+# read-only: it analyzes staged files and produces a reviewable diff of
+# UNACCEPTED proposed changes; it never commits, approves, or issues a control
+# write. Versions match services/watertwin-api so the shared dependency register
+# and SBOMs stay consistent.
+# Pinned fastapi to 0.139.2 to match watertwin-api (pulls a fixed starlette
+# >=1.3.1; earlier releases carry advisories flagged by pip-audit).
+fastapi==0.139.2
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+# Outbound HTTP client used only to submit advisory analysis requests to S3M-Core.
 # Advisory, read-only file-intake service. It exposes an inbound HTTP API for the
 # dashboard and makes OUTBOUND calls only to watertwin-api's configuration
 # lifecycle. It never connects to, or writes to, any OT system.

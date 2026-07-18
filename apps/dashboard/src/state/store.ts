@@ -34,6 +34,7 @@ export type PageId =
   | 'models'
   | 'security'
   | 'admin-facilities'
+  | 'training';
   | 'training'
   | 'data-intake';
 
