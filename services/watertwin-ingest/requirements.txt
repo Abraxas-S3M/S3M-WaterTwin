@@ -1,4 +1,23 @@
 # watertwin-ingest service dependencies (pinned).
+# Bulk file-import staging service: parses historian time-series exports
+# (.csv/.parquet) and customer geospatial layers (.geojson/zipped shapefile),
+# writes them to a staging area, and emits human-approval proposals. It is
+# read-only with respect to OT/PLC/SCADA and never promotes an analytic from
+# preliminary to calibrated. Versions match the rest of the monorepo where they
+# overlap so the shared dependency register / SBOMs stay consistent.
+pydantic==2.10.4
+
+# Streamed Parquet reading (record-batch iteration bounds peak memory).
+pyarrow==25.0.0
+# Pure-Python shapefile reader (streams shape-by-shape via iterShapeRecords).
+pyshp==3.1.4
+# Coordinate reference system handling + reprojection to the platform CRS.
+pyproj==3.7.2
+# Hardened XML parsing (DTDs / external entities forbidden -> no XXE surface).
+defusedxml==0.7.1
+
+# Test-only (kept here so the container image can self-test):
+pytest==8.3.4
 #
 # Independently deployable, OPTIONAL intake service. It receives customer files,
 # stores them immutably (content-addressed, write-once), scans them structurally,
