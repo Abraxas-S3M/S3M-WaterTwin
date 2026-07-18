@@ -14,6 +14,8 @@ would encumber this project.
 | uvicorn     | 0.34.0   | BSD-3-Clause |
 | asyncua     | 1.1.6    | LGPL-3.0-only (dynamic use only; read-only OPC UA client) |
 | pymodbus    | 3.7.4    | BSD-3-Clause (read function codes only) |
+| pypdf       | 5.1.0    | BSD-3-Clause (watertwin-ingest; PDF text-layer extraction only) |
+| python-docx | 1.1.2    | MIT (watertwin-ingest; .docx paragraph/heading text extraction only) |
 
 ### Transitive runtime dependencies
 
