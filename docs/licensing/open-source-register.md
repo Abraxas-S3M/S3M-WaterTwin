@@ -16,6 +16,8 @@ versions live in each service's `requirements.txt`.
 |-----------|---------|---------|------|--------------|---------|-------|
 | WNTR (Water Network Tool for Resilience) | 1.5.0 (pinned) | Revised BSD (3-Clause) | `BSD-3-Clause` | PyPI package `wntr` | `services/hydraulic-sim` | Python hydraulic/water-quality modeling toolkit. Wraps the EPANET solver. Copyright (c) National Technology & Engineering Solutions of Sandia, LLC (NTESS) and the U.S. Environmental Protection Agency (US EPA). |
 | EPANET toolkit | Bundled with WNTR 1.5.0 (EPANET 2.2 engine) | See notes | `MIT` / Public Domain | Bundled inside the `wntr` wheel (compiled toolkit) — not vendored separately | `services/hydraulic-sim` (indirectly, through WNTR) | EPANET is hydraulic/water-quality solver software originally authored by the U.S. EPA and released to the public domain. The maintained toolkit distributed by the Open Water Analytics (OWA) community (`epanet`/`owa-epanet`) is provided under the MIT License. WNTR ships a compiled EPANET toolkit inside its wheel; we do not build or vendor EPANET ourselves. |
+| defusedxml | 0.7.1 (pinned) | Python Software Foundation License | `PSF-2.0` | PyPI package `defusedxml` | `services/watertwin-ingest` | Hardening library used only to detect and reject XML external-entity / DTD (XXE) attacks in untrusted uploaded files. EPANET `.inp` files are plain text; an XML-looking upload is parsed with defusedxml purely to refuse XXE. |
+| python-multipart | 0.0.20 (pinned) | Apache-2.0 | `Apache-2.0` | PyPI package `python-multipart` | `services/watertwin-ingest` | Multipart/form-data parsing required by FastAPI's `UploadFile` for the ingest file-upload endpoint. |
 
 ### WNTR — Revised BSD (3-Clause) summary
 

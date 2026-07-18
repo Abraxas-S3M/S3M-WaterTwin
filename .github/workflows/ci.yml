@@ -53,6 +53,8 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Compiles every package + service, including the optional
+      # services/watertwin-ingest intake service (covered by ``services``).
       - name: Compile every package and service (syntax gate)
         run: python -m compileall packages services security scripts
 
@@ -105,6 +107,9 @@ jobs:
           # edge-gateway creates its store-and-forward spool at import; point it
           # at a writable path so the import check does not need /data.
           EDGE_SPOOL_DIR: ${{ runner.temp }}/edge-spool
+          # watertwin-ingest builds its local content store at import; point it
+          # at a writable path so the import check does not need /data.
+          INGEST_STORAGE_ROOT: ${{ runner.temp }}/ingest-store
         run: python -c "import app.main"
 
   # ---------------------------------------------------------------------------
@@ -160,6 +165,8 @@ jobs:
             watertwin-ingest)
               # Hardened, tenant-isolated advisory ingestion service (hostile-
               # input firewall). Install its pinned deps.
+              # Optional immutable-intake service: no direct DB, no OT access.
+              # Install its pinned deps (fastapi + multipart + httpx + event bus).
               pip install -r services/watertwin-ingest/requirements.txt
               ;;
           esac
@@ -177,6 +184,10 @@ jobs:
 
       - name: Pytest
         working-directory: services/${{ matrix.service }}
+        env:
+          # The suite points the write-once store at a throwaway dir (see the
+          # test conftest); this default keeps import-time store creation off /data.
+          INGEST_STORAGE_ROOT: ${{ runner.temp }}/ingest-store
         run: python -m pytest -q
 
   # ---------------------------------------------------------------------------
