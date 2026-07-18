@@ -1,0 +1,47 @@
+name: Apply branch protection
+
+# Branch protection is a repository setting, not code, so it cannot be enforced
+# by merging a file. This workflow applies the checked-in policy
+# (.github/branch-protection/main.json) to the default branch on demand.
+#
+# The default GITHUB_TOKEN CANNOT edit branch protection, so this job requires a
+# repository/organisation secret named ADMIN_TOKEN: a fine-grained or classic
+# PAT from a user with admin on the repo, with the "Administration: read/write"
+# permission. Without that secret the job fails fast with a clear message.
+#
+# Trigger it manually from the Actions tab (Run workflow) after the PR merges.
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to protect
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    name: apply branch protection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify ADMIN_TOKEN secret is present
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: |
+          if [[ -z "${ADMIN_TOKEN}" ]]; then
+            echo "::error::ADMIN_TOKEN secret is not set. Add a PAT with admin" \
+              "(Administration: read/write) on this repo, then re-run."
+            exit 1
+          fi
+
+      - name: Apply protection from checked-in policy
+        env:
+          GH_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ inputs.branch }}
+        run: scripts/apply_branch_protection.sh
