@@ -1,4 +1,0 @@
-sample_point,parameter,method,unit,lod,loq
-RO-PERMEATE,Boron,ICP-MS (EPA 200.8),mg/L,0.02,0.05
-RO-PERMEATE,Chloride,,mg/L,0.5,1.0
-RO-FEED,TDS,Gravimetric,mg/L,1,2

@@ -30,22 +30,17 @@ import { Security } from './pages/Security';
 import { MultiFacilityAdmin } from './pages/MultiFacilityAdmin';
 import { FacilitySwitcher } from './components/FacilitySwitcher';
 import { TrainingSimulator } from './pages/TrainingSimulator';
-import { DataIntake } from './pages/DataIntake';
-import { useIngestStatus } from './api/ingest';
 import { useDashboardStore, type PageId } from './state/store';
 
 interface NavEntry {
   id: PageId;
+  label?: string;
   page: number;
-  label: string;
   disabled?: boolean;
   note?: string;
   adminOnly?: boolean;
   requiresSecurity?: boolean;
-  // Data Intake depends on the optional watertwin-ingest service. When that
-  // service is unavailable or disabled by the deployment profile the entry is
-  // hidden entirely rather than rendering a broken page.
-  requiresIngest?: boolean;
+  adminOnly?: boolean;
   noteKey?: string;
 }
 
@@ -67,6 +62,22 @@ const NAV: NavEntry[] = [
   { id: 'simulation', label: 'Simulation Center', page: 8, noteKey: 'nav.notes.simulation' },
   { id: 'data-intake', label: 'Data Intake', page: 12, requiresIngest: true },
   { id: 'administration', label: 'Administration', page: 12, adminOnly: true },
+  { id: 'command', page: 1 },
+  { id: 'process', page: 2 },
+  { id: 'network', page: 3 },
+  { id: 'asset', page: 4 },
+  { id: 'water-quality', page: 5 },
+  { id: 'predictive-maintenance', page: 6 },
+  { id: 'maintenance-center', page: 6 },
+  { id: 'energy', page: 7 },
+  { id: 'resilience', page: 9 },
+  { id: 'executive', page: 10 },
+  { id: 'models', page: 12 },
+  { id: 'assistant', page: 11 },
+  { id: 'security', page: 12, requiresSecurity: true },
+  { id: 'training', page: 12, noteKey: 'nav.notes.training' },
+  { id: 'simulation', page: 8, noteKey: 'nav.notes.simulation' },
+  { id: 'administration', page: 12 },
 ];
 
 // Administration section entries. Gated behind the facility-management
@@ -106,6 +117,12 @@ function Nav() {
     if (item.requiresIngest && (!ingestAvailable || !canSeeIngest)) return false;
     return true;
   });
+  const { capabilities } = useAuth();
+  const entries = NAV.filter(
+    (item) =>
+      (!item.requiresSecurity || capabilities.readSecurity) &&
+      (!item.adminOnly || capabilities.administer),
+  );
   return (
     <nav className="app-nav" aria-label={t('nav.ariaLabel')}>
       <Brand />
@@ -120,6 +137,7 @@ function Nav() {
         >
           <span>{t(`nav.items.${item.id}`, item.label)}</span>
           {item.note ? <span className="phase-tag">{item.note}</span> : null}
+          <span>{t(`nav.items.${item.id}`, { defaultValue: item.label })}</span>
           {item.noteKey ? <span className="phase-tag">{t(item.noteKey)}</span> : null}
         </button>
       ))}
@@ -218,8 +236,6 @@ function CurrentPage() {
       return <SimulationCenter />;
     case 'administration':
       return <Administration />;
-    case 'data-intake':
-      return <DataIntake />;
     case 'admin-facilities':
       return <MultiFacilityAdmin />;
     default:
