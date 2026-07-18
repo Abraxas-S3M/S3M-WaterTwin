@@ -166,7 +166,6 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
     <span
       class="phase-tag"
     >
-      SIMULATION
       محاكاة
     </span>
   </button>
@@ -239,7 +238,6 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
       data-testid="nav-admin-facilities"
     >
       <span>
-        Multi-Facility
         المنشآت المتعددة
       </span>
     </button>

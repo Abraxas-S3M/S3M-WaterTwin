@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { KpiCard } from '../components/KpiCard';
 import { ProvenanceBadge } from '../components/ProvenanceBadge';
-import { useCapabilities } from '../auth/useAuth';
 import {
   useApproveConfig,
   useBillingExport,
@@ -15,6 +14,8 @@ import {
   useUpdateChannel,
   useUsage,
 } from '../hooks';
+import { useCapabilities } from '../auth/useAuth';
+import { titleCase } from '../lib/format';
 import { useDashboardStore } from '../state/store';
 import type { ConfigDocument, ConfigDraftPayload } from '../api/types';
 import { AssetHierarchyPanel } from './administration/AssetHierarchyPanel';
@@ -25,6 +26,10 @@ import { ProcessStagesPanel } from './administration/ProcessStagesPanel';
 import { LabMethodsPanel } from './administration/LabMethodsPanel';
 import { UserRolesPanel } from './administration/UserRolesPanel';
 import { WorkflowStrip } from './administration/WorkflowStrip';
+
+function fmtLimit(limit: number): string {
+  return limit < 0 ? 'Unlimited' : limit.toLocaleString();
+}
 
 type TabId =
   | 'asset-hierarchy'
@@ -60,6 +65,15 @@ function toDraft(config: ConfigDocument): ConfigDraftPayload {
 }
 
 export function Administration() {
+  // Licensing / metering / updates / support.
+  const entitlements = useEntitlements();
+  const usage = useUsage();
+  const billing = useBillingExport();
+  const channel = useUpdateChannel();
+  const bundle = useSupportBundle();
+  const [bundleMsg, setBundleMsg] = useState<string | null>(null);
+
+  // Configuration Workbench (versioned, approval-gated).
   const config = useConfig();
   const versions = useConfigVersions();
   const { administerConfig, approveConfig } = useCapabilities();
@@ -73,6 +87,29 @@ export function Administration() {
   const [tab, setTab] = useState<TabId>('asset-hierarchy');
   const [draft, setDraft] = useState<ConfigDraftPayload | null>(null);
   const seededKey = useRef<string | null>(null);
+
+  const ent = entitlements.data?.entitlements;
+  const usageSnap = usage.data?.usage;
+  const limitsStatus = entitlements.data?.limits_status ?? [];
+  const info = channel.data?.update_channel;
+
+  const handleGenerateBundle = () => {
+    setBundleMsg(null);
+    bundle.mutate(undefined, {
+      onSuccess: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `watertwin-support-bundle-${Date.now()}.zip`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+        setBundleMsg('Support bundle generated (logs + SBOM + config, secrets redacted).');
+      },
+      onError: (err) => setBundleMsg((err as Error).message),
+    });
+  };
 
   // Reseed the working draft whenever the server document changes (initial load
   // or after a save/submit/approve round-trip), but never clobber in-flight edits
