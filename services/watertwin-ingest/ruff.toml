@@ -1,7 +1,28 @@
+line-length = 100
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "W", "I"]
+
+[lint.per-file-ignores]
+# Tests import app modules after sys.path setup in conftest.
+select = ["E", "W", "F", "I", "B", "UP", "N", "SIM", "C4", "RUF"]
+
+[lint.per-file-ignores]
+# Tests bootstrap sys.path in conftest before importing the service app.
+"tests/*" = ["E402"]
+# FastAPI's dependency-injection idiom puts Depends()/File() in argument
+# defaults; B008 is a false positive for that framework-required pattern.
+"app/main.py" = ["B008"]
+select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "C4", "RUF"]
 line-length = 110
 
 [lint]
 select = ["E", "F", "W"]
+line-length = 100
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "C4"]
 
 [lint.per-file-ignores]
 "tests/*" = ["E402"]

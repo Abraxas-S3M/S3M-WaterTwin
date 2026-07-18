@@ -2564,13 +2564,24 @@ def admin_support_bundle(user: Principal = Depends(get_current_user)) -> Respons
 
 @app.get("/api/v1/models", dependencies=AUTHENTICATED)
 def models_registry(fouling: Optional[float] = None) -> dict:
-    """Model governance registry: versions, specs, current metrics, drift status."""
+    """Model governance registry: versions, specs, current metrics, drift status.
+
+    Single, merged ``GET /api/v1/models`` handler. It was previously registered
+    twice (a D1 summary list from PR #25 shadowed this governance registry from
+    PR #29, so the governance ``count`` never reached the client). The response
+    is the union of both payloads: the governance ``models`` + ``count`` wrapped
+    in the standard read-only model envelope (``provenance`` + the advisory
+    ``control_boundary``). The three D1 analytics models stay individually
+    reachable via their ``/spec``, ``/assessment``, ``/backtest`` and
+    ``/benchmark`` endpoints.
+    """
     registry = model_registry.build_registry(_wq_fouling(fouling))
-    return {
-        "models": [entry.model_dump(mode="json") for entry in registry],
-        "count": len(registry),
-        "control_boundary": ControlBoundary().model_dump(),
-    }
+    return _models_envelope(
+        {
+            "models": [entry.model_dump(mode="json") for entry in registry],
+            "count": len(registry),
+        }
+    )
 
 
 @app.get("/api/v1/models/{model_id}", dependencies=AUTHENTICATED)
