@@ -14,6 +14,7 @@ would encumber this project.
 | uvicorn     | 0.34.0   | BSD-3-Clause |
 | asyncua     | 1.1.6    | LGPL-3.0-only (dynamic use only; read-only OPC UA client) |
 | pymodbus    | 3.7.4    | BSD-3-Clause (read function codes only) |
+| defusedxml  | 0.7.1    | PSF-2.0 (hardened XML parsing in `services/watertwin-ingest`; forbids DTD/entity/external refs) |
 
 ### Transitive runtime dependencies
 
