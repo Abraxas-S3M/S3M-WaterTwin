@@ -68,6 +68,18 @@
     "estimated": {
       "label": "Estimated",
       "title": "Illustrative estimate on synthetic pilot data — not a validated saving or guaranteed outcome."
+    },
+    "vendor_specified": {
+      "label": "Vendor-Specified",
+      "title": "From an OEM datasheet, pump curve, or membrane projection — authoritative for design intent only, never for current condition."
+    },
+    "customer_supplied": {
+      "label": "Customer-Supplied",
+      "title": "From a customer document, drawing, or design basis — trusted as a claim, unverified against the plant."
+    },
+    "customer_measured": {
+      "label": "Customer-Measured",
+      "title": "From a customer historian, LIMS, or instrument export — real data, still subject to sensor-confidence scoring."
     }
   },
   "units": {
