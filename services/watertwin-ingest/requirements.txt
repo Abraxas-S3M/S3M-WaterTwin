@@ -13,7 +13,66 @@ python-multipart==0.0.20
 httpx==0.28.1
 # Safe XML handling: uploads are untrusted; an XML-looking payload is parsed with
 # defusedxml purely to detect and reject external-entity / DTD (XXE) attacks.
+# Bulk file-import staging service: parses historian time-series exports
+# (.csv/.parquet) and customer geospatial layers (.geojson/zipped shapefile),
+# writes them to a staging area, and emits human-approval proposals. It is
+# read-only with respect to OT/PLC/SCADA and never promotes an analytic from
+# preliminary to calibrated. Versions match the rest of the monorepo where they
+# overlap so the shared dependency register / SBOMs stay consistent.
+pydantic==2.10.4
+
+# Streamed Parquet reading (record-batch iteration bounds peak memory).
+pyarrow==25.0.0
+# Pure-Python shapefile reader (streams shape-by-shape via iterShapeRecords).
+pyshp==3.1.4
+# Coordinate reference system handling + reprojection to the platform CRS.
+pyproj==3.7.2
+# Hardened XML parsing (DTDs / external entities forbidden -> no XXE surface).
 defusedxml==0.7.1
 
 # Test-only (kept here so the container image can self-test):
 pytest==8.3.4
+#
+# Independently deployable, OPTIONAL intake service. It receives customer files,
+# stores them immutably (content-addressed, write-once), scans them structurally,
+# and tracks them through a status lifecycle. It has NO direct database
+# connection to the canonical store and NO OT network access: it talks to
+# watertwin-api over the same authenticated HTTP API a human uses.
+fastapi==0.139.2
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+# Outbound HTTP client used to talk to watertwin-api (audit append). No OT reach.
+httpx==0.28.1
+# Multipart parsing for streamed file uploads (FastAPI UploadFile / Form).
+python-multipart==0.0.20
+# Identity / RBAC: JWT bearer validation against Keycloak (JWKS, RS256), reusing
+# the same OIDC model as watertwin-api.
+pyjwt[crypto]==2.13.0
+# Advisory service-event bus (packages/watertwin_events). NATS client only; the
+# bus is advisory/notification-only and degrades gracefully when the broker is
+# down. Never carries a control command.
+nats-py==2.15.0
+# Observability: structured JSON logs + correlation ids (shared
+# watertwin_observability package). Prometheus /metrics + OpenTelemetry traces.
+prometheus-client==0.25.0
+opentelemetry-api==1.44.0
+opentelemetry-sdk==1.44.0
+opentelemetry-exporter-otlp-proto-http==1.44.0
+opentelemetry-instrumentation-fastapi==0.65b0
+# Templated spreadsheet ingestion for equipment specifications, OT tag mappings
+# and lab methods. This service is READ-ONLY to OT: it parses uploaded CSV/XLSX
+# files into a reviewable diff and never connects to, or writes to, any
+# OT/SCADA/PLC/OPC UA/MQTT system.
+
+# Shared canonical models + engineering plausibility ranges (from packages/).
+pydantic==2.10.4
+
+# Spreadsheet reading. openpyxl is used strictly in read_only + data_only mode:
+# it reads cached cell VALUES only and cannot execute VBA/macros. (MIT licensed.)
+openpyxl==3.1.5
+
+# CSV character-encoding detection with an explicit fallback. Pure-python, MIT.
+charset-normalizer==3.4.7
+
+# Test-only (kept here so the container image can self-test):
+pytest==9.1.1

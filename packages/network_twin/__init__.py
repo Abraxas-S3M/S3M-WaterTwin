@@ -27,6 +27,11 @@ from .geojson import (
     haversine_m,
     nearest_elements,
 )
+from .gis_validation import (
+    ALLOWED_GEOMETRY_TYPES,
+    GeometryValidation,
+    validate_geometry,
+)
 from .models import (
     ElementKind,
     NetworkElement,
@@ -57,4 +62,7 @@ __all__ = [
     "LINK_TYPES",
     "leak_localization_overlay",
     "OVERLAY_LABEL",
+    "validate_geometry",
+    "GeometryValidation",
+    "ALLOWED_GEOMETRY_TYPES",
 ]
