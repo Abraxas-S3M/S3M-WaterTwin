@@ -51,6 +51,12 @@ from watertwin_engineering.osmotic import (
     osmotic_pressure_bar,
     seawater_osmotic_pressure_bar,
 )
+from watertwin_engineering.ranges import (
+    SPECIFICATION_RANGES,
+    SpecRange,
+    specification_range,
+    specification_range_keys,
+)
 from watertwin_engineering.resilience import (
     fuel_endurance_hours,
     generator_start_probability,
@@ -91,6 +97,8 @@ __all__ = [
     "ROReference",
     "RemainingUsefulLifeResult",
     "RootCause",
+    "SPECIFICATION_RANGES",
+    "SpecRange",
     "TrainEvaluation",
     "avoidable_energy_loss",
     "boron_rejection",
@@ -129,6 +137,8 @@ __all__ = [
     "silica_saturation_pct",
     "specific_energy",
     "specific_energy_consumption_kwh_per_m3",
+    "specification_range",
+    "specification_range_keys",
     "sulfate_scaling_ratio",
     "temperature_correction_factor",
     "water_flux_lmh",
