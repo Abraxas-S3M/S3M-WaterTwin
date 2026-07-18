@@ -73,19 +73,12 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
     data-testid="nav-network"
   >
     <span>
-      Network Twin
-    </span>
-  </button>
-  <button
-    class="nav-item"
-    data-testid="nav-asset"
-  >
-    <span>
       التوأم الرقمي للشبكة
     </span>
   </button>
   <button
     class="nav-item"
+    data-testid="nav-asset"
   >
     <span>
       التوأم الرقمي للأصل
@@ -112,19 +105,12 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
     data-testid="nav-maintenance-center"
   >
     <span>
-      Maintenance Center
-    </span>
-  </button>
-  <button
-    class="nav-item"
-    data-testid="nav-energy"
-  >
-    <span>
       مركز الصيانة
     </span>
   </button>
   <button
     class="nav-item"
+    data-testid="nav-energy"
   >
     <span>
       تحسين الطاقة
@@ -151,19 +137,12 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
     data-testid="nav-models"
   >
     <span>
-      Models & Compliance
-    </span>
-  </button>
-  <button
-    class="nav-item"
-    data-testid="nav-assistant"
-  >
-    <span>
       النماذج والامتثال
     </span>
   </button>
   <button
     class="nav-item"
+    data-testid="nav-assistant"
   >
     <span>
       مساعد العمليات
@@ -174,32 +153,12 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
     data-testid="nav-security"
   >
     <span>
-      Cyber-Physical Security
-    </span>
-  </button>
-  <button
-    class="nav-item"
-    data-testid="nav-training"
-  >
-    <span>
-      Training Simulator
-    </span>
-    <span
-      class="phase-tag"
-    >
-      SIMULATION
-    </span>
-  </button>
-  <button
-    class="nav-item"
-    data-testid="nav-simulation"
-  >
-    <span>
       الأمن السيبراني-الفيزيائي
     </span>
   </button>
   <button
     class="nav-item"
+    data-testid="nav-training"
   >
     <span>
       محاكي التدريب
@@ -212,6 +171,7 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
   </button>
   <button
     class="nav-item"
+    data-testid="nav-simulation"
   >
     <span>
       مركز المحاكاة
@@ -224,13 +184,10 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
   </button>
   <button
     class="nav-item"
-  >
-    <span>
-      الإدارة
     data-testid="nav-administration"
   >
     <span>
-      Administration
+      الإدارة
     </span>
   </button>
   <div
@@ -282,7 +239,6 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
     >
       <span>
         المنشآت المتعددة
-        Multi-Facility
       </span>
     </button>
   </div>
