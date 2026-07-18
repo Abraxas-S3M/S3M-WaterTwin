@@ -1,0 +1,2 @@
+asset_id,name,type,manufacturer,model,rated_flow_m3h (m3/h),rated_head_m (m),rated_power_kw (kW),speed_rpm (rpm),efficiency (fraction),npshr_m (m),install_date
+AST-HPP-01,High-pressure pump 01,hp_pump,Acme Pumps,HPX-500,420,620,850,2980,0.82,3.5,2021-06-15
