@@ -1174,6 +1174,8 @@ export const leakLocalization: LeakLocalizationResponse = {
       },
     },
   ],
+};
+
 // --- Administration / Configuration Workbench ---
 
 export const configDocument: ConfigDocument = {
@@ -1336,6 +1338,8 @@ export const configVersions: ConfigVersionsResponse = {
       note: 'Initial baseline configuration',
     },
   ],
+};
+
 // --- Multi-facility administration -----------------------------------------
 
 // Two tenants exist in the raw catalog. A signed-in ACME identity must only ever

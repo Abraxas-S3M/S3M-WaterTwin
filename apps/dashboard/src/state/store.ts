@@ -30,11 +30,12 @@ export type PageId =
   | 'resilience'
   | 'executive'
   | 'assistant'
-  | 'administration';
-  | 'models';
-  | 'security';
-  | 'admin-facilities';
-  | 'training';
+  | 'administration'
+  | 'models'
+  | 'security'
+  | 'admin-facilities'
+  | 'training'
+  | 'data-intake';
 
 // Presentation mode of the whole console. `standard` is the desktop/tablet
 // operator layout; `control-room` is the large-format, high-contrast wall
