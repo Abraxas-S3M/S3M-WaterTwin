@@ -1,0 +1,236 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`DiffTable > matches the grouped diff snapshot 1`] = `
+<div>
+  <div
+    class="stack"
+    data-testid="ingest-diff-table"
+  >
+    <div
+      class="card"
+      data-testid="ingest-diff-group-asset-hierarchy"
+    >
+      <div
+        class="page-header"
+      >
+        <h3>
+          Asset Hierarchy
+        </h3>
+        <button
+          class="btn"
+          data-testid="ingest-bulk-accept-asset-hierarchy"
+          type="button"
+        >
+          Accept all in this group
+        </button>
+      </div>
+      <table
+        class="data"
+      >
+        <thead>
+          <tr>
+            <th>
+              Field
+            </th>
+            <th>
+              Current value
+            </th>
+            <th>
+              Proposed value
+            </th>
+            <th>
+              Source
+            </th>
+            <th>
+              Provenance
+            </th>
+            <th>
+              Decision
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            data-testid="ingest-diff-row-r1"
+          >
+            <td>
+              <div>
+                name
+              </div>
+              <div
+                class="muted"
+              >
+                AST-HPP-01
+              </div>
+              <span
+                class="status-chip rejected"
+                data-testid="ingest-safety-flag-r1"
+                title="Asset hierarchy, rated equipment and alarm thresholds require a separate approver (separation of duties)."
+              >
+                Safety-relevant
+              </span>
+            </td>
+            <td
+              class="muted"
+            >
+              Pump A
+            </td>
+            <td>
+              <strong>
+                High-Pressure Pump A
+              </strong>
+            </td>
+            <td
+              class="muted"
+            >
+              <code>
+                [JUNCTIONS] line 12
+              </code>
+            </td>
+            <td>
+              <span
+                class="prov-badge unvalidated"
+                data-provenance="preliminary"
+                data-testid="provenance-badge"
+                title="Preliminary model output — pending calibration/validation."
+              >
+                Preliminary
+              </span>
+            </td>
+            <td>
+              <div
+                class="stack"
+              >
+                <label>
+                  <input
+                    data-testid="ingest-accept-r1"
+                    type="checkbox"
+                  />
+                   
+                  Accept
+                </label>
+                <button
+                  class="btn"
+                  data-testid="ingest-reject-r1"
+                  type="button"
+                >
+                  Reject
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div
+      class="card"
+      data-testid="ingest-diff-group-tag-mapping"
+    >
+      <div
+        class="page-header"
+      >
+        <h3>
+          Tag Mapping
+        </h3>
+        <button
+          class="btn"
+          data-testid="ingest-bulk-accept-tag-mapping"
+          type="button"
+        >
+          Accept all in this group
+        </button>
+      </div>
+      <table
+        class="data"
+      >
+        <thead>
+          <tr>
+            <th>
+              Field
+            </th>
+            <th>
+              Current value
+            </th>
+            <th>
+              Proposed value
+            </th>
+            <th>
+              Source
+            </th>
+            <th>
+              Provenance
+            </th>
+            <th>
+              Decision
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            data-testid="ingest-diff-row-r2"
+          >
+            <td>
+              <div>
+                unit
+              </div>
+              <div
+                class="muted"
+              >
+                TAG-1
+              </div>
+            </td>
+            <td
+              class="muted"
+            >
+              —
+            </td>
+            <td>
+              <strong>
+                bar
+              </strong>
+            </td>
+            <td
+              class="muted"
+            >
+              <code>
+                [TAGS] line 3
+              </code>
+            </td>
+            <td>
+              <span
+                class="prov-badge validated"
+                data-provenance="measured"
+                data-testid="provenance-badge"
+                title="Directly measured instrument data."
+              >
+                Measured
+              </span>
+            </td>
+            <td>
+              <div
+                class="stack"
+              >
+                <label>
+                  <input
+                    data-testid="ingest-accept-r2"
+                    type="checkbox"
+                  />
+                   
+                  Accept
+                </label>
+                <button
+                  class="btn"
+                  data-testid="ingest-reject-r2"
+                  type="button"
+                >
+                  Reject
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+`;
