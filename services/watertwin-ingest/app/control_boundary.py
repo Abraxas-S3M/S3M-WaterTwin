@@ -3,8 +3,8 @@
 This mirrors the canonical :class:`canonical_water_model.ControlBoundary` and is
 the single source of truth the ingest service stamps onto every response, audit
 entry and capability descriptor. It is deliberately a frozen constant: there is
-no code path in this service that constructs a boundary with
-``control_write_enabled=True`` (enforced by the OT-write-forbid guard test).
+no code path in this service that constructs a boundary enabling control
+writes (enforced by the OT-write-forbid guard test).
 """
 
 from __future__ import annotations
