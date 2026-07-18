@@ -1767,3 +1767,85 @@ input[type='text'] {
   justify-content: space-between;
   align-items: center;
 }
+
+/* --- Semantic colour tokens migrated from TypeScript (PR: dashboard-colour-tokens) ---
+   Every value below is migrated verbatim, character for character, from a hex
+   literal that previously lived in a .ts/.tsx file. The console must render
+   pixel-identically after this change; this block is the single place where a
+   future theme flip changes a value.
+
+   Names describe what the colour MARKS (its meaning), never its appearance.
+   Tokens that happen to share a value today are kept DISTINCT on purpose — e.g.
+   Healthy, risk-low, drift-stable and compliance-pass are all #2ecc71 but carry
+   four different meanings, so they get four tokens and can diverge later. */
+:root {
+  /* Health bands — from lib/format.ts bandColor */
+  --band-healthy:  #2ecc71;
+  --band-monitor:  #a3e635;
+  --band-degraded: #f1c40f;
+  --band-highrisk: #e67e22;
+  --band-critical: #e74c3c;
+
+  /* Risk — from lib/format.ts riskColor */
+  --risk-low:      #2ecc71;
+  --risk-elevated: #f1c40f;
+  --risk-high:     #e74c3c;
+  --risk-unknown:  #8b95a5;
+
+  /* Model drift — from pages/Models.tsx */
+  --drift-stable:   #2ecc71;
+  --drift-watch:    #f1c40f;
+  --drift-drifting: #e74c3c;
+  --drift-unknown:  #8b95a5;
+
+  /* Compliance — from pages/Models.tsx.
+     --on-status is the ink drawn on top of a filled status chip. */
+  --compliance-pass: #2ecc71;
+  --compliance-fail: #e74c3c;
+  --on-status:       #0b1020;
+
+  /* Audit actions — from components/AuditTrail.tsx */
+  --audit-created:  #38bdf8;
+  --audit-approved: #2ecc71;
+  --audit-rejected: #e74c3c;
+  --audit-default:  #8b95a5;
+
+  /* Contribution deltas — from components/ContributionBreakdown.tsx */
+  --delta-adverse-strong: #e74c3c;
+  --delta-adverse:        #f1c40f;
+  --delta-favourable:     #2ecc71;
+
+  /* Chart surface — from components/PumpCurve.tsx (resolved to concrete values
+     at render time via readCssVar because ECharts paints to a canvas). */
+  --chart-bg:          #131a24;
+  --chart-border:      #26303f;
+  --chart-text:        #e6edf3;
+  --chart-text-dim:    #8b95a5;
+  --chart-axis:        #26303f;
+  --chart-grid:        #1a2330;
+  --chart-series:      #38bdf8;
+  --chart-point-ok:    #2ecc71;
+  --chart-point-watch: #f1c40f;
+  --chart-point-edge:  #ffffff;
+
+  /* Network twin (MapLibre) — from pages/NetworkTwin.tsx. Resolved to concrete
+     values at render time via readCssVar because MapLibre paints to a WebGL
+     canvas that cannot resolve var(). --band-unknown is the health band shown
+     for an asset with no score. */
+  --band-unknown:      #8b95a5;
+  --map-bg:            #0b1017;
+  --map-node-stroke:   #0b1017;
+  --leak-zone:         #f97316;
+
+  /* Operating envelope duty gauge — from pages/AssetTwin.tsx */
+  --envelope-ok:        #2ecc71;
+  --envelope-nearlimit: #f1c40f;
+  --envelope-over:      #e67e22;
+
+  /* Training performance grade — from pages/TrainingSimulator.tsx */
+  --grade-proficient: #a3e635;
+
+  /* Auto-update KPI accent (safe/disabled state) — from pages/Administration.tsx.
+     Used as the fallback for --ok; --ok wins today, so this is unchanged ink. */
+  --auto-update-ok: #16a34a;
+}
