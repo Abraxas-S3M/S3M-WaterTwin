@@ -300,6 +300,58 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  # ---------------------------------------------------------------------------
+  # watertwin-ingest: OPTIONAL immutable customer-file intake (receive, store,
+  # scan, track). It has NO direct database connection to the canonical store --
+  # it talks to watertwin-api over the same authenticated HTTP API a human uses
+  # -- and NO OT network access (it cannot reach MQTT / OPC UA / the edge
+  # gateway). Nothing else depends on it: with this container stopped the whole
+  # platform still works. Under DEPLOYMENT_PROFILE=one_way_diode it starts and
+  # serves /health but returns 503 on every ingest route.
+  # ---------------------------------------------------------------------------
+  watertwin-ingest:
+    build:
+      context: .
+      dockerfile: services/watertwin-ingest/Dockerfile
+    image: s3m-watertwin/watertwin-ingest:latest
+    container_name: watertwin-ingest
+    ports:
+      - "8300:8300"
+    environment:
+      # Immutable, write-once content store (local filesystem backend).
+      INGEST_STORAGE_BACKEND: local
+      INGEST_STORAGE_ROOT: /data/ingest
+      # Talk to watertwin-api over HTTP (audit append). No direct DB access.
+      INGEST_API_URL: http://watertwin-api:8000
+      INGEST_API_TOKEN: ${WATERTWIN_INGEST_TOKEN:-}
+      # Advisory service-event bus (ingest.received / .scanned / .failed). Unset
+      # NATS_URL to run without NATS (degrades to direct in-process delivery).
+      NATS_URL: nats://nats:4222
+      # Disabled entirely under a one-way / data-diode profile (fail-closed).
+      DEPLOYMENT_PROFILE: ${DEPLOYMENT_PROFILE:-standard}
+      # Identity + RBAC: reuse the same Keycloak realm/JWTs as watertwin-api.
+      WATERTWIN_AUTH_DISABLED: "false"
+      WATERTWIN_OIDC_ISSUER: http://localhost:8180/realms/watertwin
+      WATERTWIN_OIDC_JWKS_URI: http://keycloak:8080/realms/watertwin/protocol/openid-connect/certs
+    volumes:
+      - ingest_data:/data
+    depends_on:
+      # service_started (not service_healthy): the ingest service is optional and
+      # independent; it must run even while the API is unavailable.
+      keycloak:
+        condition: service_started
+      nats:
+        condition: service_started
+      watertwin-api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8300/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
   dashboard:
     build:
       context: apps/dashboard
@@ -335,3 +387,4 @@ volumes:
   prometheus_data:
   grafana_data:
   edge_gateway_spool:
+  ingest_data:

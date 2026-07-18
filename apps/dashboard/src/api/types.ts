@@ -58,11 +58,18 @@ export type AnomalyDomain =
   | 'sensor'
   | 'cyber_physical';
 
+// Mirrors packages/canonical_water_model DataProvenance. The `vendor_specified`,
+// `customer_supplied` and `customer_measured` members describe values that came
+// from a customer file (OEM datasheet, customer document, or customer historian/
+// LIMS export) and must never be confused with live `measured` telemetry.
 export type DataProvenance =
   | 'synthetic'
   | 'simulated'
   | 'preliminary'
   | 'estimated'
+  | 'vendor_specified'
+  | 'customer_supplied'
+  | 'customer_measured'
   | 'measured';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
