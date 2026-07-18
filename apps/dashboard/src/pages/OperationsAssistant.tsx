@@ -242,7 +242,7 @@ export function OperationsAssistant() {
       {response ? (
         <>
           <div className="card" data-testid="assistant-answer">
-            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="row row-split">
               <h3>{t('assistant.answer')}</h3>
               <div className="row" style={{ gap: 6 }}>
                 <span className="status-chip" data-testid="assistant-intent">

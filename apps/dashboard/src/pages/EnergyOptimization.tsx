@@ -114,7 +114,7 @@ export function EnergyOptimization() {
           <thead>
             <tr>
               <th>{t('energy.byAssetTable.asset')}</th>
-              <th style={{ textAlign: 'right' }}>
+              <th className="cell-num">
                 {t('energy.byAssetTable.power', { unit: t('units.power_kw') })}
               </th>
             </tr>
@@ -123,7 +123,7 @@ export function EnergyOptimization() {
             {(s?.energy_by_asset ?? []).map((a) => (
               <tr key={a.asset_id}>
                 <td>{a.name}</td>
-                <td style={{ textAlign: 'right' }}>{fmtNumber(a.power_kw, 1)}</td>
+                <td className="cell-num">{fmtNumber(a.power_kw, 1)}</td>
               </tr>
             ))}
           </tbody>
@@ -131,7 +131,7 @@ export function EnergyOptimization() {
       </div>
 
       <div className="card" data-testid="energy-setpoint">
-        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="row row-split">
           <h3>{t('energy.setpointTitle')}</h3>
           <button
             className="btn"
@@ -194,25 +194,25 @@ export function EnergyOptimization() {
           <thead>
             <tr>
               <th>{t('energy.lossesTable.item')}</th>
-              <th style={{ textAlign: 'right' }}>{t('energy.lossesTable.currentSec')}</th>
-              <th style={{ textAlign: 'right' }}>{t('energy.lossesTable.bestAchievable')}</th>
-              <th style={{ textAlign: 'right' }}>{t('energy.lossesTable.avoidable')}</th>
-              <th style={{ textAlign: 'right' }}>{t('energy.lossesTable.estSavingPerDay')}</th>
+              <th className="cell-num">{t('energy.lossesTable.currentSec')}</th>
+              <th className="cell-num">{t('energy.lossesTable.bestAchievable')}</th>
+              <th className="cell-num">{t('energy.lossesTable.avoidable')}</th>
+              <th className="cell-num">{t('energy.lossesTable.estSavingPerDay')}</th>
             </tr>
           </thead>
           <tbody>
             {(losses.data?.losses ?? []).map((loss) => (
               <tr key={loss.label}>
                 <td>{loss.label}</td>
-                <td style={{ textAlign: 'right' }}>{fmtNumber(loss.current_sec_kwh_m3, 3)}</td>
-                <td style={{ textAlign: 'right' }}>
+                <td className="cell-num">{fmtNumber(loss.current_sec_kwh_m3, 3)}</td>
+                <td className="cell-num">
                   {fmtNumber(loss.best_achievable_sec_kwh_m3, 3)}
                 </td>
-                <td style={{ textAlign: 'right' }}>
+                <td className="cell-num">
                   {fmtNumber(loss.avoidable_loss_kwh_m3, 3)} ({fmtNumber(loss.avoidable_loss_pct, 1)}
                   %)
                 </td>
-                <td style={{ textAlign: 'right' }}>
+                <td className="cell-num">
                   {fmtMoney(loss.estimated_avoidable_cost_per_day, 0)}
                 </td>
               </tr>

@@ -79,14 +79,14 @@ export function PredictiveMaintenance() {
                 <th>{t('predictiveMaintenance.table.asset')}</th>
                 <th>{t('predictiveMaintenance.table.health')}</th>
                 <th>{t('predictiveMaintenance.table.predictedFailureMode')}</th>
-                <th style={{ textAlign: 'right' }}>{t('predictiveMaintenance.table.failProb30d')}</th>
-                <th style={{ textAlign: 'right' }}>{t('predictiveMaintenance.table.rulD')}</th>
-                <th style={{ textAlign: 'right' }}>{t('predictiveMaintenance.table.timeToInterv')}</th>
+                <th className="cell-num">{t('predictiveMaintenance.table.failProb30d')}</th>
+                <th className="cell-num">{t('predictiveMaintenance.table.rulD')}</th>
+                <th className="cell-num">{t('predictiveMaintenance.table.timeToInterv')}</th>
                 <th>{t('predictiveMaintenance.table.window')}</th>
                 <th>{t('predictiveMaintenance.table.spares')}</th>
-                <th style={{ textAlign: 'right' }}>{t('predictiveMaintenance.table.downtimeH')}</th>
-                <th style={{ textAlign: 'right' }}>{t('predictiveMaintenance.table.maintCost')}</th>
-                <th style={{ textAlign: 'right' }}>{t('predictiveMaintenance.table.avoidedCost')}</th>
+                <th className="cell-num">{t('predictiveMaintenance.table.downtimeH')}</th>
+                <th className="cell-num">{t('predictiveMaintenance.table.maintCost')}</th>
+                <th className="cell-num">{t('predictiveMaintenance.table.avoidedCost')}</th>
               </tr>
             </thead>
             <tbody>
@@ -104,22 +104,22 @@ export function PredictiveMaintenance() {
                       <HealthBar score={score} band={bandFromScore(score)} compact />
                     </td>
                     <td className="muted">{r.predicted_failure_mode}</td>
-                    <td style={{ textAlign: 'right' }}>{fmtPct(r.failure_probability_30d)}</td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="cell-num">{fmtPct(r.failure_probability_30d)}</td>
+                    <td className="cell-num">
                       {fmtNumber(r.rul_days, 0)}
                       <span className="muted">
                         {' '}
                         ({fmtNumber(r.rul_lower_days, 0)}–{fmtNumber(r.rul_upper_days, 0)})
                       </span>
                     </td>
-                    <td style={{ textAlign: 'right' }}>{fmtNumber(r.time_to_intervention_days, 0)}</td>
+                    <td className="cell-num">{fmtNumber(r.time_to_intervention_days, 0)}</td>
                     <td className="muted">{r.recommended_window}</td>
                     <td className="muted">
                       {r.spares_required.length ? r.spares_required.join(', ') : t('common.dash')}
                     </td>
-                    <td style={{ textAlign: 'right' }}>{fmtNumber(r.expected_downtime_hours, 0)}</td>
-                    <td style={{ textAlign: 'right' }}>{fmtMoney(r.maintenance_cost)}</td>
-                    <td style={{ textAlign: 'right' }}>{fmtMoney(r.avoided_failure_cost)}</td>
+                    <td className="cell-num">{fmtNumber(r.expected_downtime_hours, 0)}</td>
+                    <td className="cell-num">{fmtMoney(r.maintenance_cost)}</td>
+                    <td className="cell-num">{fmtMoney(r.avoided_failure_cost)}</td>
                   </tr>
                 );
               })}
@@ -130,7 +130,7 @@ export function PredictiveMaintenance() {
 
       {selectedRec ? (
         <div className="card" data-testid="pdm-detail">
-          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="row row-split">
             <h3>{selectedRec.asset_name ?? selectedRec.asset_id}</h3>
             <button className="btn" onClick={() => openAssetTwin(selectedRec.asset_id)}>
               {t('predictiveMaintenance.openAssetTwin')}

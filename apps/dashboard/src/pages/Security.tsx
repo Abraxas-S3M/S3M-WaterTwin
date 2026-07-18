@@ -239,18 +239,18 @@ export function Security() {
             <thead>
               <tr>
                 <th>Asset</th>
-                <th style={{ textAlign: 'right' }}>Confidence</th>
+                <th className="cell-num">Confidence</th>
                 <th>Band</th>
-                <th style={{ textAlign: 'right' }}>Cross-sensor</th>
-                <th style={{ textAlign: 'right' }}>Plausibility</th>
-                <th style={{ textAlign: 'right' }}>Calib. age (d)</th>
+                <th className="cell-num">Cross-sensor</th>
+                <th className="cell-num">Plausibility</th>
+                <th className="cell-num">Calib. age (d)</th>
               </tr>
             </thead>
             <tbody>
               {confidence.map((row) => (
                 <tr key={row.asset_id} data-testid={`confidence-row-${row.asset_id}`}>
                   <td>{row.asset_name}</td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="cell-num">
                     <strong>{fmtNumber(row.confidence * 100, 0)}%</strong>
                   </td>
                   <td>
@@ -258,13 +258,13 @@ export function Security() {
                       {row.band}
                     </span>
                   </td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="cell-num">
                     {fmtNumber(row.cross_sensor_consistency * 100, 0)}%
                   </td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="cell-num">
                     {fmtNumber(row.physical_plausibility * 100, 0)}%
                   </td>
-                  <td style={{ textAlign: 'right' }}>{fmtNumber(row.calibration_days, 0)}</td>
+                  <td className="cell-num">{fmtNumber(row.calibration_days, 0)}</td>
                 </tr>
               ))}
             </tbody>
@@ -291,7 +291,7 @@ export function Security() {
               <tr>
                 <th>Asset</th>
                 <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Score</th>
+                <th className="cell-num">Score</th>
                 <th>Inconsistent signals</th>
               </tr>
             </thead>
@@ -304,7 +304,7 @@ export function Security() {
                       {row.status}
                     </span>
                   </td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="cell-num">
                     <strong>{fmtNumber(row.consistency_score * 100, 0)}%</strong>
                   </td>
                   <td>
@@ -321,7 +321,7 @@ export function Security() {
 
       {/* SIEM export */}
       <div className="card" data-testid="siem-export">
-        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="row row-split">
           <h3>SIEM Export</h3>
           <div className="btn-row">
             <button
