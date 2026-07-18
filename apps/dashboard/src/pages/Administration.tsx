@@ -17,7 +17,6 @@ import {
 import { useCapabilities } from '../auth/useAuth';
 import { titleCase } from '../lib/format';
 import { useDashboardStore } from '../state/store';
-import { titleCase } from '../lib/format';
 import type { ConfigDocument, ConfigDraftPayload } from '../api/types';
 import { AssetHierarchyPanel } from './administration/AssetHierarchyPanel';
 import { TagMappingPanel } from './administration/TagMappingPanel';
@@ -51,10 +50,6 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'user-roles', label: 'User Roles' },
 ];
 
-function fmtLimit(limit: number): string {
-  return limit < 0 ? 'Unlimited' : limit.toLocaleString();
-}
-
 function toDraft(config: ConfigDocument): ConfigDraftPayload {
   return {
     asset_hierarchy: config.asset_hierarchy,
@@ -67,10 +62,6 @@ function toDraft(config: ConfigDocument): ConfigDraftPayload {
     compliance_limits: config.compliance_limits,
     user_roles: config.user_roles,
   };
-}
-
-function fmtLimit(limit: number): string {
-  return limit < 0 ? 'Unlimited' : limit.toLocaleString();
 }
 
 export function Administration() {
@@ -88,50 +79,13 @@ export function Administration() {
   const { administerConfig, approveConfig } = useCapabilities();
   const operator = useDashboardStore((s) => s.operatorName);
 
-  const entitlements = useEntitlements();
-  const usage = useUsage();
-  const billing = useBillingExport();
-  const channel = useUpdateChannel();
-  const bundle = useSupportBundle();
-
   const saveDraft = useSaveConfigDraft();
   const submit = useSubmitConfig();
   const approve = useApproveConfig();
   const reject = useRejectConfig();
 
-  const entitlements = useEntitlements();
-  const usage = useUsage();
-  const billing = useBillingExport();
-  const channel = useUpdateChannel();
-  const bundle = useSupportBundle();
-  const [bundleMsg, setBundleMsg] = useState<string | null>(null);
-
-  const ent = entitlements.data?.entitlements;
-  const usageSnap = usage.data?.usage;
-  const limitsStatus = entitlements.data?.limits_status ?? [];
-  const info = channel.data?.update_channel;
-
-  const handleGenerateBundle = () => {
-    setBundleMsg(null);
-    bundle.mutate(undefined, {
-      onSuccess: (blob) => {
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = `watertwin-support-bundle-${Date.now()}.zip`;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(url);
-        setBundleMsg('Support bundle generated (logs + SBOM + config, secrets redacted).');
-      },
-      onError: (err) => setBundleMsg((err as Error).message),
-    });
-  };
-
   const [tab, setTab] = useState<TabId>('asset-hierarchy');
   const [draft, setDraft] = useState<ConfigDraftPayload | null>(null);
-  const [bundleMsg, setBundleMsg] = useState<string | null>(null);
   const seededKey = useRef<string | null>(null);
 
   const ent = entitlements.data?.entitlements;
@@ -167,29 +121,6 @@ export function Administration() {
     seededKey.current = key;
     setDraft(toDraft(config.data));
   }, [config.data]);
-
-  const ent = entitlements.data?.entitlements;
-  const usageSnap = usage.data?.usage;
-  const limitsStatus = entitlements.data?.limits_status ?? [];
-  const info = channel.data?.update_channel;
-
-  const handleGenerateBundle = () => {
-    setBundleMsg(null);
-    bundle.mutate(undefined, {
-      onSuccess: (blob) => {
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = `watertwin-support-bundle-${Date.now()}.zip`;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(url);
-        setBundleMsg('Support bundle generated (logs + SBOM + config, secrets redacted).');
-      },
-      onError: (err) => setBundleMsg((err as Error).message),
-    });
-  };
 
   const readOnly = !administerConfig;
   const busy =
@@ -416,9 +347,6 @@ export function Administration() {
         ) : null}
       </div>
 
-      <div className="page-header">
-        <div>
-          <h2>Administration / Configuration Workbench</h2>
       {/* Configuration Workbench (versioned, approval-gated) */}
       <div className="page-header">
         <div>

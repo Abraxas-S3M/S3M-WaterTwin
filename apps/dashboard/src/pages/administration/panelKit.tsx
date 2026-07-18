@@ -3,20 +3,6 @@
 // every input is disabled and the add/remove affordances are hidden.
 
 import type { ChangeEvent, ReactNode } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useDashboardStore } from '../../state/store';
-
-// Maps each panel to the configuration entity its "Import from file" deep link
-// pre-scopes Data Intake to. One pipeline, several doors.
-const IMPORT_ENTITY_BY_TESTID: Record<string, string> = {
-  'admin-panel-asset-hierarchy': 'asset',
-  'admin-panel-tag-mapping': 'tag_mapping',
-  'admin-panel-alarm-thresholds': 'alarm_threshold',
-  'admin-panel-rated-equipment': 'rated_equipment',
-  'admin-panel-process-stages': 'process_stage',
-  'admin-panel-lab-methods': 'lab_method',
-  'admin-panel-user-roles': 'user_role_assignment',
-};
 
 export interface PanelProps<T> {
   rows: T[];
@@ -96,9 +82,6 @@ export function PanelShell({
   addLabel = 'Add row',
   children,
 }: PanelShellProps) {
-  const { t } = useTranslation();
-  const openDataIntake = useDashboardStore((s) => s.openDataIntake);
-  const importEntity = IMPORT_ENTITY_BY_TESTID[testId];
   return (
     <div className="card admin-panel" data-testid={testId}>
       <div className="admin-panel-head">
@@ -106,28 +89,11 @@ export function PanelShell({
           <h3>{title}</h3>
           <div className="card-sub">{description}</div>
         </div>
-        <div className="btn-row">
-          {importEntity && !readOnly ? (
-            <button
-              type="button"
-              className="btn"
-              onClick={() => openDataIntake(importEntity)}
-              data-testid={`${testId}-import`}
-            >
-              {t('dataIntake.importFromFile')}
-            </button>
-          ) : null}
-          {onAdd && !readOnly ? (
-            <button
-              type="button"
-              className="btn primary"
-              onClick={onAdd}
-              data-testid={`${testId}-add`}
-            >
-              {addLabel}
-            </button>
-          ) : null}
-        </div>
+        {onAdd && !readOnly ? (
+          <button type="button" className="btn primary" onClick={onAdd} data-testid={`${testId}-add`}>
+            {addLabel}
+          </button>
+        ) : null}
       </div>
       {children}
     </div>

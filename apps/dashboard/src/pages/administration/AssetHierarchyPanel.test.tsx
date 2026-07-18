@@ -3,7 +3,6 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AssetHierarchyPanel } from './AssetHierarchyPanel';
 import { configDocument } from '../../test/fixtures';
-import { useDashboardStore } from '../../state/store';
 
 describe('AssetHierarchyPanel', () => {
   it('renders the asset hierarchy rows', () => {
@@ -39,19 +38,5 @@ describe('AssetHierarchyPanel', () => {
     );
     expect(screen.getByLabelText('asset-id-0')).toBeDisabled();
     expect(screen.queryByTestId('admin-panel-asset-hierarchy-add')).not.toBeInTheDocument();
-  });
-
-  it('deep-links to Data Intake pre-scoped to the asset entity', async () => {
-    useDashboardStore.setState({ page: 'administration', ingestEntityScope: null });
-    render(
-      <AssetHierarchyPanel
-        rows={configDocument.asset_hierarchy}
-        readOnly={false}
-        onChange={() => {}}
-      />,
-    );
-    await userEvent.click(screen.getByTestId('admin-panel-asset-hierarchy-import'));
-    expect(useDashboardStore.getState().page).toBe('data-intake');
-    expect(useDashboardStore.getState().ingestEntityScope).toBe('asset');
   });
 });

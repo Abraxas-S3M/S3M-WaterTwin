@@ -53,10 +53,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      # Compiles every package + service, including the optional
-      # services/watertwin-ingest intake service (covered by ``services``).
       - name: Compile every package and service (syntax gate)
-        run: python -m compileall packages services security scripts
+        run: python -m compileall packages services
 
   import-guard:
     name: import-guard (${{ matrix.service }})
@@ -64,7 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [watertwin-api, hydraulic-sim, treatment-sim, edge-gateway, watertwin-ingest]
+        service: [watertwin-api, hydraulic-sim, treatment-sim, edge-gateway]
     steps:
       - uses: actions/checkout@v4
 
@@ -95,9 +93,6 @@ jobs:
             edge-gateway)
               pip install -r services/edge-gateway/requirements.txt
               ;;
-            watertwin-ingest)
-              pip install -r services/watertwin-ingest/requirements.txt
-              ;;
           esac
 
       - name: Import the service app (fails on any import-time error)
@@ -107,9 +102,6 @@ jobs:
           # edge-gateway creates its store-and-forward spool at import; point it
           # at a writable path so the import check does not need /data.
           EDGE_SPOOL_DIR: ${{ runner.temp }}/edge-spool
-          # watertwin-ingest builds its local content store at import; point it
-          # at a writable path so the import check does not need /data.
-          INGEST_STORAGE_ROOT: ${{ runner.temp }}/ingest-store
         run: python -c "import app.main"
 
   # ---------------------------------------------------------------------------
@@ -121,7 +113,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [watertwin-api, hydraulic-sim, treatment-sim, edge-gateway, watertwin-ingest]
+        service: [watertwin-api, hydraulic-sim, treatment-sim, edge-gateway]
     steps:
       - uses: actions/checkout@v4
 
@@ -162,13 +154,6 @@ jobs:
               # buffer. Install its pinned deps.
               pip install -r services/edge-gateway/requirements.txt
               ;;
-            watertwin-ingest)
-              # Hardened, tenant-isolated advisory ingestion service (hostile-
-              # input firewall). Install its pinned deps.
-              # Optional immutable-intake service: no direct DB, no OT access.
-              # Install its pinned deps (fastapi + multipart + httpx + event bus).
-              pip install -r services/watertwin-ingest/requirements.txt
-              ;;
           esac
 
       - name: Ruff (lint)
@@ -184,10 +169,6 @@ jobs:
 
       - name: Pytest
         working-directory: services/${{ matrix.service }}
-        env:
-          # The suite points the write-once store at a throwaway dir (see the
-          # test conftest); this default keeps import-time store creation off /data.
-          INGEST_STORAGE_ROOT: ${{ runner.temp }}/ingest-store
         run: python -m pytest -q
 
   # ---------------------------------------------------------------------------
@@ -220,6 +201,7 @@ jobs:
         run: python -m pytest -q
 
   # ---------------------------------------------------------------------------
+  # Dashboard (React/TypeScript) unit tests.
   # Ingestion threat-model suite (BUILD GATE). Proves every row of ADR-0014
   # section 5 with an automated test (see security/threat-model-ingestion.md).
   # This is blocking: a regression in any ingestion security control fails CI.
@@ -378,7 +360,7 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p docs/licensing/sbom
-          for svc in watertwin-api hydraulic-sim treatment-sim edge-gateway watertwin-ingest; do
+          for svc in watertwin-api hydraulic-sim treatment-sim edge-gateway; do
             python -m cyclonedx_py requirements "services/$svc/requirements.txt" \
               -o "docs/licensing/sbom/sbom-$svc.cdx.json"
           done
@@ -444,7 +426,7 @@ jobs:
             done < security/pip-audit-ignore.txt
           fi
           status=0
-          for svc in watertwin-api hydraulic-sim treatment-sim edge-gateway watertwin-ingest; do
+          for svc in watertwin-api hydraulic-sim treatment-sim edge-gateway; do
             echo "::group::pip-audit $svc"
             pip-audit -r "services/$svc/requirements.txt" "${ignore_args[@]}" || status=1
             echo "::endgroup::"
