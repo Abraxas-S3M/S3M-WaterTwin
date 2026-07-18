@@ -1,0 +1,19 @@
+# watertwin-ingest service dependencies (pinned).
+# Sandboxed customer-file ingestion: parses an uploaded EPANET .inp inside a
+# hardened, network-isolated worker, reconciles it against the canonical config
+# fetched from watertwin-api over HTTP, and proposes changes for human review.
+# It is read-only to the canonical model and to OT; no control-write path exists.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+# Multipart form parsing for file uploads (FastAPI UploadFile).
+python-multipart==0.0.20
+# Outbound HTTP client used by the reconciler to fetch the canonical config from
+# watertwin-api (no database access from this service).
+httpx==0.28.1
+# Safe XML handling: uploads are untrusted; an XML-looking payload is parsed with
+# defusedxml purely to detect and reject external-entity / DTD (XXE) attacks.
+defusedxml==0.7.1
+
+# Test-only (kept here so the container image can self-test):
+pytest==8.3.4
