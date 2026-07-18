@@ -1,4 +1,12 @@
 # watertwin-ingest service dependencies (pinned).
+# Advisory, read-only file-intake service. It exposes an inbound HTTP API for the
+# dashboard and makes OUTBOUND calls only to watertwin-api's configuration
+# lifecycle. It never connects to, or writes to, any OT system.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+# Outbound HTTP client used by HttpConfigClient to reach watertwin-api.
+httpx==0.28.1
 # A hardened, tenant-isolated file/document ingestion service. It is the hostile-
 # input firewall in front of the platform: every parser runs behind malware scan,
 # archive/zip-bomb limits, XXE/XSLT-safe XML, CSV-injection-safe export, a

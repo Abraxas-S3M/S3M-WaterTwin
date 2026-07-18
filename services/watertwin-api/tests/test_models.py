@@ -134,6 +134,9 @@ def test_benchmark_scaffold_aggregates(model_id: str) -> None:
 # --- Endpoints --------------------------------------------------------------
 
 
+# NOTE: `/api/v1/models` is the model-governance registry (see
+# tests/test_models_governance.py). The D1 model set is asserted directly via
+# ``app.models`` above; the per-model endpoints below cover the D1 HTTP surface.
 def test_list_models_endpoint(client) -> None:
     # ``GET /api/v1/models`` is the merged model governance registry (the D1
     # summary list and the governance registry were previously registered on the

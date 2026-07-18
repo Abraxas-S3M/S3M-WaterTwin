@@ -1,22 +1,8 @@
-import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest';
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Administration } from './Administration';
 import { installFetchMock, renderWithProviders } from '../test/utils';
-
-describe('Administration', () => {
-  let mock: ReturnType<typeof installFetchMock>;
-  afterEach(() => mock?.restore());
-
-  beforeEach(() => {
-    // jsdom has no object-URL / navigation; stub them for the download path.
-    URL.createObjectURL = vi.fn(() => 'blob:mock');
-    URL.revokeObjectURL = vi.fn();
-    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-  });
-
-  it('renders entitlements, usage, and the signed-update channel', async () => {
 import { useAuthStore } from '../auth/store';
 import { ALL_ROLES } from '../auth/roles';
 
@@ -34,6 +20,12 @@ function setRoles(roles: string[]) {
 
 describe('Administration / Configuration Workbench', () => {
   let mock: ReturnType<typeof installFetchMock>;
+  beforeEach(() => {
+    // jsdom has no object-URL / navigation; stub them for the download path.
+    URL.createObjectURL = vi.fn(() => 'blob:mock');
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  });
   afterEach(() => {
     mock?.restore();
     setRoles([...ALL_ROLES]);

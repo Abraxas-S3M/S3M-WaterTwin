@@ -30,15 +30,22 @@ import { Security } from './pages/Security';
 import { MultiFacilityAdmin } from './pages/MultiFacilityAdmin';
 import { FacilitySwitcher } from './components/FacilitySwitcher';
 import { TrainingSimulator } from './pages/TrainingSimulator';
+import { DataIntake } from './pages/DataIntake';
+import { useIngestStatus } from './api/ingest';
 import { useDashboardStore, type PageId } from './state/store';
 
 interface NavEntry {
   id: PageId;
   page: number;
+  label: string;
   disabled?: boolean;
   note?: string;
   adminOnly?: boolean;
   requiresSecurity?: boolean;
+  // Data Intake depends on the optional watertwin-ingest service. When that
+  // service is unavailable or disabled by the deployment profile the entry is
+  // hidden entirely rather than rendering a broken page.
+  requiresIngest?: boolean;
   noteKey?: string;
 }
 
@@ -57,19 +64,9 @@ const NAV: NavEntry[] = [
   { id: 'assistant', label: 'Operations Assistant', page: 11 },
   { id: 'security', label: 'Cyber-Physical Security', page: 12, requiresSecurity: true },
   { id: 'training', label: 'Training Simulator', page: 12, note: 'SIMULATION' },
-  { id: 'simulation', label: 'Simulation Center', page: 8, note: 'Phase 8–9' },
+  { id: 'simulation', label: 'Simulation Center', page: 8, noteKey: 'nav.notes.simulation' },
+  { id: 'data-intake', label: 'Data Intake', page: 12, requiresIngest: true },
   { id: 'administration', label: 'Administration', page: 12, adminOnly: true },
-  { id: 'administration', label: 'Administration', page: 12 },
-  { id: 'command', page: 1 },
-  { id: 'process', page: 2 },
-  { id: 'asset', page: 4 },
-  { id: 'water-quality', page: 5 },
-  { id: 'predictive-maintenance', page: 6 },
-  { id: 'energy', page: 7 },
-  { id: 'resilience', page: 9 },
-  { id: 'executive', page: 10 },
-  { id: 'assistant', page: 11 },
-  { id: 'simulation', page: 8, noteKey: 'nav.notes.simulation' },
 ];
 
 // Administration section entries. Gated behind the facility-management
@@ -95,30 +92,34 @@ function Nav() {
   const { t } = useTranslation();
   const page = useDashboardStore((s) => s.page);
   const navigate = useDashboardStore((s) => s.navigate);
-  const { capabilities } = useAuth();
   const setDisplayMode = useDashboardStore((s) => s.setDisplayMode);
   const openReport = useDashboardStore((s) => s.openReport);
-  const { capabilities } = useAuth();
-  const entries = NAV.filter((item) => !item.requiresSecurity || capabilities.readSecurity);
+  const { capabilities, roles } = useAuth();
+  const ingest = useIngestStatus();
+  const ingestAvailable = ingest.data?.available ?? false;
+  // Data Intake is available to engineers and admins (full) and operators
+  // (read-only history/provenance). Viewers and the security role never see it.
+  const canSeeIngest = roles.some((r) => r === 'engineer' || r === 'admin' || r === 'operator');
+  const entries = NAV.filter((item) => {
+    if (item.adminOnly && !capabilities.administer) return false;
+    if (item.requiresSecurity && !capabilities.readSecurity) return false;
+    if (item.requiresIngest && (!ingestAvailable || !canSeeIngest)) return false;
+    return true;
+  });
   return (
-    <nav className="app-nav" aria-label="Primary">
-      <div className="brand">
-        <h1>S3M-WaterTwin</h1>
-        <div className="sub">Operator Console</div>
-      </div>
-      {NAV.filter((item) => !item.adminOnly || capabilities.administer).map((item) => (
-      {entries.map((item) => (
-      <FacilitySwitcher />
     <nav className="app-nav" aria-label={t('nav.ariaLabel')}>
       <Brand />
-      {NAV.map((item) => (
+      <FacilitySwitcher />
+      {entries.map((item) => (
         <button
           key={item.id}
           className={`nav-item${page === item.id ? ' active' : ''}`}
           onClick={() => navigate(item.id)}
           aria-current={page === item.id ? 'page' : undefined}
+          data-testid={`nav-${item.id}`}
         >
-          <span>{t(`nav.items.${item.id}`)}</span>
+          <span>{t(`nav.items.${item.id}`, item.label)}</span>
+          {item.note ? <span className="phase-tag">{item.note}</span> : null}
           {item.noteKey ? <span className="phase-tag">{t(item.noteKey)}</span> : null}
         </button>
       ))}
@@ -217,6 +218,8 @@ function CurrentPage() {
       return <SimulationCenter />;
     case 'administration':
       return <Administration />;
+    case 'data-intake':
+      return <DataIntake />;
     case 'admin-facilities':
       return <MultiFacilityAdmin />;
     default:

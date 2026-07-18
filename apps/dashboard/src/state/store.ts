@@ -30,11 +30,12 @@ export type PageId =
   | 'resilience'
   | 'executive'
   | 'assistant'
-  | 'administration';
-  | 'models';
-  | 'security';
-  | 'admin-facilities';
-  | 'training';
+  | 'administration'
+  | 'models'
+  | 'security'
+  | 'admin-facilities'
+  | 'training'
+  | 'data-intake';
 
 // Presentation mode of the whole console. `standard` is the desktop/tablet
 // operator layout; `control-room` is the large-format, high-contrast wall
@@ -60,7 +61,11 @@ interface DashboardState {
   activeFacilityId: string | null;
   /** Preferred measurement system. Metric is the product default. */
   unitSystem: UnitSystem;
+  // Optional pre-scope for the Data Intake page, set when it is opened from an
+  // Administration panel's "Import from file" deep link. Ephemeral UI state.
+  ingestEntityScope: string | null;
   navigate: (page: PageId) => void;
+  openDataIntake: (entity?: string | null) => void;
   setSelectedAsset: (assetId: string | null) => void;
   openAssetTwin: (assetId: string) => void;
   setSelectedStage: (stage: string | null) => void;
@@ -83,7 +88,9 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   reportView: null,
   activeFacilityId: null,
   unitSystem: DEFAULT_UNIT_SYSTEM,
+  ingestEntityScope: null,
   navigate: (page) => set({ page }),
+  openDataIntake: (entity = null) => set({ page: 'data-intake', ingestEntityScope: entity }),
   setSelectedAsset: (assetId) => set({ selectedAssetId: assetId }),
   openAssetTwin: (assetId) => set({ selectedAssetId: assetId, page: 'asset' }),
   setSelectedStage: (stage) => set({ selectedStage: stage }),
