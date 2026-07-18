@@ -1,5 +1,31 @@
 # watertwin-ingest service dependencies (pinned).
 #
+# Independently deployable, OPTIONAL intake service. It receives customer files,
+# stores them immutably (content-addressed, write-once), scans them structurally,
+# and tracks them through a status lifecycle. It has NO direct database
+# connection to the canonical store and NO OT network access: it talks to
+# watertwin-api over the same authenticated HTTP API a human uses.
+fastapi==0.139.2
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+# Outbound HTTP client used to talk to watertwin-api (audit append). No OT reach.
+httpx==0.28.1
+# Multipart parsing for streamed file uploads (FastAPI UploadFile / Form).
+python-multipart==0.0.20
+# Identity / RBAC: JWT bearer validation against Keycloak (JWKS, RS256), reusing
+# the same OIDC model as watertwin-api.
+pyjwt[crypto]==2.13.0
+# Advisory service-event bus (packages/watertwin_events). NATS client only; the
+# bus is advisory/notification-only and degrades gracefully when the broker is
+# down. Never carries a control command.
+nats-py==2.15.0
+# Observability: structured JSON logs + correlation ids (shared
+# watertwin_observability package). Prometheus /metrics + OpenTelemetry traces.
+prometheus-client==0.25.0
+opentelemetry-api==1.44.0
+opentelemetry-sdk==1.44.0
+opentelemetry-exporter-otlp-proto-http==1.44.0
+opentelemetry-instrumentation-fastapi==0.65b0
 # Templated spreadsheet ingestion for equipment specifications, OT tag mappings
 # and lab methods. This service is READ-ONLY to OT: it parses uploaded CSV/XLSX
 # files into a reviewable diff and never connects to, or writes to, any
