@@ -37,12 +37,31 @@ interface NavEntry {
   label?: string;
   page: number;
   disabled?: boolean;
+  note?: string;
+  adminOnly?: boolean;
   requiresSecurity?: boolean;
   adminOnly?: boolean;
   noteKey?: string;
 }
 
 const NAV: NavEntry[] = [
+  { id: 'command', label: 'Command Overview', page: 1 },
+  { id: 'process', label: 'Process Twin', page: 2 },
+  { id: 'network', label: 'Network Twin', page: 3 },
+  { id: 'asset', label: 'Asset Twin', page: 4 },
+  { id: 'water-quality', label: 'Water Quality', page: 5 },
+  { id: 'predictive-maintenance', label: 'Predictive Maintenance', page: 6 },
+  { id: 'maintenance-center', label: 'Maintenance Center', page: 6 },
+  { id: 'energy', label: 'Energy Optimization', page: 7 },
+  { id: 'resilience', label: 'Resilience Command', page: 9 },
+  { id: 'executive', label: 'Executive Value / ROI', page: 10 },
+  { id: 'models', label: 'Models & Compliance', page: 12 },
+  { id: 'assistant', label: 'Operations Assistant', page: 11 },
+  { id: 'security', label: 'Cyber-Physical Security', page: 12, requiresSecurity: true },
+  { id: 'training', label: 'Training Simulator', page: 12, note: 'SIMULATION' },
+  { id: 'simulation', label: 'Simulation Center', page: 8, noteKey: 'nav.notes.simulation' },
+  { id: 'data-intake', label: 'Data Intake', page: 12, requiresIngest: true },
+  { id: 'administration', label: 'Administration', page: 12, adminOnly: true },
   { id: 'command', page: 1 },
   { id: 'process', page: 2 },
   { id: 'network', page: 3 },
@@ -63,7 +82,9 @@ const NAV: NavEntry[] = [
 
 // Administration section entries. Gated behind the facility-management
 // capability so facility-operators never see the fleet-wide admin surface.
-const ADMIN_NAV: NavEntry[] = [{ id: 'admin-facilities', page: 12 }];
+const ADMIN_NAV: NavEntry[] = [
+  { id: 'admin-facilities', label: 'Multi-Facility', page: 12 },
+];
 function Brand() {
   const { displayName, displaySubtitle, logoUrl } = useBranding();
   return (
@@ -84,6 +105,18 @@ function Nav() {
   const navigate = useDashboardStore((s) => s.navigate);
   const setDisplayMode = useDashboardStore((s) => s.setDisplayMode);
   const openReport = useDashboardStore((s) => s.openReport);
+  const { capabilities, roles } = useAuth();
+  const ingest = useIngestStatus();
+  const ingestAvailable = ingest.data?.available ?? false;
+  // Data Intake is available to engineers and admins (full) and operators
+  // (read-only history/provenance). Viewers and the security role never see it.
+  const canSeeIngest = roles.some((r) => r === 'engineer' || r === 'admin' || r === 'operator');
+  const entries = NAV.filter((item) => {
+    if (item.adminOnly && !capabilities.administer) return false;
+    if (item.requiresSecurity && !capabilities.readSecurity) return false;
+    if (item.requiresIngest && (!ingestAvailable || !canSeeIngest)) return false;
+    return true;
+  });
   const { capabilities } = useAuth();
   const entries = NAV.filter(
     (item) =>
@@ -102,6 +135,8 @@ function Nav() {
           aria-current={page === item.id ? 'page' : undefined}
           data-testid={`nav-${item.id}`}
         >
+          <span>{t(`nav.items.${item.id}`, item.label)}</span>
+          {item.note ? <span className="phase-tag">{item.note}</span> : null}
           <span>{t(`nav.items.${item.id}`, { defaultValue: item.label })}</span>
           {item.noteKey ? <span className="phase-tag">{t(item.noteKey)}</span> : null}
         </button>
@@ -143,14 +178,13 @@ function Nav() {
               aria-current={page === item.id ? 'page' : undefined}
               data-testid={`nav-${item.id}`}
             >
-              <span>{t(`nav.items.${item.id}`)}</span>
-              {item.noteKey ? <span className="phase-tag">{t(item.noteKey)}</span> : null}
+              <span>{item.label}</span>
+              {item.note ? <span className="phase-tag">{item.note}</span> : null}
             </button>
           ))}
         </div>
       ) : null}
       <div style={{ flex: 1 }} />
-      <FacilitySwitcher />
       <ShellControls />
       <UserBadge />
       <div className="brand">

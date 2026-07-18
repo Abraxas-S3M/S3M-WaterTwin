@@ -19,4 +19,3 @@ It never binds an inbound listener and has no inbound internet dependency.
 from __future__ import annotations
 
 __all__: list[str] = []
-"""S3M-WaterTwin edge-gateway: read-only telemetry store-and-forward."""

@@ -32,6 +32,8 @@
       "training": "Training Simulator",
       "simulation": "Simulation Center",
       "administration": "Administration",
+      "admin-facilities": "Multi-Facility",
+      "data-intake": "Data Intake"
       "admin-facilities": "Multi-Facility"
     },
     "notes": {

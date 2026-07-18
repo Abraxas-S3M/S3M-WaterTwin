@@ -34,6 +34,8 @@ export type PageId =
   | 'models'
   | 'security'
   | 'admin-facilities'
+  | 'training'
+  | 'data-intake';
   | 'training';
 
 // Presentation mode of the whole console. `standard` is the desktop/tablet
