@@ -1,117 +1,49 @@
-"""Outbound-only push client to the watertwin-api ingest endpoint.
+"""Outbound-only push clients to the watertwin-api ingest endpoint.
 
-The forwarder is the gateway's ONLY network path and it is strictly outbound: it
-dials the watertwin-api ingest URL as an HTTP client and never listens for
-inbound connections. On any failure it returns ``ok=False`` so the collector
-leaves the readings buffered for a later retry (store-and-forward); it never
-raises into the collection loop.
-"""Store-and-forward engine: produce -> durable spool -> forward -> ack.
+The forwarders are the gateway's ONLY network path and they are strictly
+outbound: they dial the watertwin-api ingest URL as an HTTP client and never
+listen for inbound connections. On any failure they return ``ok=False`` so the
+caller leaves the readings buffered/spooled for a later retry (store-and-forward);
+they never raise into the collection loop.
 
-Two cooperating loops run in background threads:
+Two cooperating mechanisms share this module:
 
-* the **producer** synthesizes a telemetry batch every ``BATCH_INTERVAL_S`` and
-  appends it to the durable :class:`~app.spool.Spool` (never blocked by upstream
-  availability); and
-* the **forwarder** drains the spool oldest-first, POSTing each batch to the
-  central API and only ``ack``-ing (deleting) it once upstream durably accepts
-  it, retrying with exponential backoff while the API is unreachable.
-
-Because the spool is durable and the upstream ingest is idempotent on the batch
-id, a gateway that is killed mid-stream loses nothing: on restart the producer
-resumes numbering above the last batch and the forwarder replays every
-un-acked batch, which upstream de-duplicates rather than double-counts.
+* :class:`HttpForwarder` -- a stateless push client used by the collector loop
+  (:mod:`app.collector`) alongside the encrypted buffer; and
+* :class:`Gateway` -- a durable, spool-backed store-and-forward engine that runs
+  its own producer + forwarder loops (:mod:`app.spool`), replaying every un-acked
+  batch after a restart (upstream de-duplicates on the idempotent batch id).
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
-from typing import Any, Optional
-
-from canonical_water_model import now_iso
-
-logger = logging.getLogger("edge_gateway.forwarder")
 import threading
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
+
+from canonical_water_model import now_iso
 
 from . import config
 from .generator import build_readings
 from .spool import Spool, SpooledBatch
 
-logger = logging.getLogger("edge.forwarder")
+logger = logging.getLogger("edge_gateway.forwarder")
 
 
 @dataclass
 class ForwardResult:
+    """Outcome of a single forward attempt (union of both forwarders)."""
+
     ok: bool
     accepted: int = 0
-    error: Optional[str] = None
-
-
-class HttpForwarder:
-    """Pushes canonical readings to the API ingest endpoint (outbound only)."""
-    """Outcome of a single forward attempt."""
-
-    ok: bool
     duplicate: bool = False
     status: Optional[int] = None
     error: Optional[str] = None
 
 
-@dataclass
-class Stats:
-    """Live counters for /health and /stats (guarded by an internal lock)."""
-
-    produced: int = 0
-    forwarded: int = 0
-    duplicates: int = 0
-    forward_attempts: int = 0
-    forward_failures: int = 0
-    api_reachable: bool = False
-    last_error: Optional[str] = None
-    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
-
-    def snapshot(self) -> dict[str, Any]:
-        with self._lock:
-            return {
-                "produced": self.produced,
-                "forwarded": self.forwarded,
-                "duplicates": self.duplicates,
-                "forward_attempts": self.forward_attempts,
-                "forward_failures": self.forward_failures,
-                "api_reachable": self.api_reachable,
-                "last_error": self.last_error,
-            }
-
-
-#: A forward function maps a batch payload to a :class:`ForwardResult`.
-ForwardFn = Callable[[dict[str, Any]], ForwardResult]
-
-
-def http_forward(payload: dict[str, Any]) -> ForwardResult:
-    """Default forwarder: POST a batch to the central API ingest endpoint."""
-    import httpx
-
-    headers = {}
-    if config.INGEST_TOKEN:
-        headers["X-Ingest-Token"] = config.INGEST_TOKEN
-    url = f"{config.API_URL}{config.INGEST_PATH}"
-    try:
-        resp = httpx.post(url, json=payload, headers=headers, timeout=config.FORWARD_TIMEOUT_S)
-    except Exception as exc:  # network failure -> retry later
-        return ForwardResult(ok=False, error=f"{type(exc).__name__}: {exc}")
-    if resp.status_code == 200:
-        try:
-            duplicate = bool(resp.json().get("duplicate", False))
-        except Exception:
-            duplicate = False
-        return ForwardResult(ok=True, duplicate=duplicate, status=200)
-    return ForwardResult(ok=False, status=resp.status_code, error=resp.text[:200])
-
-
-class Gateway:
-    """Owns the spool + producer/forwarder loops and their live stats."""
+class HttpForwarder:
+    """Pushes canonical readings to the API ingest endpoint (outbound only)."""
 
     def __init__(
         self,
@@ -180,6 +112,65 @@ class Gateway:
                 client.close()
             except Exception:  # pragma: no cover - defensive
                 pass
+
+
+@dataclass
+class Stats:
+    """Live counters for /health and /stats (guarded by an internal lock)."""
+
+    produced: int = 0
+    forwarded: int = 0
+    duplicates: int = 0
+    forward_attempts: int = 0
+    forward_failures: int = 0
+    api_reachable: bool = False
+    last_error: Optional[str] = None
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    def snapshot(self) -> dict[str, Any]:
+        with self._lock:
+            return {
+                "produced": self.produced,
+                "forwarded": self.forwarded,
+                "duplicates": self.duplicates,
+                "forward_attempts": self.forward_attempts,
+                "forward_failures": self.forward_failures,
+                "api_reachable": self.api_reachable,
+                "last_error": self.last_error,
+            }
+
+
+#: A forward function maps a batch payload to a :class:`ForwardResult`.
+ForwardFn = Callable[[dict[str, Any]], ForwardResult]
+
+
+def http_forward(payload: dict[str, Any]) -> ForwardResult:
+    """Default forwarder: POST a batch to the central API ingest endpoint."""
+    import httpx
+
+    headers = {}
+    if config.INGEST_TOKEN:
+        headers["X-Ingest-Token"] = config.INGEST_TOKEN
+    url = f"{config.API_URL}{config.INGEST_PATH}"
+    try:
+        resp = httpx.post(url, json=payload, headers=headers, timeout=config.FORWARD_TIMEOUT_S)
+    except Exception as exc:  # network failure -> retry later
+        return ForwardResult(ok=False, error=f"{type(exc).__name__}: {exc}")
+    if resp.status_code == 200:
+        try:
+            duplicate = bool(resp.json().get("duplicate", False))
+        except Exception:
+            duplicate = False
+        return ForwardResult(ok=True, duplicate=duplicate, status=200)
+    return ForwardResult(ok=False, status=resp.status_code, error=resp.text[:200])
+
+
+class Gateway:
+    """Owns the spool + producer/forwarder loops and their live stats."""
+
+    def __init__(
+        self,
+        *,
         spool: Optional[Spool] = None,
         forward_fn: Optional[ForwardFn] = None,
         gateway_id: str = config.GATEWAY_ID,

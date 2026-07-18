@@ -36,6 +36,75 @@ jobs:
           echo "OK: no control-write path found. Read-only boundary intact."
 
   # ---------------------------------------------------------------------------
+  # Build guard (BUILD GATE): the whole tree must compile and every service app
+  # must import. This is the gate that makes a broken `main` impossible to merge:
+  # a syntax error or an import-time failure in any package or service fails the
+  # check on pull_request. Pair it with branch protection that requires status
+  # checks to pass AND "require branches to be up to date before merging" so the
+  # merge *result* is re-tested (see the PR description).
+  # ---------------------------------------------------------------------------
+  compile-guard:
+    name: compile-guard (compileall packages + services)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile every package and service (syntax gate)
+        run: python -m compileall packages services
+
+  import-guard:
+    name: import-guard (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [watertwin-api, hydraulic-sim, treatment-sim, edge-gateway]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install service runtime
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip
+          case "${{ matrix.service }}" in
+            watertwin-api)
+              pip install -r services/watertwin-api/requirements.txt
+              ;;
+            hydraulic-sim)
+              pip install -r services/hydraulic-sim/requirements.txt
+              ;;
+            treatment-sim)
+              # The analytical RO engine's light runtime (the WaterTAP/IDAES +
+              # ipopt stack is confined to the container image).
+              pip install fastapi "uvicorn[standard]" pydantic httpx numpy \
+                prometheus-client opentelemetry-api opentelemetry-sdk \
+                opentelemetry-exporter-otlp-proto-http \
+                opentelemetry-instrumentation-fastapi
+              ;;
+            edge-gateway)
+              pip install -r services/edge-gateway/requirements.txt
+              ;;
+          esac
+
+      - name: Import the service app (fails on any import-time error)
+        working-directory: services/${{ matrix.service }}
+        env:
+          PYTHONPATH: ${{ github.workspace }}/packages
+          # edge-gateway creates its store-and-forward spool at import; point it
+          # at a writable path so the import check does not need /data.
+          EDGE_SPOOL_DIR: ${{ runner.temp }}/edge-spool
+        run: python -c "import app.main"
+
+  # ---------------------------------------------------------------------------
   # Quality: lint + type-check + tests for every service.
   # ---------------------------------------------------------------------------
   quality:
@@ -78,10 +147,6 @@ jobs:
                 prometheus-client opentelemetry-api opentelemetry-sdk \
                 opentelemetry-exporter-otlp-proto-http \
                 opentelemetry-instrumentation-fastapi
-              ;;
-            edge-gateway)
-              # Read-only telemetry store-and-forward edge gateway.
-              pip install -r services/edge-gateway/requirements.txt
               ;;
             edge-gateway)
               # Outbound-only edge collector: reuses the shared read-only OT

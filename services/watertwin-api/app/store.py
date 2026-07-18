@@ -493,21 +493,6 @@ class Store:
         returns the unscoped view (used by global/admin callers and internal
         verification).
         """
-    def audit_length(self) -> int:
-        """Return the number of events in the audit chain (cheap COUNT/len)."""
-        with self._lock:
-            if self.db_connected:
-                try:  # pragma: no cover - real DB only
-                    with self._conn.cursor() as cur:
-                        cur.execute("SELECT count(*) FROM audit_event")
-                        row = cur.fetchone()
-                    return int(row[0]) if row else 0
-                except Exception as exc:  # pragma: no cover - real DB only
-                    logger.warning("audit count failed; using memory", extra={"error": str(exc)})
-            return len(self._audit_mem)
-
-    def recent_audit(self, n: int = 100) -> list[dict[str, Any]]:
-        """Return up to ``n`` most-recent audit events, newest first."""
         with self._lock:
             if self.db_connected:
                 try:
@@ -529,6 +514,19 @@ class Store:
                 if _matches_scope(ev, tenant_id, facility_id)
             ]
             return scoped[:n]
+
+    def audit_length(self) -> int:
+        """Return the number of events in the audit chain (cheap COUNT/len)."""
+        with self._lock:
+            if self.db_connected:
+                try:  # pragma: no cover - real DB only
+                    with self._conn.cursor() as cur:
+                        cur.execute("SELECT count(*) FROM audit_event")
+                        row = cur.fetchone()
+                    return int(row[0]) if row else 0
+                except Exception as exc:  # pragma: no cover - real DB only
+                    logger.warning("audit count failed; using memory", extra={"error": str(exc)})
+            return len(self._audit_mem)
 
     # -- telemetry ingest (store-and-forward destination) ---------------------
 
@@ -838,46 +836,6 @@ class Store:
             if rec is not None:
                 rec["status"] = status
 
-    # -- operator feedback ----------------------------------------------------
-
-    def record_feedback(
-        self,
-        alert_id: str,
-        decision: str,
-        *,
-        recommendation_id: str | None = None,
-        asset_id: str | None = None,
-        model_id: str | None = None,
-        actor: str = "operator",
-        note: str | None = None,
-        payload: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Record an operator confirm/dismiss decision on a condition alert.
-
-        This is the ground-truth capture the condition-intelligence framework's
-        back-test and calibration harnesses consume. It is advisory metadata
-        only and never writes to any control system. Returns the stored record.
-
-        Raises:
-            ValueError: If ``decision`` is not one of :data:`FEEDBACK_DECISIONS`.
-        """
-        norm = decision.lower().strip()
-        if norm not in FEEDBACK_DECISIONS:
-            raise ValueError(
-                f"decision must be one of {sorted(FEEDBACK_DECISIONS)}; got {decision!r}."
-            )
-        record = {
-            "feedback_id": str(uuid.uuid4()),
-            "ts": _utcnow_iso(),
-            "alert_id": alert_id,
-            "recommendation_id": recommendation_id,
-            "asset_id": asset_id,
-            "model_id": model_id,
-            "decision": norm,
-            "actor": actor,
-            "note": note,
-            "payload": payload or {},
-        }
     # -- configuration versions ----------------------------------------------
 
     @staticmethod
@@ -900,36 +858,6 @@ class Store:
                 try:
                     from psycopg.types.json import Jsonb
 
-                    with self._conn.cursor() as cur:
-                        cur.execute(
-                            "INSERT INTO operator_feedback "
-                            "(feedback_id, ts, alert_id, recommendation_id, asset_id, "
-                            "model_id, decision, actor, note, payload) "
-                            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                            (
-                                record["feedback_id"],
-                                record["ts"],
-                                record["alert_id"],
-                                record["recommendation_id"],
-                                record["asset_id"],
-                                record["model_id"],
-                                record["decision"],
-                                record["actor"],
-                                record["note"],
-                                Jsonb(record["payload"]),
-                            ),
-                        )
-                    return record
-                except Exception as exc:  # pragma: no cover - real DB only
-                    logger.warning(
-                        "feedback write failed; mirroring to memory",
-                        extra={"error": str(exc)},
-                    )
-            self._feedback_mem.append(record)
-        return record
-
-    def feedback_for(self, alert_id: str) -> list[dict[str, Any]]:
-        """Return every recorded feedback decision for one alert (oldest first)."""
                     values = dict(row)
                     values["payload"] = Jsonb(values.get("payload") or {})
                     placeholders = ", ".join(["%s"] * len(_CONFIG_COLUMNS))
@@ -984,19 +912,6 @@ class Store:
                 try:
                     with self._conn.cursor() as cur:
                         cur.execute(
-                            "SELECT feedback_id, ts, alert_id, recommendation_id, asset_id, "
-                            "model_id, decision, actor, note, payload "
-                            "FROM operator_feedback WHERE alert_id = %s ORDER BY ts ASC",
-                            (alert_id,),
-                        )
-                        rows = cur.fetchall()
-                    return [self._feedback_row(r) for r in rows]
-                except Exception as exc:  # pragma: no cover - real DB only
-                    logger.warning("feedback read failed; using memory", extra={"error": str(exc)})
-            return [f for f in self._feedback_mem if f["alert_id"] == alert_id]
-
-    def recent_feedback(self, n: int = 100) -> list[dict[str, Any]]:
-        """Return up to ``n`` most-recent feedback decisions, newest first."""
                             f"SELECT {', '.join(_CONFIG_COLUMNS)} FROM config_version "
                             "WHERE version_id = %s",
                             (version_id,),
@@ -1039,6 +954,119 @@ class Store:
                 try:
                     with self._conn.cursor() as cur:
                         cur.execute(
+                            f"SELECT {', '.join(_CONFIG_COLUMNS)} FROM config_version "
+                            "WHERE entity_type = %s AND status = 'active' ORDER BY config_id ASC",
+                            (entity_type,),
+                        )
+                        rows = cur.fetchall()
+                    return [self._config_row_to_dict(r) for r in rows]
+                except Exception as exc:  # pragma: no cover - real DB only
+                    logger.warning("config read failed; using memory", extra={"error": str(exc)})
+            active = [
+                dict(r)
+                for r in self._config_mem.values()
+                if r["entity_type"] == entity_type and r["status"] == "active"
+            ]
+            return sorted(active, key=lambda r: r["config_id"])
+
+    # -- operator feedback ----------------------------------------------------
+
+    def record_feedback(
+        self,
+        alert_id: str,
+        decision: str,
+        *,
+        recommendation_id: str | None = None,
+        asset_id: str | None = None,
+        model_id: str | None = None,
+        actor: str = "operator",
+        note: str | None = None,
+        payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Record an operator confirm/dismiss decision on a condition alert.
+
+        This is the ground-truth capture the condition-intelligence framework's
+        back-test and calibration harnesses consume. It is advisory metadata
+        only and never writes to any control system. Returns the stored record.
+
+        Raises:
+            ValueError: If ``decision`` is not one of :data:`FEEDBACK_DECISIONS`.
+        """
+        norm = decision.lower().strip()
+        if norm not in FEEDBACK_DECISIONS:
+            raise ValueError(
+                f"decision must be one of {sorted(FEEDBACK_DECISIONS)}; got {decision!r}."
+            )
+        record = {
+            "feedback_id": str(uuid.uuid4()),
+            "ts": _utcnow_iso(),
+            "alert_id": alert_id,
+            "recommendation_id": recommendation_id,
+            "asset_id": asset_id,
+            "model_id": model_id,
+            "decision": norm,
+            "actor": actor,
+            "note": note,
+            "payload": payload or {},
+        }
+        with self._lock:
+            if self.db_connected:
+                try:
+                    from psycopg.types.json import Jsonb
+
+                    with self._conn.cursor() as cur:
+                        cur.execute(
+                            "INSERT INTO operator_feedback "
+                            "(feedback_id, ts, alert_id, recommendation_id, asset_id, "
+                            "model_id, decision, actor, note, payload) "
+                            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                            (
+                                record["feedback_id"],
+                                record["ts"],
+                                record["alert_id"],
+                                record["recommendation_id"],
+                                record["asset_id"],
+                                record["model_id"],
+                                record["decision"],
+                                record["actor"],
+                                record["note"],
+                                Jsonb(record["payload"]),
+                            ),
+                        )
+                    return record
+                except Exception as exc:  # pragma: no cover - real DB only
+                    logger.warning(
+                        "feedback write failed; mirroring to memory",
+                        extra={"error": str(exc)},
+                    )
+            self._feedback_mem.append(record)
+        return record
+
+    def feedback_for(self, alert_id: str) -> list[dict[str, Any]]:
+        """Return every recorded feedback decision for one alert (oldest first)."""
+        with self._lock:
+            if self.db_connected:
+                try:
+                    with self._conn.cursor() as cur:
+                        cur.execute(
+                            "SELECT feedback_id, ts, alert_id, recommendation_id, asset_id, "
+                            "model_id, decision, actor, note, payload "
+                            "FROM operator_feedback WHERE alert_id = %s ORDER BY ts ASC",
+                            (alert_id,),
+                        )
+                        rows = cur.fetchall()
+                    return [self._feedback_row(r) for r in rows]
+                except Exception as exc:  # pragma: no cover - real DB only
+                    logger.warning("feedback read failed; using memory", extra={"error": str(exc)})
+            return [f for f in self._feedback_mem if f["alert_id"] == alert_id]
+
+    def recent_feedback(self, n: int = 100) -> list[dict[str, Any]]:
+        """Return up to ``n`` most-recent feedback decisions, newest first."""
+        with self._lock:
+            if self.db_connected:
+                try:
+                    with self._conn.cursor() as cur:
+                        cur.execute(
                             "SELECT feedback_id, ts, alert_id, recommendation_id, asset_id, "
                             "model_id, decision, actor, note, payload "
                             "FROM operator_feedback ORDER BY ts DESC LIMIT %s",
@@ -1064,20 +1092,7 @@ class Store:
             "note": r[8],
             "payload": r[9],
         }
-                            f"SELECT {', '.join(_CONFIG_COLUMNS)} FROM config_version "
-                            "WHERE entity_type = %s AND status = 'active' ORDER BY config_id ASC",
-                            (entity_type,),
-                        )
-                        rows = cur.fetchall()
-                    return [self._config_row_to_dict(r) for r in rows]
-                except Exception as exc:  # pragma: no cover - real DB only
-                    logger.warning("config read failed; using memory", extra={"error": str(exc)})
-            active = [
-                dict(r)
-                for r in self._config_mem.values()
-                if r["entity_type"] == entity_type and r["status"] == "active"
-            ]
-            return sorted(active, key=lambda r: r["config_id"])
+
     def migrate_default_scope(
         self,
         *,

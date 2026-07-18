@@ -1,15 +1,13 @@
 """Configuration for the edge-gateway (all env-driven).
 
 The gateway is OUTBOUND-ONLY: it dials the watertwin-api ingest endpoint and
-never opens an inbound listener. OT source selection mirrors the watertwin-api
-env contract so the shared :func:`ot_ingestion.sources.resolve_source` resolver
-(with graceful synthetic fallback) can be reused unchanged.
-"""Configuration for the edge-gateway (read from the environment).
-
-The edge-gateway sits at the plant edge, reads telemetry from a (synthetic here)
-source and forwards it to the central ``watertwin-api`` ingest endpoint using a
-durable, on-disk **store-and-forward** spool. Everything here is read-only with
-respect to plant control: the gateway only reads telemetry and POSTs it upstream.
+never opens an inbound listener. It reads telemetry from a (synthetic here) OT
+source and forwards it upstream, buffering locally (encrypted buffer / durable
+store-and-forward spool) so a crash/restart never loses data. OT source
+selection mirrors the watertwin-api env contract so the shared
+:func:`ot_ingestion.sources.resolve_source` resolver (with graceful synthetic
+fallback) can be reused unchanged. Everything here is read-only with respect to
+plant control: the gateway only reads telemetry and POSTs it upstream.
 """
 
 from __future__ import annotations

@@ -44,14 +44,13 @@ include = [
     "simulation_contracts*",
     "watertwin_engineering*",
     "network_twin*",
-]
-
-[tool.setuptools.package-data]
-network_twin = ["networks/*.inp"]
     "watertwin_models*",
     "watertwin_events*",
     "watertwin_observability*",
 ]
+
+[tool.setuptools.package-data]
+network_twin = ["networks/*.inp"]
 
 [tool.ruff]
 line-length = 100
