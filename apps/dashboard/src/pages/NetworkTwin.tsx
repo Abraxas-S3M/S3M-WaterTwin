@@ -4,6 +4,7 @@ import type { FeatureCollection } from 'geojson';
 import { useHealthScores, useLeakLocalization, useNetwork } from '../hooks';
 import { useDashboardStore } from '../state/store';
 import { bandColor, fmtNumber, titleCase } from '../lib/format';
+import { readCssVar } from '../lib/cssVar';
 import { ProvenanceBadge } from '../components/ProvenanceBadge';
 import type {
   GeoFeatureCollection,
@@ -19,19 +20,27 @@ import type {
 // A blank, offline style: a network schematic overlay does not need basemap
 // tiles (which would require an external provider / API key). Assets and pipes
 // are drawn as GeoJSON layers on a flat background.
-const BLANK_STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {},
-  layers: [
-    {
-      id: 'background',
-      type: 'background',
-      paint: { 'background-color': '#0b1017' },
-    },
-  ],
-};
+//
+// MapLibre paints to a WebGL canvas that cannot resolve `var()`, so the map's
+// colours are resolved from CSS custom properties to concrete values at
+// render/init time via readCssVar (the same mechanism the pump-curve chart uses).
+function blankStyle(): maplibregl.StyleSpecification {
+  return {
+    version: 8,
+    sources: {},
+    layers: [
+      {
+        id: 'background',
+        type: 'background',
+        paint: { 'background-color': readCssVar('--map-bg', '') },
+      },
+    ],
+  };
+}
 
-const UNKNOWN_HEALTH_COLOR = '#8b95a5';
+// The health band shown for an asset with no score. DOM-applied (legend swatch,
+// table cell), so it can reference the token directly.
+const UNKNOWN_HEALTH_COLOR = 'var(--band-unknown)';
 
 const NODE_ELEMENT_TYPES: NetworkElementType[] = ['junction', 'valve', 'pump', 'tank', 'reservoir'];
 
@@ -127,7 +136,7 @@ export function NetworkTwin() {
     if (!mapContainer.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: BLANK_STYLE,
+      style: blankStyle(),
       center: [0, 0],
       zoom: 13,
       attributionControl: false,
@@ -145,6 +154,18 @@ export function NetworkTwin() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
+
+    // Resolve the map's tokens to concrete values: MapLibre's WebGL canvas
+    // cannot resolve var(). Band colours are applied per-feature via a `match`
+    // on the `band` property so the map matches the DOM legend and table.
+    const leakZone = readCssVar('--leak-zone', '');
+    const nodeStroke = readCssVar('--map-node-stroke', '');
+    const bHealthy = readCssVar('--band-healthy', '');
+    const bMonitor = readCssVar('--band-monitor', '');
+    const bDegraded = readCssVar('--band-degraded', '');
+    const bHighRisk = readCssVar('--band-highrisk', '');
+    const bCritical = readCssVar('--band-critical', '');
+    const bUnknown = readCssVar('--band-unknown', '');
 
     const upsertSource = (id: string, data: GeoFeatureCollection<unknown> | unknown) => {
       const existing = map.getSource(id) as maplibregl.GeoJSONSource | undefined;
@@ -165,7 +186,7 @@ export function NetworkTwin() {
         type: 'fill',
         source: 'leak-zones',
         paint: {
-          'fill-color': '#f97316',
+          'fill-color': leakZone,
           'fill-opacity': ['interpolate', ['linear'], ['get', 'likelihood'], 0, 0.08, 1, 0.4],
         },
       });
@@ -175,7 +196,7 @@ export function NetworkTwin() {
         id: 'leak-zones-outline',
         type: 'line',
         source: 'leak-zones',
-        paint: { 'line-color': '#f97316', 'line-dasharray': [2, 2], 'line-width': 1.5 },
+        paint: { 'line-color': leakZone, 'line-dasharray': [2, 2], 'line-width': 1.5 },
       });
     }
     if (!map.getLayer('network-links-line')) {
@@ -184,7 +205,16 @@ export function NetworkTwin() {
         type: 'line',
         source: 'network-links',
         paint: {
-          'line-color': ['get', 'color'],
+          'line-color': [
+            'match',
+            ['get', 'band'],
+            'Healthy', bHealthy,
+            'Monitor', bMonitor,
+            'Degraded', bDegraded,
+            'HighRisk', bHighRisk,
+            'Critical', bCritical,
+            bUnknown,
+          ],
           'line-width': ['match', ['get', 'element_type'], 'valve', 5, 3],
         },
       });
@@ -196,8 +226,17 @@ export function NetworkTwin() {
         source: 'network-nodes',
         paint: {
           'circle-radius': ['match', ['get', 'element_type'], 'pump', 9, 'valve', 8, 6],
-          'circle-color': ['get', 'color'],
-          'circle-stroke-color': '#0b1017',
+          'circle-color': [
+            'match',
+            ['get', 'band'],
+            'Healthy', bHealthy,
+            'Monitor', bMonitor,
+            'Degraded', bDegraded,
+            'HighRisk', bHighRisk,
+            'Critical', bCritical,
+            bUnknown,
+          ],
+          'circle-stroke-color': nodeStroke,
           'circle-stroke-width': 1.5,
         },
       });

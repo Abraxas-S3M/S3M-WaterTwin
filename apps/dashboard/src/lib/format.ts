@@ -16,11 +16,11 @@ export function fmtTime(iso: string | undefined): string {
 }
 
 export const bandColor: Record<HealthBand, string> = {
-  Healthy: '#2ecc71',
-  Monitor: '#a3e635',
-  Degraded: '#f1c40f',
-  HighRisk: '#e67e22',
-  Critical: '#e74c3c',
+  Healthy: 'var(--band-healthy)',
+  Monitor: 'var(--band-monitor)',
+  Degraded: 'var(--band-degraded)',
+  HighRisk: 'var(--band-highrisk)',
+  Critical: 'var(--band-critical)',
 };
 
 // Whether each provenance represents validated/measured data. Human-readable
@@ -46,13 +46,13 @@ export function fmtMoney(value: number | null | undefined, digits = 0): string {
 export function riskColor(band: string): string {
   switch (band) {
     case 'low':
-      return '#2ecc71';
+      return 'var(--risk-low)';
     case 'elevated':
-      return '#f1c40f';
+      return 'var(--risk-elevated)';
     case 'high':
-      return '#e74c3c';
+      return 'var(--risk-high)';
     default:
-      return '#8b95a5';
+      return 'var(--risk-unknown)';
   }
 }
 

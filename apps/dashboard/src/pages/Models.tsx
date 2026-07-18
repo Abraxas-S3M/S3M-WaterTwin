@@ -9,10 +9,10 @@ import { fmtNumber, fmtTime } from '../lib/format';
 import type { DriftStatus, LimitBound } from '../api/types';
 
 const DRIFT_COLOR: Record<DriftStatus, string> = {
-  stable: '#2ecc71',
-  watch: '#f1c40f',
-  drifting: '#e74c3c',
-  unknown: '#8b95a5',
+  stable: 'var(--drift-stable)',
+  watch: 'var(--drift-watch)',
+  drifting: 'var(--drift-drifting)',
+  unknown: 'var(--drift-unknown)',
 };
 
 function DriftBadge({ status }: { status: DriftStatus }) {
@@ -21,7 +21,7 @@ function DriftBadge({ status }: { status: DriftStatus }) {
       className="prov-badge"
       data-testid="drift-badge"
       data-drift={status}
-      style={{ background: DRIFT_COLOR[status], color: '#0b1020' }}
+      style={{ background: DRIFT_COLOR[status], color: 'var(--on-status)' }}
       title={`Model drift status: ${status}`}
     >
       {status}
@@ -129,8 +129,8 @@ export function Models() {
               className="prov-badge"
               data-testid="compliance-overall"
               style={{
-                background: evaluation.compliant ? '#2ecc71' : '#e74c3c',
-                color: '#0b1020',
+                background: evaluation.compliant ? 'var(--compliance-pass)' : 'var(--compliance-fail)',
+                color: 'var(--on-status)',
               }}
             >
               {evaluation.compliant ? 'Compliant' : `${exceedances.length} exceedance(s)`}

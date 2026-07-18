@@ -292,7 +292,7 @@ export function Administration() {
               <KpiCard
                 label="Auto-update"
                 value={info.auto_update_enabled ? 'Enabled' : 'Disabled'}
-                accent={info.auto_update_enabled ? 'var(--danger)' : 'var(--ok, #16a34a)'}
+                accent={info.auto_update_enabled ? 'var(--danger)' : 'var(--ok, var(--auto-update-ok))'}
               />
             </div>
             <table className="data" style={{ marginTop: 12 }}>

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import ReactECharts from 'echarts-for-react';
 import type { EChartsOption } from 'echarts';
 import type { PumpCurve as PumpCurveData } from '../api/types';
+import { readCssVar } from '../lib/cssVar';
 import { ProvenanceBadge } from './ProvenanceBadge';
 
 interface Props {
@@ -25,18 +26,35 @@ export function PumpCurve({ data, loading }: Props) {
       ? [[data.operating_point.flow_m3h, data.operating_point.head_m]]
       : [];
 
+    // ECharts paints to a canvas and cannot resolve `var()`; resolve each token
+    // to a concrete value here. Fallbacks equal the literal each token replaced,
+    // so the chart is unchanged even in jsdom where custom properties do not
+    // resolve from stylesheets.
+    const c = {
+      bg:         readCssVar('--chart-bg', '#131a24'),
+      border:     readCssVar('--chart-border', '#26303f'),
+      text:       readCssVar('--chart-text', '#e6edf3'),
+      textDim:    readCssVar('--chart-text-dim', '#8b95a5'),
+      axis:       readCssVar('--chart-axis', '#26303f'),
+      grid:       readCssVar('--chart-grid', '#1a2330'),
+      series:     readCssVar('--chart-series', '#38bdf8'),
+      pointOk:    readCssVar('--chart-point-ok', '#2ecc71'),
+      pointWatch: readCssVar('--chart-point-watch', '#f1c40f'),
+      pointEdge:  readCssVar('--chart-point-edge', '#ffffff'),
+    };
+
     return {
       backgroundColor: 'transparent',
       grid: { left: 52, right: 20, top: 32, bottom: 44 },
       tooltip: {
         trigger: 'item',
-        backgroundColor: '#131a24',
-        borderColor: '#26303f',
-        textStyle: { color: '#e6edf3' },
+        backgroundColor: c.bg,
+        borderColor: c.border,
+        textStyle: { color: c.text },
       },
       legend: {
         top: 0,
-        textStyle: { color: '#8b95a5' },
+        textStyle: { color: c.textDim },
         data: [t('pumpCurve.hqCurve'), t('pumpCurve.bep'), t('pumpCurve.operatingPoint')],
       },
       xAxis: {
@@ -44,18 +62,18 @@ export function PumpCurve({ data, loading }: Props) {
         name: t('pumpCurve.flowAxis', { unit: t('units.flow_m3h') }),
         nameLocation: 'middle',
         nameGap: 26,
-        nameTextStyle: { color: '#8b95a5' },
-        axisLine: { lineStyle: { color: '#26303f' } },
-        axisLabel: { color: '#8b95a5' },
-        splitLine: { lineStyle: { color: '#1a2330' } },
+        nameTextStyle: { color: c.textDim },
+        axisLine: { lineStyle: { color: c.axis } },
+        axisLabel: { color: c.textDim },
+        splitLine: { lineStyle: { color: c.grid } },
       },
       yAxis: {
         type: 'value',
         name: t('pumpCurve.headAxis', { unit: t('units.head_m') }),
-        nameTextStyle: { color: '#8b95a5' },
-        axisLine: { lineStyle: { color: '#26303f' } },
-        axisLabel: { color: '#8b95a5' },
-        splitLine: { lineStyle: { color: '#1a2330' } },
+        nameTextStyle: { color: c.textDim },
+        axisLine: { lineStyle: { color: c.axis } },
+        axisLabel: { color: c.textDim },
+        splitLine: { lineStyle: { color: c.grid } },
       },
       series: [
         {
@@ -64,7 +82,7 @@ export function PumpCurve({ data, loading }: Props) {
           smooth: true,
           showSymbol: false,
           data: curvePoints,
-          lineStyle: { color: '#38bdf8', width: 2 },
+          lineStyle: { color: c.series, width: 2 },
           areaStyle: { color: 'rgba(56,189,248,0.08)' },
         },
         {
@@ -73,14 +91,14 @@ export function PumpCurve({ data, loading }: Props) {
           symbol: 'diamond',
           symbolSize: 14,
           data: bep,
-          itemStyle: { color: '#2ecc71' },
+          itemStyle: { color: c.pointOk },
         },
         {
           name: t('pumpCurve.operatingPoint'),
           type: 'scatter',
           symbolSize: 16,
           data: op,
-          itemStyle: { color: '#f1c40f', borderColor: '#fff', borderWidth: 1 },
+          itemStyle: { color: c.pointWatch, borderColor: c.pointEdge, borderWidth: 1 },
         },
       ],
     };

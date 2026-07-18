@@ -21,7 +21,17 @@ export function HealthBar({ score, band, provenance, compact }: Props) {
       </div>
       {!compact && (
         <div className="meta">
-          <span className="band-chip" style={{ background: `${color}22`, color }}>
+          <span
+            className="band-chip"
+            style={{
+              // A ~13% tint of the band colour. Previously the hex was
+              // concatenated as `${color}22` (an #RRGGBBAA suffix); now that the
+              // band colour is a `var()` token, that string concat is invalid, so
+              // the same 0x22 alpha (34/255) is applied via color-mix instead.
+              background: `color-mix(in srgb, ${color} calc(34 / 255 * 100%), transparent)`,
+              color,
+            }}
+          >
             <span
               style={{
                 width: 8,
