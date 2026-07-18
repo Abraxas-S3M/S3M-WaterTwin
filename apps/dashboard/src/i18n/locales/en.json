@@ -566,6 +566,7 @@
     "empty": "Ask a question or pick an example prompt to get a grounded, evidence-backed answer."
   },
   "dataIntake": {
+    "importFromFile": "Import from file",
     "title": "Data Intake",
     "subtitle": "Turn an uploaded file into an approved configuration change. Everything is reviewed by a person before it is applied — nothing writes to plant controls.",
     "loading": "Checking the data-intake service…",
