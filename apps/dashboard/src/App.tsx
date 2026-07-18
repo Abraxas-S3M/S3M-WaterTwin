@@ -30,21 +30,15 @@ import { Security } from './pages/Security';
 import { MultiFacilityAdmin } from './pages/MultiFacilityAdmin';
 import { FacilitySwitcher } from './components/FacilitySwitcher';
 import { TrainingSimulator } from './pages/TrainingSimulator';
-import { DataIntake } from './pages/DataIntake';
-import { useIngestStatus } from './api/ingest';
 import { useDashboardStore, type PageId } from './state/store';
 
 interface NavEntry {
   id: PageId;
-  label: string;
+  label?: string;
   page: number;
-  label: string;
   disabled?: boolean;
   requiresSecurity?: boolean;
-  // Data Intake depends on the optional watertwin-ingest service. When that
-  // service is unavailable or disabled by the deployment profile the entry is
-  // hidden entirely rather than rendering a broken page.
-  requiresIngest?: boolean;
+  adminOnly?: boolean;
   noteKey?: string;
 }
 
@@ -65,23 +59,6 @@ const NAV: NavEntry[] = [
   { id: 'training', page: 12, noteKey: 'nav.notes.training' },
   { id: 'simulation', page: 8, noteKey: 'nav.notes.simulation' },
   { id: 'administration', page: 12 },
-  { id: 'command', label: 'Command Overview', page: 1 },
-  { id: 'process', label: 'Process Twin', page: 2 },
-  { id: 'network', label: 'Network Twin', page: 3 },
-  { id: 'asset', label: 'Asset Twin', page: 4 },
-  { id: 'water-quality', label: 'Water Quality', page: 5 },
-  { id: 'predictive-maintenance', label: 'Predictive Maintenance', page: 6 },
-  { id: 'maintenance-center', label: 'Maintenance Center', page: 6 },
-  { id: 'energy', label: 'Energy Optimization', page: 7 },
-  { id: 'resilience', label: 'Resilience Command', page: 9 },
-  { id: 'executive', label: 'Executive Value / ROI', page: 10 },
-  { id: 'models', label: 'Models & Compliance', page: 12 },
-  { id: 'assistant', label: 'Operations Assistant', page: 11 },
-  { id: 'security', label: 'Cyber-Physical Security', page: 12, requiresSecurity: true },
-  { id: 'training', label: 'Training Simulator', page: 12, note: 'SIMULATION' },
-  { id: 'simulation', label: 'Simulation Center', page: 8, noteKey: 'nav.notes.simulation' },
-  { id: 'data-intake', label: 'Data Intake', page: 12, requiresIngest: true },
-  { id: 'administration', label: 'Administration', page: 12, adminOnly: true },
 ];
 
 // Administration section entries. Gated behind the facility-management
@@ -113,18 +90,6 @@ function Nav() {
       (!item.requiresSecurity || capabilities.readSecurity) &&
       (!item.adminOnly || capabilities.administer),
   );
-  const { capabilities, roles } = useAuth();
-  const ingest = useIngestStatus();
-  const ingestAvailable = ingest.data?.available ?? false;
-  // Data Intake is available to engineers and admins (full) and operators
-  // (read-only history/provenance). Viewers and the security role never see it.
-  const canSeeIngest = roles.some((r) => r === 'engineer' || r === 'admin' || r === 'operator');
-  const entries = NAV.filter((item) => {
-    if (item.adminOnly && !capabilities.administer) return false;
-    if (item.requiresSecurity && !capabilities.readSecurity) return false;
-    if (item.requiresIngest && (!ingestAvailable || !canSeeIngest)) return false;
-    return true;
-  });
   return (
     <nav className="app-nav" aria-label={t('nav.ariaLabel')}>
       <Brand />
@@ -138,13 +103,6 @@ function Nav() {
           data-testid={`nav-${item.id}`}
         >
           <span>{t(`nav.items.${item.id}`, { defaultValue: item.label })}</span>
-          {item.note ? (
-            <span className="phase-tag">{item.note}</span>
-          ) : item.noteKey ? (
-            <span className="phase-tag">{t(item.noteKey)}</span>
-          ) : null}
-          <span>{t(`nav.items.${item.id}`, item.label)}</span>
-          {item.note ? <span className="phase-tag">{item.note}</span> : null}
           {item.noteKey ? <span className="phase-tag">{t(item.noteKey)}</span> : null}
         </button>
       ))}
@@ -244,8 +202,6 @@ function CurrentPage() {
       return <SimulationCenter />;
     case 'administration':
       return <Administration />;
-    case 'data-intake':
-      return <DataIntake />;
     case 'admin-facilities':
       return <MultiFacilityAdmin />;
     default:
