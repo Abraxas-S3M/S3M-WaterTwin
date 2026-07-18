@@ -1,10 +1,15 @@
 """Test bootstrap: make shared packages + the service importable."""
+"""Test bootstrap: make the service importable regardless of the CWD."""
 """Test bootstrap: make shared packages + the ingest service importable."""
 
 from __future__ import annotations
 
 import os
 import sys
+
+SERVICE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if SERVICE_ROOT not in sys.path:
+    sys.path.insert(0, SERVICE_ROOT)
 """Test bootstrap: make shared packages + the service app importable, isolate state."""
 
 from __future__ import annotations

@@ -30,16 +30,23 @@ import { Security } from './pages/Security';
 import { MultiFacilityAdmin } from './pages/MultiFacilityAdmin';
 import { FacilitySwitcher } from './components/FacilitySwitcher';
 import { TrainingSimulator } from './pages/TrainingSimulator';
+import { DataIntake } from './pages/DataIntake';
+import { useIngestStatus } from './api/ingest';
 import { useDashboardStore, type PageId } from './state/store';
 
 interface NavEntry {
   id: PageId;
   label: string;
   page: number;
+  label: string;
   disabled?: boolean;
   note?: string;
   adminOnly?: boolean;
   requiresSecurity?: boolean;
+  // Data Intake depends on the optional watertwin-ingest service. When that
+  // service is unavailable or disabled by the deployment profile the entry is
+  // hidden entirely rather than rendering a broken page.
+  requiresIngest?: boolean;
   noteKey?: string;
 }
 
@@ -59,6 +66,7 @@ const NAV: NavEntry[] = [
   { id: 'security', label: 'Cyber-Physical Security', page: 12, requiresSecurity: true },
   { id: 'training', label: 'Training Simulator', page: 12, note: 'SIMULATION' },
   { id: 'simulation', label: 'Simulation Center', page: 8, noteKey: 'nav.notes.simulation' },
+  { id: 'data-intake', label: 'Data Intake', page: 12, requiresIngest: true },
   { id: 'administration', label: 'Administration', page: 12, adminOnly: true },
 ];
 
@@ -93,6 +101,18 @@ function Nav() {
       (!item.requiresSecurity || capabilities.readSecurity) &&
       (!item.adminOnly || capabilities.administer),
   );
+  const { capabilities, roles } = useAuth();
+  const ingest = useIngestStatus();
+  const ingestAvailable = ingest.data?.available ?? false;
+  // Data Intake is available to engineers and admins (full) and operators
+  // (read-only history/provenance). Viewers and the security role never see it.
+  const canSeeIngest = roles.some((r) => r === 'engineer' || r === 'admin' || r === 'operator');
+  const entries = NAV.filter((item) => {
+    if (item.adminOnly && !capabilities.administer) return false;
+    if (item.requiresSecurity && !capabilities.readSecurity) return false;
+    if (item.requiresIngest && (!ingestAvailable || !canSeeIngest)) return false;
+    return true;
+  });
   return (
     <nav className="app-nav" aria-label={t('nav.ariaLabel')}>
       <Brand />
@@ -111,6 +131,9 @@ function Nav() {
           ) : item.noteKey ? (
             <span className="phase-tag">{t(item.noteKey)}</span>
           ) : null}
+          <span>{t(`nav.items.${item.id}`, item.label)}</span>
+          {item.note ? <span className="phase-tag">{item.note}</span> : null}
+          {item.noteKey ? <span className="phase-tag">{t(item.noteKey)}</span> : null}
         </button>
       ))}
 
@@ -208,6 +231,8 @@ function CurrentPage() {
       return <SimulationCenter />;
     case 'administration':
       return <Administration />;
+    case 'data-intake':
+      return <DataIntake />;
     case 'admin-facilities':
       return <MultiFacilityAdmin />;
     default:

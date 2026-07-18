@@ -64,6 +64,10 @@ function toDraft(config: ConfigDocument): ConfigDraftPayload {
   };
 }
 
+function fmtLimit(limit: number): string {
+  return limit < 0 ? 'Unlimited' : limit.toLocaleString();
+}
+
 export function Administration() {
   // Licensing / metering / updates / support.
   const entitlements = useEntitlements();
@@ -82,6 +86,36 @@ export function Administration() {
   const submit = useSubmitConfig();
   const approve = useApproveConfig();
   const reject = useRejectConfig();
+
+  const entitlements = useEntitlements();
+  const usage = useUsage();
+  const billing = useBillingExport();
+  const channel = useUpdateChannel();
+  const bundle = useSupportBundle();
+  const [bundleMsg, setBundleMsg] = useState<string | null>(null);
+
+  const ent = entitlements.data?.entitlements;
+  const usageSnap = usage.data?.usage;
+  const limitsStatus = entitlements.data?.limits_status ?? [];
+  const info = channel.data?.update_channel;
+
+  const handleGenerateBundle = () => {
+    setBundleMsg(null);
+    bundle.mutate(undefined, {
+      onSuccess: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `watertwin-support-bundle-${Date.now()}.zip`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+        setBundleMsg('Support bundle generated (logs + SBOM + config, secrets redacted).');
+      },
+      onError: (err) => setBundleMsg((err as Error).message),
+    });
+  };
 
   const [tab, setTab] = useState<TabId>('asset-hierarchy');
   const [draft, setDraft] = useState<ConfigDraftPayload | null>(null);
@@ -160,6 +194,7 @@ export function Administration() {
             advisory / read-only safety boundary.
           </div>
         </div>
+        <ProvenanceBadge provenance={doc.provenance} />
       </div>
 
       {/* Licensing / entitlements */}
