@@ -1,0 +1,28 @@
+[TITLE]
+Network with NO [OPTIONS] UNITS. Hydraulic fields must not be guessed: they go
+to `unparsed` with a warning.
+
+[JUNCTIONS]
+;ID      Elevation   Demand
+ J1      100          5   ;
+ J2       95         10   ;
+
+[RESERVOIRS]
+;ID      Head
+ R1      120   ;
+
+[PIPES]
+;ID      Node1   Node2   Length  Diameter  Roughness  Status
+ P1      R1      J1      500     300       130        Open ;
+ P2      J1      J2      400     250       130        Open ;
+
+[COORDINATES]
+;Node    X       Y
+ J1      1.0     0.0
+ J2      2.0     0.0
+ R1      0.0     0.0
+
+[OPTIONS]
+HEADLOSS   H-W
+
+[END]

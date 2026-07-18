@@ -1,0 +1,18 @@
+[TITLE]
+File truncated mid-section: the last [PIPES] record is incomplete. The parser
+must return a partial ParseResult (routing the incomplete field to `unparsed`)
+without raising.
+
+[OPTIONS]
+UNITS      CMH
+HEADLOSS   H-W
+
+[JUNCTIONS]
+;ID      Elevation   Demand
+ J1      100          5   ;
+ J2       95         10   ;
+
+[PIPES]
+;ID      Node1   Node2   Length  Diameter  Roughness  Status
+ P1      J1      J2      400     250       130        Open ;
+ P2      J2

@@ -14,6 +14,9 @@ would encumber this project.
 | uvicorn     | 0.34.0   | BSD-3-Clause |
 | asyncua     | 1.1.6    | LGPL-3.0-only (dynamic use only; read-only OPC UA client) |
 | pymodbus    | 3.7.4    | BSD-3-Clause (read function codes only) |
+| defusedxml  | 0.7.1    | PSF-2.0 (used by services/watertwin-ingest to detect/reject XML XXE attacks in uploads) |
+| python-multipart | 0.0.20 | Apache-2.0 (multipart form parsing for file uploads in services/watertwin-ingest) |
+| httpx       | 0.28.1   | BSD-3-Clause (runtime HTTP client for the watertwin-ingest reconciler; also a dev dep elsewhere) |
 | python-multipart | 0.0.20 | Apache-2.0 (streamed uploads; watertwin-ingest only) |
 | openpyxl    | 3.1.5    | MIT (watertwin-ingest; read_only + data_only, never executes macros) |
 | charset-normalizer | 3.4.7 | MIT (watertwin-ingest; CSV encoding detection) |
