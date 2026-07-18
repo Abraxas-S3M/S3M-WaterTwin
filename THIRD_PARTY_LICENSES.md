@@ -14,6 +14,8 @@ would encumber this project.
 | uvicorn     | 0.34.0   | BSD-3-Clause |
 | asyncua     | 1.1.6    | LGPL-3.0-only (dynamic use only; read-only OPC UA client) |
 | pymodbus    | 3.7.4    | BSD-3-Clause (read function codes only) |
+| openpyxl    | 3.1.5    | MIT (watertwin-ingest; read_only + data_only, never executes macros) |
+| charset-normalizer | 3.4.7 | MIT (watertwin-ingest; CSV encoding detection) |
 
 ### Transitive runtime dependencies
 
@@ -28,6 +30,7 @@ would encumber this project.
 | click            | 8.4.2    | BSD-3-Clause |
 | h11              | 0.16.0   | MIT          |
 | typing-extensions| 4.x      | PSF          |
+| et-xmlfile       | 2.0.0    | MIT (openpyxl dependency) |
 
 ## Development-only dependencies
 
