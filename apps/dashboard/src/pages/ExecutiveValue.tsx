@@ -89,7 +89,7 @@ export function ExecutiveValue() {
           <thead>
             <tr>
               <th>{t('executive.benefitTable.category')}</th>
-              <th style={{ textAlign: 'right' }}>{t('executive.benefitTable.annualized')}</th>
+              <th className="cell-num">{t('executive.benefitTable.annualized')}</th>
               <th>{t('executive.benefitTable.provenance')}</th>
             </tr>
           </thead>
@@ -98,7 +98,7 @@ export function ExecutiveValue() {
               ? BENEFIT_ROWS.map((key) => (
                   <tr key={key}>
                     <td>{t(`executive.benefitRows.${key}`)}</td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="cell-num">
                       {fmtMoney(summary[key as keyof typeof summary] as number, 0)}
                     </td>
                     <td>
@@ -112,7 +112,7 @@ export function ExecutiveValue() {
                 <td>
                   <strong>{t('executive.totalBenefit')}</strong>
                 </td>
-                <td style={{ textAlign: 'right' }}>
+                <td className="cell-num">
                   <strong>{fmtMoney(summary.total_annualized_benefit, 0)}</strong>
                 </td>
                 <td>

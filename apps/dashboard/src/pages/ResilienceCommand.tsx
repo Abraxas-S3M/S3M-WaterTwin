@@ -46,7 +46,7 @@ export function ResilienceCommand() {
       </div>
 
       <div className="card">
-        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="row row-split">
           <h3>{t('resilience.scenarioTitle')}</h3>
           <button
             className="btn"
@@ -118,7 +118,7 @@ export function ResilienceCommand() {
                 <th>{t('resilience.loadShedTable.shedOrder')}</th>
                 <th>{t('resilience.loadShedTable.asset')}</th>
                 <th>{t('resilience.loadShedTable.priority')}</th>
-                <th style={{ textAlign: 'right' }}>
+                <th className="cell-num">
                   {t('resilience.loadShedTable.load', { unit: t('units.power_kw') })}
                 </th>
                 <th>{t('resilience.loadShedTable.status')}</th>
@@ -130,7 +130,7 @@ export function ResilienceCommand() {
                   <td>{item.shed_order}</td>
                   <td>{item.asset_name ?? item.asset_id}</td>
                   <td className="muted">{item.priority}</td>
-                  <td style={{ textAlign: 'right' }}>{fmtNumber(item.load_kw, 0)}</td>
+                  <td className="cell-num">{fmtNumber(item.load_kw, 0)}</td>
                   <td>
                     <span className={`status-chip ${item.retained ? 'approved' : 'rejected'}`}>
                       {item.retained ? t('resilience.retained') : t('resilience.shed')}
@@ -156,10 +156,10 @@ export function ResilienceCommand() {
               <tr>
                 <th>{t('resilience.criticalityTable.rank')}</th>
                 <th>{t('resilience.criticalityTable.asset')}</th>
-                <th style={{ textAlign: 'right' }}>{t('resilience.criticalityTable.score')}</th>
-                <th style={{ textAlign: 'right' }}>{t('resilience.criticalityTable.impact')}</th>
-                <th style={{ textAlign: 'right' }}>{t('resilience.criticalityTable.failureProb')}</th>
-                <th style={{ textAlign: 'right' }}>
+                <th className="cell-num">{t('resilience.criticalityTable.score')}</th>
+                <th className="cell-num">{t('resilience.criticalityTable.impact')}</th>
+                <th className="cell-num">{t('resilience.criticalityTable.failureProb')}</th>
+                <th className="cell-num">
                   {t('resilience.criticalityTable.recovery', { unit: t('units.hoursShort') })}
                 </th>
               </tr>
@@ -169,16 +169,16 @@ export function ResilienceCommand() {
                 <tr key={c.asset_id}>
                   <td>{c.rank ?? i + 1}</td>
                   <td>{c.asset_name ?? c.asset_id}</td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="cell-num">
                     <strong>{fmtNumber(c.criticality_score, 0)}</strong>
                   </td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="cell-num">
                     {fmtNumber(c.customer_or_production_impact * 100, 0)}%
                   </td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="cell-num">
                     {fmtNumber(c.failure_probability * 100, 0)}%
                   </td>
-                  <td style={{ textAlign: 'right' }}>{fmtNumber(c.recovery_time_hours, 0)}</td>
+                  <td className="cell-num">{fmtNumber(c.recovery_time_hours, 0)}</td>
                 </tr>
               ))}
             </tbody>

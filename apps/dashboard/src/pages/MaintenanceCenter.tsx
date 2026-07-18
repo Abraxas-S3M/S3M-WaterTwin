@@ -109,8 +109,8 @@ export function MaintenanceCenter() {
                 <th>Asset</th>
                 <th>Source alert</th>
                 <th>Priority</th>
-                <th style={{ textAlign: 'right' }}>Fail prob (30d)</th>
-                <th style={{ textAlign: 'right' }}>RUL (d)</th>
+                <th className="cell-num">Fail prob (30d)</th>
+                <th className="cell-num">RUL (d)</th>
                 <th>Status</th>
                 <th>CMMS</th>
               </tr>
@@ -131,8 +131,8 @@ export function MaintenanceCenter() {
                       {w.priority}
                     </span>
                   </td>
-                  <td style={{ textAlign: 'right' }}>{fmtPct(w.failure_probability_30d)}</td>
-                  <td style={{ textAlign: 'right' }}>{fmtNumber(w.rul_days ?? undefined, 0)}</td>
+                  <td className="cell-num">{fmtPct(w.failure_probability_30d)}</td>
+                  <td className="cell-num">{fmtNumber(w.rul_days ?? undefined, 0)}</td>
                   <td>
                     <span className={`status-chip ${w.approval_status}`}>{w.status}</span>
                   </td>
@@ -148,7 +148,7 @@ export function MaintenanceCenter() {
 
       {selected ? (
         <div className="card" data-testid="work-order-detail">
-          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="row row-split">
             <h3>{selected.title}</h3>
             <button className="btn" onClick={() => openAssetTwin(selected.asset_id)}>
               Open Asset Twin

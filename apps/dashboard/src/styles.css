@@ -1755,3 +1755,15 @@ input[type='text'] {
 @media (prefers-reduced-motion: reduce) {
   :root { --dur-fast: 0s; --dur-base: 0s; --dur-slow: 0s; }
 }
+
+/* --- Layout utilities (PR 2). Values are migrated verbatim from inline styles;
+   do not alter them without a visual review. --- */
+
+.cell-num {
+  text-align: right;
+}
+
+.row-split {
+  justify-content: space-between;
+  align-items: center;
+}

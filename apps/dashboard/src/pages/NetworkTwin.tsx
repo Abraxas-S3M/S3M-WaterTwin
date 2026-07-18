@@ -288,8 +288,8 @@ export function NetworkTwin() {
                 <th>Rank</th>
                 <th>Zone</th>
                 <th>Suspected node</th>
-                <th style={{ textAlign: 'right' }}>Likelihood</th>
-                <th style={{ textAlign: 'right' }}>Residual pressure</th>
+                <th className="cell-num">Likelihood</th>
+                <th className="cell-num">Residual pressure</th>
               </tr>
             </thead>
             <tbody>
@@ -300,10 +300,10 @@ export function NetworkTwin() {
                     <td>{z.properties.rank}</td>
                     <td>{z.properties.zone_id}</td>
                     <td className="muted">{z.properties.suspected_node_id}</td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="cell-num">
                       {fmtNumber(z.properties.likelihood * 100, 0)}%
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="cell-num">
                       {fmtNumber(z.properties.residual_pressure_m, 2)} m
                     </td>
                   </tr>

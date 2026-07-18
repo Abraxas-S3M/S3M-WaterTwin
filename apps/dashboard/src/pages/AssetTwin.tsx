@@ -248,7 +248,7 @@ export function AssetTwin() {
                   {anomaly.data.ranked_domains.map(([domain, score]) => (
                     <tr key={domain}>
                       <td>{titleCase(domain)}</td>
-                      <td style={{ textAlign: 'right' }}>{fmtNumber(score, 3)}</td>
+                      <td className="cell-num">{fmtNumber(score, 3)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -267,7 +267,7 @@ export function AssetTwin() {
             <thead>
               <tr>
                 <th>{t('asset.telemetryTable.metric')}</th>
-                <th style={{ textAlign: 'right' }}>{t('asset.telemetryTable.value')}</th>
+                <th className="cell-num">{t('asset.telemetryTable.value')}</th>
                 <th>{t('asset.telemetryTable.unit')}</th>
                 <th>{t('asset.telemetryTable.quality')}</th>
                 <th>{t('asset.telemetryTable.provenance')}</th>
@@ -277,7 +277,7 @@ export function AssetTwin() {
               {telemetry.data.map((r) => (
                 <tr key={r.metric}>
                   <td>{titleCase(r.metric)}</td>
-                  <td style={{ textAlign: 'right' }}>{fmtNumber(r.value, 2)}</td>
+                  <td className="cell-num">{fmtNumber(r.value, 2)}</td>
                   <td className="muted">{r.unit}</td>
                   <td className="muted">{r.quality ?? t('common.dash')}</td>
                   <td>
@@ -359,14 +359,14 @@ export function AssetTwin() {
                 <thead>
                   <tr>
                     <th>{t('asset.horizon')}</th>
-                    <th style={{ textAlign: 'right' }}>{t('asset.pFailure')}</th>
+                    <th className="cell-num">{t('asset.pFailure')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {['24h', '7d', '30d', '90d'].map((h) => (
                     <tr key={h}>
                       <td>{h}</td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td className="cell-num">
                         {fmtNumber(
                           (failureProbability.data.failure_probability.horizons[h] ?? 0) * 100,
                           0,
@@ -407,7 +407,7 @@ export function AssetTwin() {
             <thead>
               <tr>
                 <th>{t('asset.rootCauseTable.cause')}</th>
-                <th style={{ textAlign: 'right' }}>{t('asset.rootCauseTable.probability')}</th>
+                <th className="cell-num">{t('asset.rootCauseTable.probability')}</th>
                 <th>{t('asset.rootCauseTable.evidence')}</th>
               </tr>
             </thead>
@@ -415,7 +415,7 @@ export function AssetTwin() {
               {rootCause.data.root_cause.ranked_causes.map((c) => (
                 <tr key={c.cause}>
                   <td>{c.cause}</td>
-                  <td style={{ textAlign: 'right' }}>{fmtNumber(c.probability * 100, 0)}%</td>
+                  <td className="cell-num">{fmtNumber(c.probability * 100, 0)}%</td>
                   <td className="muted">{c.evidence}</td>
                 </tr>
               ))}

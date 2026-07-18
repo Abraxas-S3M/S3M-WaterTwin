@@ -122,7 +122,7 @@ export function Models() {
 
       {/* Regulatory compliance (A1 config store) */}
       <div className="card" data-testid="compliance-panel">
-        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="row row-split">
           <h3>Regulatory Compliance</h3>
           {evaluation ? (
             <span
@@ -152,7 +152,7 @@ export function Models() {
               <tr>
                 <th>Parameter</th>
                 <th>Stage</th>
-                <th style={{ textAlign: 'right' }}>Limit</th>
+                <th className="cell-num">Limit</th>
                 <th>Basis</th>
               </tr>
             </thead>
@@ -163,7 +163,7 @@ export function Models() {
                     {l.display_name} <code className="muted">{l.parameter}</code>
                   </td>
                   <td>{l.stage}</td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="cell-num">
                     {boundPhrase(l.bound)} {fmtNumber(l.limit, 2)} {l.unit}
                   </td>
                   <td className="muted">{l.basis}</td>
@@ -184,9 +184,9 @@ export function Models() {
               <tr>
                 <th>Parameter</th>
                 <th>Stage</th>
-                <th style={{ textAlign: 'right' }}>Value</th>
-                <th style={{ textAlign: 'right' }}>Limit</th>
-                <th style={{ textAlign: 'right' }}>Over by</th>
+                <th className="cell-num">Value</th>
+                <th className="cell-num">Limit</th>
+                <th className="cell-num">Over by</th>
                 <th>Basis</th>
               </tr>
             </thead>
@@ -197,13 +197,13 @@ export function Models() {
                     <strong>{e.display_name}</strong>
                   </td>
                   <td>{e.stage}</td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="cell-num">
                     {fmtNumber(e.value, 2)} {e.unit}
                   </td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="cell-num">
                     {boundPhrase(e.bound)} {fmtNumber(e.limit, 2)} {e.unit}
                   </td>
-                  <td style={{ textAlign: 'right' }}>{fmtNumber(e.exceedance_pct, 1)}%</td>
+                  <td className="cell-num">{fmtNumber(e.exceedance_pct, 1)}%</td>
                   <td className="muted">{e.basis}</td>
                 </tr>
               ))}

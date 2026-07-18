@@ -171,7 +171,7 @@ export function TrainingSimulator() {
                     <th>Completed</th>
                     <th>Drill</th>
                     <th>Operator</th>
-                    <th style={{ textAlign: 'right' }}>Score</th>
+                    <th className="cell-num">Score</th>
                     <th>Result</th>
                   </tr>
                 </thead>
@@ -181,7 +181,7 @@ export function TrainingSimulator() {
                       <td>{fmtTime(r.completed_at)}</td>
                       <td>{r.scenario_title}</td>
                       <td className="muted">{r.operator}</td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td className="cell-num">
                         <strong>{fmtNumber(r.score.percentage, 0)}%</strong>
                       </td>
                       <td>
@@ -201,7 +201,7 @@ export function TrainingSimulator() {
       ) : (
         <>
           <div className="card" data-testid="training-twin">
-            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="row row-split">
               <h3>
                 {session.scenario.title}
                 <ProvenanceBadge provenance="simulated" className="prov-inline" />
@@ -230,7 +230,7 @@ export function TrainingSimulator() {
                   <tr>
                     <th>Asset</th>
                     <th>Metric</th>
-                    <th style={{ textAlign: 'right' }}>Value</th>
+                    <th className="cell-num">Value</th>
                     <th>Unit</th>
                     <th>Provenance</th>
                   </tr>
@@ -240,7 +240,7 @@ export function TrainingSimulator() {
                     <tr key={`${t.asset_id}-${t.metric}-${i}`}>
                       <td>{t.asset_id}</td>
                       <td>{titleCase(t.metric)}</td>
-                      <td style={{ textAlign: 'right' }}>{fmtNumber(t.value, 2)}</td>
+                      <td className="cell-num">{fmtNumber(t.value, 2)}</td>
                       <td className="muted">{t.unit}</td>
                       <td>
                         <ProvenanceBadge provenance={t.provenance} />
@@ -359,7 +359,7 @@ export function TrainingSimulator() {
 
           {record ? (
             <div className="card" data-testid="training-score">
-              <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="row row-split">
                 <h3>
                   Training Record
                   <ProvenanceBadge provenance="simulated" className="prov-inline" />
