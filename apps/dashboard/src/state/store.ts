@@ -30,10 +30,10 @@ export type PageId =
   | 'resilience'
   | 'executive'
   | 'assistant'
-  | 'administration';
-  | 'models';
-  | 'security';
-  | 'admin-facilities';
+  | 'administration'
+  | 'models'
+  | 'security'
+  | 'admin-facilities'
   | 'training';
 
 // Presentation mode of the whole console. `standard` is the desktop/tablet

@@ -8,13 +8,13 @@
 //   - `facility-operator` is scoped to the specific facility (or facilities)
 //                         assigned to it and never sees the rest of the fleet.
 
-export type Role = 'viewer' | 'operator' | 'engineer' | 'admin' | 'auditor' | 'security';
 export type Role =
   | 'viewer'
   | 'operator'
   | 'engineer'
   | 'admin'
   | 'auditor'
+  | 'security'
   | 'tenant-admin'
   | 'facility-operator';
 
@@ -61,11 +61,13 @@ export function canAdministerConfig(roles: readonly string[]): boolean {
 
 export function canApproveConfig(roles: readonly string[]): boolean {
   return hasAny(roles, 'admin');
+}
 // The Cyber-Physical Security views + signed SIEM export are gated to the
 // security role (admin is a superset). This is a UX affordance only; the API
 // independently enforces the same gate on every request.
 export function canReadSecurity(roles: readonly string[]): boolean {
   return hasAny(roles, 'security', 'admin');
+}
 // Multi-facility administration: a tenant-admin (or platform admin) may view and
 // manage every facility in the tenant. A facility-operator is scoped to its own
 // facility and must not reach the fleet-wide administration surface.

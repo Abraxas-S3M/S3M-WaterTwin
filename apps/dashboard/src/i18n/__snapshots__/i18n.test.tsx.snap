@@ -17,9 +17,44 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
       وحدة تحكم المشغّل
     </div>
   </div>
+  <div
+    class="facility-switcher"
+    data-testid="facility-switcher"
+  >
+    <span
+      class="facility-switcher-label"
+    >
+      Acme Water Co
+    </span>
+    <select
+      aria-label="Active facility"
+      class="facility-switcher-select"
+      data-testid="facility-switcher-select"
+    >
+      <option
+        data-testid="facility-option-FAC-ALPHA"
+        value="FAC-ALPHA"
+      >
+        SWRO Alpha
+      </option>
+      <option
+        data-testid="facility-option-FAC-BETA"
+        value="FAC-BETA"
+      >
+        SWRO Beta
+      </option>
+      <option
+        data-testid="facility-option-FAC-GAMMA"
+        value="FAC-GAMMA"
+      >
+        SWRO Gamma
+      </option>
+    </select>
+  </div>
   <button
     aria-current="page"
     class="nav-item active"
+    data-testid="nav-command"
   >
     <span>
       نظرة عامة على القيادة
@@ -27,6 +62,7 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
   </button>
   <button
     class="nav-item"
+    data-testid="nav-process"
   >
     <span>
       التوأم الرقمي للعملية
@@ -34,6 +70,15 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
   </button>
   <button
     class="nav-item"
+    data-testid="nav-network"
+  >
+    <span>
+      Network Twin
+    </span>
+  </button>
+  <button
+    class="nav-item"
+    data-testid="nav-asset"
   >
     <span>
       التوأم الرقمي للأصل
@@ -41,6 +86,7 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
   </button>
   <button
     class="nav-item"
+    data-testid="nav-water-quality"
   >
     <span>
       جودة المياه
@@ -48,6 +94,7 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
   </button>
   <button
     class="nav-item"
+    data-testid="nav-predictive-maintenance"
   >
     <span>
       الصيانة التنبؤية
@@ -55,6 +102,15 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
   </button>
   <button
     class="nav-item"
+    data-testid="nav-maintenance-center"
+  >
+    <span>
+      Maintenance Center
+    </span>
+  </button>
+  <button
+    class="nav-item"
+    data-testid="nav-energy"
   >
     <span>
       تحسين الطاقة
@@ -62,6 +118,7 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
   </button>
   <button
     class="nav-item"
+    data-testid="nav-resilience"
   >
     <span>
       قيادة المرونة
@@ -69,6 +126,7 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
   </button>
   <button
     class="nav-item"
+    data-testid="nav-executive"
   >
     <span>
       القيمة التنفيذية / العائد على الاستثمار
@@ -76,6 +134,15 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
   </button>
   <button
     class="nav-item"
+    data-testid="nav-models"
+  >
+    <span>
+      Models & Compliance
+    </span>
+  </button>
+  <button
+    class="nav-item"
+    data-testid="nav-assistant"
   >
     <span>
       مساعد العمليات
@@ -83,6 +150,28 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
   </button>
   <button
     class="nav-item"
+    data-testid="nav-security"
+  >
+    <span>
+      Cyber-Physical Security
+    </span>
+  </button>
+  <button
+    class="nav-item"
+    data-testid="nav-training"
+  >
+    <span>
+      Training Simulator
+    </span>
+    <span
+      class="phase-tag"
+    >
+      SIMULATION
+    </span>
+  </button>
+  <button
+    class="nav-item"
+    data-testid="nav-simulation"
   >
     <span>
       مركز المحاكاة
@@ -93,6 +182,66 @@ exports[`RTL layout > switches the document direction to RTL and mirrors the she
       المرحلة 8–9
     </span>
   </button>
+  <button
+    class="nav-item"
+    data-testid="nav-administration"
+  >
+    <span>
+      Administration
+    </span>
+  </button>
+  <div
+    aria-label="Display & reports"
+    class="nav-group"
+  >
+    <div
+      class="nav-group-title"
+    >
+      Display & reports
+    </div>
+    <button
+      class="nav-item"
+      data-testid="enter-control-room"
+    >
+      <span>
+        Control Room display
+      </span>
+    </button>
+    <button
+      class="nav-item"
+      data-testid="open-shift-report"
+    >
+      <span>
+        Print shift report
+      </span>
+    </button>
+    <button
+      class="nav-item"
+      data-testid="open-executive-report"
+    >
+      <span>
+        Print executive report
+      </span>
+    </button>
+  </div>
+  <div
+    class="nav-section"
+    data-testid="admin-nav-section"
+  >
+    <div
+      class="nav-section-title"
+    >
+      Administration
+    </div>
+    <button
+      class="nav-item"
+      data-testid="nav-admin-facilities"
+    >
+      <span>
+        Multi-Facility
+      </span>
+    </button>
+  </div>
   <div
     style="flex: 1 1 0%;"
   />

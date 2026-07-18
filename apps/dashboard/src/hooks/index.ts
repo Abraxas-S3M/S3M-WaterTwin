@@ -534,6 +534,10 @@ export function useUsage(): UseQueryResult<UsageResponse> {
   return useQuery({
     queryKey: queryKeys.usage,
     queryFn: api.getUsage,
+    refetchInterval: POLL_INTERVAL_MS * 4,
+  });
+}
+
 // --- Cyber-Physical Security hooks (advisory, read-only) ---
 
 export function useSecurityOverview(): UseQueryResult<SecurityOverviewResponse> {
@@ -600,6 +604,10 @@ export function useLeakLocalization(): UseQueryResult<LeakLocalizationResponse> 
   return useQuery({
     queryKey: queryKeys.leakLocalization,
     queryFn: api.getLeakLocalization,
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+}
+
 // --- Model governance registry (D1/D2) + compliance (A1 config store) ---
 
 export function useModels(): UseQueryResult<ModelsResponse> {
@@ -712,6 +720,9 @@ export function useRejectConfig() {
   return useMutation({
     mutationFn: (body?: ConfigActionRequest) => api.rejectConfig(body),
     onSuccess: invalidate,
+  });
+}
+
 // --- Operator Training Simulator hooks (SIMULATION, sandboxed) ---
 
 export function useTrainingScenarios(): UseQueryResult<TrainingScenariosResponse> {

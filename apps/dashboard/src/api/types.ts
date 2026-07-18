@@ -1002,6 +1002,8 @@ export interface UpdateVerifyResponse {
   applied: boolean;
   note: string;
   control_boundary: ControlBoundary;
+}
+
 // --- Network Twin (GeoJSON topology + C1 leak-localization overlay) ---
 
 // Minimal GeoJSON shapes (lon, lat). Kept local so the dashboard does not take
@@ -1088,6 +1090,8 @@ export interface LeakLocalizationResponse {
   preliminary: boolean;
   provenance: DataProvenance;
   candidate_zones: LeakCandidateZoneFeature[];
+}
+
 // --- Administration / Configuration Workbench (A1: /api/v1/config) ---
 //
 // Mirrors the configuration document served by the /api/v1/config API. The
@@ -1242,6 +1246,8 @@ export type ConfigDraftPayload = Pick<
 export interface ConfigActionRequest {
   actor?: string;
   note?: string | null;
+}
+
 // --- Model governance registry (D1/D2 governance) ---
 
 export type DriftStatus = 'stable' | 'watch' | 'drifting' | 'unknown';
@@ -1289,7 +1295,7 @@ export interface ModelsResponse {
 
 export type LimitBound = 'max' | 'min';
 
-export interface ComplianceLimit {
+export interface RegulatoryComplianceLimit {
   parameter: string;
   display_name: string;
   unit: string;
@@ -1301,7 +1307,7 @@ export interface ComplianceLimit {
 }
 
 export interface ComplianceLimitsResponse {
-  limits: ComplianceLimit[];
+  limits: RegulatoryComplianceLimit[];
   count: number;
   control_boundary: ControlBoundary;
 }
@@ -1332,6 +1338,8 @@ export interface ComplianceStatusResponse {
   provenance: DataProvenance;
   control_boundary: ControlBoundary;
   disclaimer: string;
+}
+
 // --- Cyber-Physical Security (advisory, read-only) ---
 
 export type SecurityStatus = 'ok' | 'attention' | 'alert';
@@ -1429,6 +1437,8 @@ export interface SiemExportResponse {
     signed_fields: string[];
     detail: string;
   };
+}
+
 // --- Operator Training Simulator (SIMULATION, sandboxed, read-only) ---
 
 export type TrainingScenarioType =
