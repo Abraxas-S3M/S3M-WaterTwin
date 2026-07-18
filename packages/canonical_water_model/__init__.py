@@ -70,6 +70,7 @@ __all__ = [
     "ExecutiveValueSummary",
     "ROIEstimate",
     "DocumentType",
+    "DocumentProvenance",
     "DocumentRef",
     "AssistantQuery",
     "AssistantResponse",
@@ -313,6 +314,10 @@ class Evidence(BaseModel):
     telemetry_window: str
     assets_reviewed: list[str] = Field(default_factory=list)
     documents_reviewed: list[str] = Field(default_factory=list)
+    #: Rich citations for the reviewed documents. ``documents_reviewed`` keeps the
+    #: flat id list for backwards compatibility; ``citations`` adds the display
+    #: title, resolvable location and provenance badge for each cited source.
+    citations: list[DocumentRef] = Field(default_factory=list)
     simulation_ids: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     data_timestamp: str
@@ -988,12 +993,30 @@ class DocumentType(str, Enum):
     maintenance_record = "maintenance_record"
 
 
+class DocumentProvenance(str, Enum):
+    """Where a grounding document came from.
+
+    ``platform_seeded`` documents ship with the platform; ``customer_supplied``
+    documents were uploaded by a customer and only become retrievable after the
+    approval gate. This lets a citation carry a visible badge so an operator can
+    always tell whose document an answer was grounded in.
+    """
+
+    platform_seeded = "platform_seeded"
+    customer_supplied = "customer_supplied"
+
+
 class DocumentRef(BaseModel):
     """A reference to a retrieved operations document (not its full body).
 
     ``score`` is the keyword-retrieval relevance score (higher = more relevant);
     ``snippet`` is a short excerpt for display. Semantic / pgvector retrieval is
     a later hardening upgrade -- retrieval is honest keyword matching for now.
+
+    ``provenance`` distinguishes platform-seeded from customer-supplied sources
+    (defaults to platform-seeded for backwards compatibility). ``page`` /
+    ``section`` / ``location`` pin a citation to a resolvable place inside the
+    source document so an operator can find exactly where an answer came from.
     """
 
     document_id: str
@@ -1003,6 +1026,10 @@ class DocumentRef(BaseModel):
     tags: list[str] = Field(default_factory=list)
     score: Optional[float] = None
     snippet: Optional[str] = None
+    provenance: DocumentProvenance = DocumentProvenance.platform_seeded
+    page: Optional[int] = None
+    section: Optional[str] = None
+    location: Optional[str] = None
 
 
 class AssistantQuery(BaseModel):
