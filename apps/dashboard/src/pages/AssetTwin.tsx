@@ -43,7 +43,11 @@ function EnvelopeGauge({ envelope }: { envelope: OperatingEnvelope }) {
         const value = (envelope[key] as number) ?? 0;
         const pct = Math.max(0, Math.min(100, value * 100));
         const danger = key !== 'at_bep_fraction';
-        const color = !danger ? '#2ecc71' : pct >= 25 ? '#e67e22' : '#f1c40f';
+        const color = !danger
+          ? 'var(--envelope-ok)'
+          : pct >= 25
+            ? 'var(--envelope-over)'
+            : 'var(--envelope-nearlimit)';
         return (
           <div className="contrib-row" key={key}>
             <div>

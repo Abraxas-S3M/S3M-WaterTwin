@@ -10,9 +10,9 @@ interface Props {
 }
 
 const actionColor: Record<string, string> = {
-  recommendation_created: '#38bdf8',
-  recommendation_approved: '#2ecc71',
-  recommendation_rejected: '#e74c3c',
+  recommendation_created: 'var(--audit-created)',
+  recommendation_approved: 'var(--audit-approved)',
+  recommendation_rejected: 'var(--audit-rejected)',
 };
 
 export function AuditTrail({ entries, provenance, loading }: Props) {
@@ -35,7 +35,7 @@ export function AuditTrail({ entries, provenance, loading }: Props) {
             <div className="audit-entry" key={e.id}>
               <span
                 className="dot"
-                style={{ background: actionColor[e.action] ?? '#8b95a5' }}
+                style={{ background: actionColor[e.action] ?? 'var(--audit-default)' }}
               />
               <div>
                 <div className="spread">

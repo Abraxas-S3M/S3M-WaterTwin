@@ -23,7 +23,11 @@ export function ContributionBreakdown({ contributions }: Props) {
       {contributions.map((c) => {
         const negative = c.delta < 0;
         const widthPct = (Math.abs(c.delta) / maxAbs) * 50;
-        const color = negative ? (c.delta <= -6 ? '#e74c3c' : '#f1c40f') : '#2ecc71';
+        const color = negative
+          ? c.delta <= -6
+            ? 'var(--delta-adverse-strong)'
+            : 'var(--delta-adverse)'
+          : 'var(--delta-favourable)';
         return (
           <div className="contrib-row" key={c.factor}>
             <div>

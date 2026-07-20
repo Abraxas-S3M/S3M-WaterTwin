@@ -23,7 +23,7 @@ function bandColor(band: string): string {
     case 'Exemplary':
       return 'var(--ok)';
     case 'Proficient':
-      return '#a3e635';
+      return 'var(--grade-proficient)';
     case 'Developing':
       return 'var(--warn)';
     default:
